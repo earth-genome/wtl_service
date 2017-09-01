@@ -1,0 +1,99 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Python Flask Bucket List App</title>
+
+   
+    <link href="http://getbootstrap.com/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <link href="http://getbootstrap.com/examples/jumbotron-narrow/jumbotron-narrow.css" rel="stylesheet">
+    <link href="../static/css/signup.css" rel="stylesheet">
+    <script src="../static/js/jquery-1.11.2.js"></script>
+    <script src="../static/js/signUp.js"></script>
+   
+  </head>
+
+  <body>
+
+    <div class="container">
+      <div class="header">
+        <h3 class="text-muted">Is this story worthy of additional investigation?</h3>
+      </div>
+
+      <div class="jumbotron">
+
+        <div class="container">
+          <div class="row">
+            <div class="col-6">
+              <button id="yes" class="btn btn-lg btn-success btn-block" type="button">Yes</button>
+            </div>
+            <div class="col-6">
+              <button id="no" class="btn btn-lg btn-danger btn-block" type="button">No</button>
+            </div>
+          </div>
+        </div>
+
+        <br>
+        <br>
+
+        <div class="container">
+          <div class="row">
+            <div class="col-12">
+              <h5> {{ data.title }} </h5>
+            </div>
+          </div>
+        </div>
+
+        <br>
+
+        <div class="container">
+          <div class="row">
+            <div class="col-3">
+              <a href="{{ data.url }}" target="_blank"> {{ data.outlet }} </a>
+            </div>
+            <div class="col-9 text-right">
+                {{ data.publishedAt }}
+            </div>
+          </div>
+        </div>
+
+        <br> 
+
+        <div class="container">
+          <div class="row">
+            <div class="col-12">
+              {{ data.description }}
+            </div>
+          </div>
+        </div>
+
+        <br>
+
+        <div class="container">
+          {% for e in data.locations %}
+            <div class="row"> 
+              <div class="col-10">
+                <a href="https://www.google.com/maps/preview/@{{e.geo.lat}},{{e.geo.lng}},16z" target="_blank">
+                  {{ e.text }} 
+                </a>
+              </div>
+              <div class="col-2">
+                {{ e.relevance }}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+
+      </div>
+
+      
+
+      <footer class="footer">
+        <p>&copy; Metaflux 2017</p>
+      </footer>
+
+    </div>
+  </body>
+</html>
+
