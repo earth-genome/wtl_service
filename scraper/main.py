@@ -40,6 +40,8 @@ def process():
 					url=article['url']
 				)
 
+				print s.url
+				
 				if s.check_uploaded():
 					pass
 				else:

@@ -30,7 +30,8 @@ class newStory:
 			"title": self.title,
 			"outlet": self.outlet,
 			"date": self.date,
-			"description": self.description
+			"description": self.description,
+            "url": self.url
 		}
 
 
