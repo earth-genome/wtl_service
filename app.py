@@ -24,18 +24,26 @@ def scrape():
 @app.route('/classify')
 def classify():
 
-    # Grab the first unvetted story in the geolocated table
-    params={
-        'orderBy': '"vetted"', 
-        'equalTo': 'false',
-        'limitToFirst': 1
-    }
+    try:
+        # Grab the first unvetted story in the geolocated table
+        params={
+            'orderBy': '"vetted"', 
+            'equalTo': 'false',
+            'limitToFirst': 1
+        }
 
-    res = fb.get("/", "raw_geo", params=params)
-    [idx] = res.keys()
-    [content] = res.values()
+        res = fb.get("/", "raw_geo", params=params)
+        [idx] = res.keys()
+        [content] = res.values()
 
-    return render_template('classify.html', data=content['meta'], idx=idx)
+        return render_template('classify.html', data=content['meta'], idx=idx)
+
+    except:
+        # TODO: make this better able to handle bad requests.  Note that if
+        # there are no unvetted stories, the fb.get request yields a 400 (bad
+        # request) error, which is indistinguishable from other firebase
+        # errors.
+        return render_template('noneleft.html')
 
 
 @app.route('/vet_story/<int:idx>')
