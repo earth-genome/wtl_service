@@ -6,14 +6,46 @@ import requests
 from story import newStory
 from config import NEWS_API_KEY
 
+OUTLETS = [
+	"time",
+	"bloomberg",
+	"the-washington-post",
+	"the-new-york-times",
+	"reuters",
+	"national-geographic",
+	"hacker-news",
+	"newsweek",
+	"mirror",
+	"mtv-news",
+	"google-news",
+	"mashable",
+	"polygon",
+	"techcrunch",
+	"the-economist",
+	"the-next-web",
+	"fortune",
+	"associated-press",
+	"financial-times",
+	"recode",
+	"techradar",
+	"the-huffington-post",
+	"the-verge",
+	"metro",
+	"business-insider-uk",
+	"cnbc",
+	"cnn",
+	"daily-mail",
+	"engadget",
+	"focus",
+	"reddit-r-all",
+	"the-hindu",
+	"the-times-of-india",
+	"usa-today"
+]
 
 def process():
 	
-	base_url = 'https://newsapi.org/v1/sources'
-	data = requests.get(base_url, params={'language': 'en'})
-	outlets = [x['id'] for x in data.json()['sources']]	
-	
-	for outlet in outlets:
+	for outlet in OUTLETS:
 
 		# TODO: Figure out if calling "top" vs. "latest" gets us more than 10
 		# stories at a time for each outlet
