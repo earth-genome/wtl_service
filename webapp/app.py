@@ -7,6 +7,7 @@ from datetime import datetime
 from config import FIREBASE_URL
 
 app = Flask(__name__)
+app.secret_key = 'super-secret-key'
 
 
 # Connect to firebase database.
@@ -81,5 +82,4 @@ def bucket(idx):
 
 
 if __name__ == '__main__':
-    app.secret_key = os.urandom(12)
     app.run(host='0.0.0.0', debug=True)
