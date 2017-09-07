@@ -1,6 +1,7 @@
-from flask import Flask, render_template, json, request, redirect, url_for
+from flask import Flask, render_template, json, request, redirect, url_for, session, flash
 import firebase
 import random
+import os
 from scraper import main
 from datetime import datetime
 from config import FIREBASE_URL
@@ -20,11 +21,22 @@ def scrape():
     main.process()
 
 
+@app.route('/')
+def home():
+    if not session.get('logged_in'):
+        return render_template('login.html')
+    else:
+        return redirect(url_for('classify'))
 
-@app.route('/login')
-def login():
-    return render_template('login.html')
-
+ 
+@app.route('/login', methods=['POST'])
+def do_admin_login():
+    print(request.form['password'])
+    if request.form['password'] == 'organize' and request.form['username'] == 'resist':
+        session['logged_in'] = True
+    else:
+        flash('wrong password!')
+    return home()
 
 
 @app.route('/classify')
@@ -69,6 +81,6 @@ def bucket(idx):
     return redirect(url_for('classify'))
 
 
-
-if __name__ == "__main__":
-    app.run(port=5000)
+if __name__ == '__main__':
+    app.secret_key = os.urandom(12)
+    app.run(host='0.0.0.0', debug=True)
