@@ -30,8 +30,7 @@ def home():
 
  
 @app.route('/login', methods=['POST'])
-def do_admin_login():
-    print(request.form['password'])
+def do_login():
     if request.form['password'] == 'organize' and request.form['username'] == 'resist':
         session['logged_in'] = True
     else:
