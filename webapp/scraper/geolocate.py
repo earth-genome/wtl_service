@@ -46,7 +46,32 @@ bad_list = [
 	'Arts Home',
 	'Help Centre',
 	'Holland Park',
-	'Club Metro'
+	'Club Metro',
+	"Jamia Masjid",
+	"Atlantic Ocean",
+	"Florida Turnpike",
+	"French island",
+	"Target store",
+	"Caribbean Sea",
+	"The Home Depot",
+	"Beach Plaza",
+	"Tokyo Station",
+	"Hang Seng Index",
+	"Asia Pacific",
+	"Abhimanyu Ghoshal",
+	"Limited Quay House",
+	"Project Runway",
+	"National Geographic",
+	"Abu Dhabi",
+	"Princess Juliana St Maarten Airport",
+	"Maho beach",
+	"Atlantic Ocean",
+	"Beach Plaza",
+	"British Virgin Island Tortola",
+	"New York Fashion",
+	"Toronto Film Festival",
+	"New York",
+	"Monaco Grand Prix"
 ]
 
 
