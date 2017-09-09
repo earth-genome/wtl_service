@@ -1,0 +1,47 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Metaflux Login</title>
+
+   
+    <link href="https://getbootstrap.com/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../static/css/classify.css" rel="stylesheet">
+   
+  </head>
+
+  <body>
+
+    <br><br><br><br>
+
+    <div class="container">
+      <div class="text-center">
+        <img src="../static/images/logo.png">
+      </div>
+    </div>
+
+    <br><br>
+
+  
+    <div class="container">
+      <div class="text-center">
+        <form action="/login" method="POST" class="form-signin">
+
+          <label for="username" class="sr-only">username</label>
+          <input type="username" name="username" id="username" class="form-control" placeholder="username" required autofocus>
+
+          <br>
+
+          <label for="password" class="sr-only">password</label>
+          <input type="password" name="password" id="password" class="form-control" placeholder="password" required autofocus>
+
+          <br>
+          <input type="submit" value="Log in" class="btn btn-outline-primary btn-block" >   
+
+        </form>       
+      </div>
+    </div>
+
+  </body>
+</html>
+

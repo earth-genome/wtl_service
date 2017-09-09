@@ -1,0 +1,5 @@
+NEWS_API_KEY = 'eb53420a213b46e8be51d89f18e87e11'
+FIREBASE_URL = 'https://metaflux-screener.firebaseio.com'
+GOOGLE_GEO_API_KEY = 'AIzaSyD7juQAE6OZhwLI_2Dwz7k9s5VUv032U_c'
+WATSON_USER = "66b08509-e65c-4e2e-b400-3b509d35486c"
+WATSON_PASS = "d7LMDaQ61MDm"
