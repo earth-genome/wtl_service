@@ -71,7 +71,8 @@ bad_list = [
 	"New York Fashion",
 	"Toronto Film Festival",
 	"New York",
-	"Monaco Grand Prix"
+	"Monaco Grand Prix",
+	"Abhimanyu Ghoshal"
 ]
 
 
