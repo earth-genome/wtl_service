@@ -19,12 +19,12 @@ Run tests using `pytest`:
 docker run -v /path/to/news-scrape:/code/ -it newsscrape_web /bin/sh
 # now you're inside the container
 $ pytest
+================= test session starts ========================
+platform linux2 -- Python 2.7.12, pytest-3.2.2, py-1.4.34, pluggy-0.4.0
+rootdir: /code, inifile:
+collected 2 items
 
-    def test_news_api_key():
->       assert type(config.NEWS_API_KEY) == 'str'
-E       AssertionError: assert <type 'str'> == 'str'
-E        +  where <type 'str'> = type('eb53420a213b46e8be51d89f18e87e11')
-E        +    where 'eb53420a213b46e8be51d89f18e87e11' = config.NEWS_API_KEY
+Scrape/scrape/test/config_test.py ..
 
-Scrape/scrape/test/config_test.py:5: AssertionError
+============== 2 passed in 0.12 seconds ======================
 ```
