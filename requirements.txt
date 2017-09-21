@@ -1,12 +1,9 @@
 gunicorn
-Jinja2
-Werkzeug
-distribute
-wsgiref
 flask
 html2text
 requests
 watson-developer-cloud
 beautifulsoup4
 python-firebase
+pytest
 
