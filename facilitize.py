@@ -45,4 +45,5 @@ def acceptable_entity(entity):
 
 
 
+
 # [e for e in entities if acceptable_entity(e)]

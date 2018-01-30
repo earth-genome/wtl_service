@@ -1,1 +1,5 @@
 watson-developer-cloud
+python-firebase
+requests
+beautifulsoup4
+html2text
