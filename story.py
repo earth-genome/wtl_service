@@ -9,7 +9,9 @@ import extract_text
 import facilitize
 import geolocate
 
-FORBIDDEN_CHARS = '.$[]#/'
+import pdb
+
+FB_FORBIDDEN_CHARS = '.$[]#/'
 
 class DBItem(object):
 
@@ -21,17 +23,22 @@ class DBItem(object):
 
     def add_facilities(self):
         
-        text = extract_text(self.record['url'])
-        entities = facilitize.entity_extraction(text)
+        chunks = extract_text.get_text(self.record['url'])
+        entities = []
+        for c in chunks:
+            entities += facilitize.entity_extraction(c)
         entities = [e for e in entities if facilitize.acceptable_entity(e)]
-        self.record['locations'] = []
-        for e in enumerate(entities):
-            cleaned = {
-                'text': entity['text'],
-                'coords': geolocate.geocode(e),
-                'relevance': entity['relevance']
-            }
-            self.record['locations'].append(cleaned)
+        self.record['locations'] = {}
+        for e in entities:
+            coords = geolocate.geocode(e['text'])
+            if coords is not None:
+                cleaned = {
+                    'coords': coords,
+                    'relevance': e['relevance']
+                }
+                self.record['locations'].update({e['text']:cleaned})
+        if not self.record['locations']:
+            self.record['locations'] = 'Unlocated'
         return
 
     def add_locations(self, **descriptors):
@@ -44,10 +51,11 @@ class DBItem(object):
         
         
        
-def make_idx(record, max_len=64):
+def make_idx(record, max_len=96):
 
     try:
-        date = record['date']
+        pdb.set_trace()
+        date = record['date'] # TODO: convert to isoformat if necess.
     except KeyError:
         date = datetime.datetime.utcnow().isoformat()
         date = date.split('.')[0] + 'Z'
@@ -56,10 +64,10 @@ def make_idx(record, max_len=64):
     except KeyError:
         title = ''
     #idx = date.join(str(ord(c)) for c in title)
-    idx = date + title # TODO: remove any FORBIDDEN_CHARS
+    idx = date + ' ' + title # TODO: remove any FB_FORBIDDEN_CHARS
     return idx[:max_len]
     
-def story_from_url(url):
+def story_from_url(url, category='/stories'):
 
     soup = BeautifulSoup(urllib2.urlopen(url))
     record = {'url':url}
@@ -73,7 +81,7 @@ def story_from_url(url):
         pass
 
     idx = make_idx(record)
-    return DBItem('/story', idx, record)
+    return DBItem(category, idx, record)
 
 def story_from_newsapi():
     return
