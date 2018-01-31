@@ -37,7 +37,7 @@ def entity_extraction(text):
 def acceptable_entity(entity):
 	# Returns True if the supplied entity is acceptable, i.e., a facility or
 	# geographic feature AND not in the bad list.  Else False.
-	if entity['type'] in ['Facility', 'GeographicFeature']:
+	if entity['type'] in ['Facility', 'GeographicFeature', 'NaturalEvent']:
 		if entity['text'] not in BAD_SET:
 			return True
 	else:
