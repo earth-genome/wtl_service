@@ -2,6 +2,7 @@
 import requests
 import html2text
 from bs4 import BeautifulSoup
+import pdb
 
 def process_html(html):
 	# Accepts HTML and returns the text therein.
@@ -21,20 +22,20 @@ def process_html(html):
 
 def chunk_text(text, N=8, chunk_size=800):
 	# Accepts a large string.  Returns a list of `N` chunks, each with
-	# `chunk_size` words.  
-	text = BeautifulSoup(text).text.encode('UTF-8')
-	words = text.split()
-	words = [str(x) for x in words]
+	# `chunk_size` words.
+    text = BeautifulSoup(text,'html.parser').text.encode('UTF-8')
+    words = text.split()
+    words = [str(x) for x in words]
 
-	def _chunks(l, n):
+    def _chunks(l, n):
 	    # Yield successive n-sized chunks from l.
-	    for i in range(0, len(l), n):
-	        yield l[i:i + n]
+        for i in range(0, len(l), n):
+            yield l[i:i + n]
 
-	return [' '.join(t) for t in _chunks(words, chunk_size)][0:N]
+    return [' '.join(t) for t in _chunks(words, chunk_size)][0:N]
 
 
 def get_text(url):
-	html_text = requests.get(url).text
-	text = process_html(html_text)
-	return chunk_text(text)
+    html_text = requests.get(url).text
+    text = process_html(html_text)
+    return chunk_text(text)
