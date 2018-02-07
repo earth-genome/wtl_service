@@ -16,13 +16,14 @@ new_text:
     
 """
 
-import urllib2
+import requests
 from bs4 import BeautifulSoup
 
 import firebaseio
 import extract_text
 import facilitize
 import geolocate
+from extract_text import BAD_REQUESTS, FAUX_HEADERS
 
 
 def new_story(url, category='/stories', **kwargs):
@@ -37,16 +38,19 @@ def new_story(url, category='/stories', **kwargs):
     """
     
     record = {'url':url}
-    if 'title' not in kwargs.keys() or 'date' not in kwargs.keys():
-        soup = BeautifulSoup(urllib2.urlopen(url), 'html.parser')
+    if 'title' not in kwargs.keys():
+        html = requests.get(url, verify=False)
+        if html.status_code in BAD_REQUESTS:
+            html = requests.get(url, verify=False, headers=FAUX_HEADERS)
+        soup = BeautifulSoup(html.content, 'html.parser')
     try:
-        record['title'] = soup.title.string
+        record['title'] = soup.title.string.strip()
     except:
         pass
-    try:
-        record['date'] = soup.time.attrs['datetime']
-    except:
-        pass
+    #try:
+    #    record['date'] = soup.time.attrs['datetime']
+    #except:
+    #    pass
     record.update(kwargs)
     story = firebaseio.DBItem(category,None,record)
     return story
@@ -66,6 +70,7 @@ def find_facilities(story, text_chunks=None):
         if coords is not None:
             cleaned = {
                 'coords': coords,
+                'type': e['type'],
                 'relevance': e['relevance']
             }
             locations.update({e['text']:cleaned})
@@ -93,11 +98,11 @@ def new_text(story, category='/texts'):
     text_chunks = extract_text.get_text(story.record['url'])
     return firebaseio.DBItem(category,story.idx,text_chunks)
 
-def check_sat(text_chunks, word='atellite'):
+def check_sat(text_chunks, chars='atellite'):
     """Check whether the word '(S)satellite' appears in text.
     """
     for c in text_chunks:
-        if word in c:
+        if chars in c:
             return True
     return False
 

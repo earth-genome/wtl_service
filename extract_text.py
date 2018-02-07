@@ -2,7 +2,12 @@
 import requests
 import html2text
 from bs4 import BeautifulSoup
-import pdb
+
+BAD_REQUESTS = [400, 401, 403]
+FAUX_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10;' +
+    'rv:39.0) Gecko/20100101 Firefox/39.0'
+}
 
 def process_html(html):
 	# Accepts HTML and returns the text therein.
@@ -36,6 +41,8 @@ def chunk_text(text, N=8, chunk_size=800):
 
 
 def get_text(url):
-    html_text = requests.get(url).text
-    text = process_html(html_text)
+    html = requests.get(url, verify=False)
+    if html.status_code in BAD_REQUESTS:
+        html = requests.get(url, verify=False, headers=FAUX_HEADERS)
+    text = process_html(html.text)
     return chunk_text(text)

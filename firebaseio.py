@@ -18,11 +18,9 @@ Class DB: Firebase database, with methods for manipulating
 
 import firebase
 import re
-import datetime
 from dateutil.parser import parse
 
-
-FB_FORBIDDEN_CHARS = u'[.$\[\]#/]'
+FB_FORBIDDEN_CHARS = u'[.$\[\]#/\n]'
 KNOWN_GL_CATEGORIES = [
     '/stories',
     '/satellite_stories',
@@ -67,13 +65,13 @@ class DB(firebase.FirebaseApplication):
     # the firebase query functionality does not exist in the python api.
     # Achtung! This will possibly touch every item in the database.
     def find_item(self,idx):
-        item = None
+        item = {c:None for c in KNOWN_GL_CATEGORIES}
         for c in KNOWN_GL_CATEGORIES:
             items = self.get(c,None)
             if items is not None:
                 try:
                     record = items[idx]
-                    item = DBItem(c,idx,record)
+                    item[c] = DBItem(c,idx,record)
                 except KeyError:
                     pass
         return item
@@ -112,21 +110,28 @@ class DBItem(object):
     def make_idx(self, max_len=96):
         """Construct an index for a database item from date/time and title.
 
-        If date/time are not available, the time of generation
-        (noted by '-gen') is substituted.  Title may be null.
+        Lacking both, the url is substituted.
 
         Returns: a unicode string.
         """
         try:
             date = parse(self.record['date']).isoformat()
         except KeyError:
-            date = datetime.datetime.utcnow().isoformat()
-            date = date.split('.')[0] + 'Z-gen'
+            date = ''
         try:
             title = self.record['title']
         except KeyError:
             title = ''
-        idx = date + ' ' + title
+        if date is not '':
+            idx = date + ' ' + title
+        elif title is not '':
+            idx = title
+        else:
+            try: 
+                idx = record['url']
+            except KeyError:               
+                raise
+
         idx = re.sub(FB_FORBIDDEN_CHARS,'',idx)
         return idx[:max_len]
     

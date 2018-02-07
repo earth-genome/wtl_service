@@ -14,7 +14,7 @@ def geocode(text):
 		'key': GOOGLE_GEO_API_KEY
     }
 
-    data = requests.get(base, params=payload).json()
+    data = requests.get(base, params=payload, verify=False).json()
 
     if data['status'] == 'OK':
         return data['results'][0]['geometry']['location']
