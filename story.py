@@ -18,6 +18,7 @@ new_text:
 
 import requests
 from bs4 import BeautifulSoup
+import re
 
 import firebaseio
 import extract_text
@@ -73,7 +74,8 @@ def find_facilities(story, text_chunks=None):
                 'type': e['type'],
                 'relevance': e['relevance']
             }
-            locations.update({e['text']:cleaned})
+            name = re.sub(firebaseio.FB_FORBIDDEN_CHARS,'',e['text'])
+            locations.update({name:cleaned})
     if not locations:
         locations = 'Unlocated'
     return {'locations':locations}

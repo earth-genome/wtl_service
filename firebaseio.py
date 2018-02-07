@@ -20,7 +20,7 @@ import firebase
 import re
 from dateutil.parser import parse
 
-FB_FORBIDDEN_CHARS = u'[.$\[\]#/\n]'
+FB_FORBIDDEN_CHARS = u'[.$\[\]#/?\n]'
 KNOWN_GL_CATEGORIES = [
     '/stories',
     '/satellite_stories',

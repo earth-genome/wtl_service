@@ -12,7 +12,6 @@ import firebaseio
 def good_story(url):
     """Upload story to firebase database."""
     story_item = story.new_story(url)
-    story_item.idx = 'Algae'
     text_item = story.new_text(story_item)
     locations = story.find_facilities(story_item,text_item.record)
     story_item.record.update(locations)
