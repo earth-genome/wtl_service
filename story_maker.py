@@ -21,38 +21,39 @@ from bs4 import BeautifulSoup
 import re
 
 import firebaseio
-import extract_text
 import facilitize
 import geolocate
+import extract_text
 from extract_text import BAD_REQUESTS, FAUX_HEADERS
 
+import pdb
 
-def new_story(url, category='/stories', **kwargs):
+
+def new_story(category='/stories', **metadata):
     """Create a database entry for the story at given url.
 
     Args:
-        url (required)
         category
-        kwargs to include, possibly, title, date, outlet, description, and
-        and other data to be inscribed in the record
-    Return: A DBItem instance
-    """
-    
-    record = {'url':url}
-    if 'title' not in kwargs.keys():
+        metadata to include url (required), and optionally,
+         title, date, outlet, description, etc.
+    Returns: A DBItem instance
+    """    
+    url = metadata['url']
+    record = {}
+    if 'title' not in metadata.keys():
         html = requests.get(url, verify=False)
         if html.status_code in BAD_REQUESTS:
             html = requests.get(url, verify=False, headers=FAUX_HEADERS)
         soup = BeautifulSoup(html.content, 'html.parser')
-    try:
-        record['title'] = soup.title.string.strip()
-    except:
-        pass
-    #try:
-    #    record['date'] = soup.time.attrs['datetime']
-    #except:
-    #    pass
-    record.update(kwargs)
+        try:
+            record['title'] = soup.title.string.strip()
+        except:
+            pass
+        try:
+            record['date'] = soup.time.attrs['datetime']
+        except:
+            pass
+    record.update(metadata)
     story = firebaseio.DBItem(category,None,record)
     return story
 
@@ -78,11 +79,13 @@ def find_facilities(story, text_chunks=None):
             locations.update({name:cleaned})
     if not locations:
         locations = 'Unlocated'
-    return {'locations':locations}
+    return {'locations': locations}
 
 def add_facilities(story, text_chunks=None):
     """Adds facilities directly to a DBItem story.
     """
+    if text_chunks == None:
+        text_chunks = new_text(story).record
     story.record.update(find_facilities(story, text_chunks))
 
 def new_location(name, record, story=None, category='/locations'):

@@ -108,13 +108,16 @@ class DBItem(object):
             self.idx = idx
 
     def make_idx(self, max_len=96):
-        """Construct an index for a database item from date/time and title.
+        """Construct an index for a database item.
 
-        Lacking both, the url is substituted.
+        Generically, idx is based on title, but it includes date if drawn
+        from Newsapi (with outlet known). Lacking title, the url is
+        substituted.
 
         Returns: a unicode string.
         """
         try:
+            outlet = self.record['outlet']
             date = parse(self.record['date']).isoformat()
         except KeyError:
             date = ''
