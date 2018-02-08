@@ -3,7 +3,6 @@ import config
 from watson_developer_cloud import NaturalLanguageUnderstandingV1
 import watson_developer_cloud.natural_language_understanding_v1 as natty
 
-
 # Defines a global set of words that are repeatedly surfaced as facilities,
 # even though we don't want to include them.  Add new facilies as a separate
 # line (without quotations) to bad_list.txt
@@ -37,11 +36,11 @@ def entity_extraction(text):
 def acceptable_entity(entity):
 	# Returns True if the supplied entity is acceptable, i.e., a facility or
 	# geographic feature AND not in the bad list.  Else False.
-	if entity['type'] in ['Facility', 'GeographicFeature']:
-		if entity['text'] not in BAD_SET:
-			return True
-	else:
-		return False
+    if entity['type'] in ['Facility', 'GeographicFeature', 'NaturalEvent']:
+        if entity['text'] not in BAD_SET:
+            return True
+    else:
+        return False
 
 
 
