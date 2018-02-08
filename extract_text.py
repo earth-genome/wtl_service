@@ -2,6 +2,9 @@
 import requests
 import html2text
 from bs4 import BeautifulSoup
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 BAD_REQUESTS = [400, 401, 403]
 FAUX_HEADERS = {
