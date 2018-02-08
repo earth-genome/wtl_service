@@ -14,7 +14,7 @@ def good_story(url):
     try:
         story = story_maker.new_story(url=url)
     except Exception as e:
-        print('Exception passed: {}'.format(e))
+        print('Exception passed: {}'.format(str(e)))
         print('\nFailed to create story from url {}\n'.format(url))
         return
     text = story_maker.new_text(story)

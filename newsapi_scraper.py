@@ -7,20 +7,17 @@ import config
 import story_maker
 import firebaseio
 
-import pdb
-
 BASE_URL = 'https://newsapi.org/v1/articles'
 with open('newsapi_outlets.txt','r') as f:
     OUTLETS = [line.strip() for line in f]
 
-# single outlet for testing
-# OUTLETS = OUTLETS[-1]
+# restrict to a single outlet for testing
+# OUTLETS = [OUTLETS[-2]]
 
 def scrape():
 
     storyseeds = firebaseio.DB(config.FIREBASE_URL)
-    logname = 'newsapi'+datetime.date.today().isoformat()+'.log'
-    log = open(logname,'a')
+    log = ''
     for outlet in OUTLETS:
         # TODO: Figure out if calling "top" vs. "latest" gets us more than 10
 		# stories at a time for each outlet
@@ -33,8 +30,8 @@ def scrape():
             data = requests.get(BASE_URL, params=payload)
             articles = data.json()['articles']
         except Exception as e:
-            log.write('Call for {} to NewsAPI:\n'.format(outlet))
-            log.write('Exception: {}\n'.format(e))
+            log += 'Call for {} to NewsAPI:\n'.format(outlet)
+            log += 'Exception: {}\n'.format(repr(e))
             continue
 
         for article in articles:
@@ -57,11 +54,13 @@ def scrape():
                             category='/geolocated', **story.record)
                         storyseeds.put_item(geoloc)
             except Exception as e:
-                log.write('Article {}\n'.format(url))
-                log.write('Exception: {}\n'.format(e))
+                log += 'Article {}\n'.format(url)
+                log += 'Exception: {}\n'.format(repr(e))
                 continue
-                    
-    log.close()
+    if log != '':
+        logfile = 'newsapi'+datetime.date.today().isoformat()+'.log'
+        with open(logfile,'a') as f:
+            f.write(log)               
     print('complete')
     return
 
