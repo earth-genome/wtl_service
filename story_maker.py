@@ -1,4 +1,4 @@
-"""
+"""Create story, text, location items for upload to Firebase.
 
 External functions:
 
@@ -10,8 +10,15 @@ find_facitilties:
     Find and geolocate features or events in a story.
     Returns: A dict of locations, their coordinates, and relevance
 
+add_facilities:
+    Calls find_facilities and adds them directly to a story record
+
 new_text:
     Creates a database entry for the text of a given story
+    Returns: A DBItem instance
+
+new_location:
+    Creates a database entry for a named facility or geographic feature
     Returns: A DBItem instance
     
 """
@@ -26,7 +33,6 @@ import geolocate
 import extract_text
 from extract_text import BAD_REQUESTS, FAUX_HEADERS
 
-import pdb
 
 
 def new_story(category='/stories', **metadata):
@@ -58,8 +64,7 @@ def new_story(category='/stories', **metadata):
     return story
 
 def find_facilities(story, text_chunks=None):
-    """Find and geolocate features or events in a story.
-    """
+    """Find and geolocate features or events in a story."""
     if text_chunks is None:
         text_chunks = extract_text.get_text(story.record['url'])
     entities = []

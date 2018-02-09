@@ -8,7 +8,6 @@ import sys
 import config
 import story_maker
 import firebaseio
-import pdb
 
 def good_story(url):
     """Upload story to firebase database."""

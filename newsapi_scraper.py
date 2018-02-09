@@ -1,4 +1,12 @@
-# TODO: import routines from news-scrape/webapp/scraper/main.py
+"""Process current stories from NewsAPI.
+
+The endpoint for a processed story is a Firebase database story item,
+including possibly geolocated facilities identified in the stories.
+
+External function:  scrape()
+Or from main: python newsapi_scraper.py
+
+"""
 
 import os
 import requests
@@ -12,9 +20,6 @@ BASE_URL = 'https://newsapi.org/v1/articles'
 with open('newsapi_outlets.txt','r') as f:
     OUTLETS = [line.strip() for line in f]
 LOG_DIR = 'NewsAPIlogs'
-
-# restrict to a single outlet for testing
-# OUTLETS = [OUTLETS[-2]]
 
 def scrape():
 
