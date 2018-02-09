@@ -88,14 +88,24 @@ def add_facilities(story, text_chunks=None):
         text_chunks = new_text(story).record
     story.record.update(find_facilities(story, text_chunks))
 
-def new_location(name, record, story=None, category='/locations'):
+def new_location(name, record=None, story=None, category='/locations'):
     """Create database item for a location.
     """
-    #WIP
-    record = {coords:location['coords']}
+    if record is not None:
+        try:
+            record.pop('relevance')
+        except KeyError:
+            pass
+    else:
+        record = {}
+        try:
+            coords = geolocate.geocode(name)
+            record.update({'coords': coords})
+        except:
+            pass
     if story is not None:
-        record.update({stories:story.idx})
-    return firebaseio.DBItem(category,location,text_chunks)
+        record.update({'stories': [story.idx]})
+    return firebaseio.DBItem(category,name,record)
     
 def new_text(story, category='/texts'):
     """Create database item from story text.
