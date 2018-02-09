@@ -3,3 +3,7 @@ python-firebase
 requests
 beautifulsoup4
 html2text
+urllib3
+re
+dateutil
+datetime
