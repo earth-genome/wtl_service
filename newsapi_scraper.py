@@ -1,5 +1,14 @@
-# TODO: import routines from news-scrape/webapp/scraper/main.py
+"""Process current stories from NewsAPI.
 
+The endpoint for a processed story is a Firebase database story item,
+including possibly geolocated facilities identified in the stories.
+
+External function:  scrape()
+Or from main: python newsapi_scraper.py
+
+"""
+
+import os
 import requests
 import datetime
 
@@ -10,9 +19,7 @@ import firebaseio
 BASE_URL = 'https://newsapi.org/v1/articles'
 with open('newsapi_outlets.txt','r') as f:
     OUTLETS = [line.strip() for line in f]
-
-# restrict to a single outlet for testing
-# OUTLETS = [OUTLETS[-2]]
+LOG_DIR = 'NewsAPIlogs'
 
 def scrape():
 
@@ -54,11 +61,14 @@ def scrape():
                             category='/geolocated', **story.record)
                         storyseeds.put_item(geoloc)
             except Exception as e:
-                log += 'Article {}\n'.format(url)
+                log += 'Article {}\n'.format(article['url'])
                 log += 'Exception: {}\n'.format(repr(e))
                 continue
     if log != '':
-        logfile = 'newsapi'+datetime.date.today().isoformat()+'.log'
+        if not os.path.exists(LOG_DIR):
+            os.makedirs(LOG_DIR)
+        logfile = os.path.join(LOG_DIR,
+                               datetime.date.today().isoformat()+'.log')
         with open(logfile,'a') as f:
             f.write(log)               
     print('complete')

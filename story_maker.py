@@ -1,4 +1,4 @@
-"""
+"""Create story, text, location items for upload to Firebase.
 
 External functions:
 
@@ -10,8 +10,15 @@ find_facitilties:
     Find and geolocate features or events in a story.
     Returns: A dict of locations, their coordinates, and relevance
 
+add_facilities:
+    Calls find_facilities and adds them directly to a story record
+
 new_text:
     Creates a database entry for the text of a given story
+    Returns: A DBItem instance
+
+new_location:
+    Creates a database entry for a named facility or geographic feature
     Returns: A DBItem instance
     
 """
@@ -26,7 +33,6 @@ import geolocate
 import extract_text
 from extract_text import BAD_REQUESTS, FAUX_HEADERS
 
-import pdb
 
 
 def new_story(category='/stories', **metadata):
@@ -58,8 +64,7 @@ def new_story(category='/stories', **metadata):
     return story
 
 def find_facilities(story, text_chunks=None):
-    """Find and geolocate features or events in a story.
-    """
+    """Find and geolocate features or events in a story."""
     if text_chunks is None:
         text_chunks = extract_text.get_text(story.record['url'])
     entities = []
@@ -88,14 +93,24 @@ def add_facilities(story, text_chunks=None):
         text_chunks = new_text(story).record
     story.record.update(find_facilities(story, text_chunks))
 
-def new_location(name, record, story=None, category='/locations'):
+def new_location(name, record=None, story=None, category='/locations'):
     """Create database item for a location.
     """
-    #WIP
-    record = {coords:location['coords']}
+    if record is not None:
+        try:
+            record.pop('relevance')
+        except KeyError:
+            pass
+    else:
+        record = {}
+        try:
+            coords = geolocate.geocode(name)
+            record.update({'coords': coords})
+        except:
+            pass
     if story is not None:
-        record.update({stories:story.idx})
-    return firebaseio.DBItem(category,location,text_chunks)
+        record.update({'stories': [story.idx]})
+    return firebaseio.DBItem(category,name,record)
     
 def new_text(story, category='/texts'):
     """Create database item from story text.
