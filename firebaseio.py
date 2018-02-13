@@ -16,7 +16,7 @@ Class DB: Firebase database, with methods for manipulating
 
 """
 
-import firebase
+from firebase.firebase import FirebaseApplication
 import re
 from dateutil.parser import parse
 
@@ -28,7 +28,7 @@ KNOWN_GL_CATEGORIES = [
     '/texts'
     ]
 
-class DB(firebase.FirebaseApplication):
+class DB(FirebaseApplication):
     """Firebase database. 
 
     Attributes:
@@ -45,7 +45,7 @@ class DB(firebase.FirebaseApplication):
     """
 
     def __init__(self,database_url):
-        firebase.FirebaseApplication.__init__(self,database_url, None)
+        FirebaseApplication.__init__(self,database_url, None)
         self.url = database_url
     
     def put_item(self,item):
