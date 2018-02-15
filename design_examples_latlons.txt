@@ -1,0 +1,14 @@
+36.1992 37.1568 1.0 # Aleppo mosque, bombed 3/16/17 (and Aleppo town bombing )
+3.3814 32.0147 3.5 #Pagirinya Refugee Settlement, Uganda
+36.6577 37.1279 3.0 #Shamarin refugee camps, Syria
+-1.6037 110.4472 8.0 # Lembah Hijau Dua palm plantation (fire) (fail)
+-12.8750 -70.0339 3.0 # Peru gold mining / deforestation (IKONOS)
+51.6032 -.0657 1.0 # White Hart Lane stadium construction
+18.9103 -67.0833 6.0 # Lake Poopo, recently dried. (no images found)
+33.3203 38.6797 6.0 # Rukban crossing refugee camp
+38.7458 -121.1294 3.0 #Folsom Lake (drought)
+34.4043 -119.4464 3.0 # Carpinteria fires
+46.4180 -100.6321 2.0 # Oceti Sakowin (Standing Rock) camp (retrieve fail)
+39.9426 -74.0740 1.0 # Seaside Heights, NJ (Hurricane Sandy, Oct 2012) (retrieve fail)
+40.5899 -73.6299 4.0 # Lido Beach, Long Beach, dunes and no dunes (Sandy)
+37.0560 -121.0938 8.0 # San Luis Reservoir drought
