@@ -12,6 +12,7 @@ import os
 import requests
 import datetime
 
+import random
 import config
 import story_maker
 import firebaseio
@@ -19,6 +20,7 @@ import firebaseio
 BASE_URL = 'https://newsapi.org/v1/articles'
 with open('newsapi_outlets.txt','r') as f:
     OUTLETS = [line.strip() for line in f]
+random.shuffle(OUTLETS)
 LOG_DIR = 'NewsAPIlogs'
 
 def scrape():
