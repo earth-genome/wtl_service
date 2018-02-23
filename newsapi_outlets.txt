@@ -27,7 +27,6 @@ cnbc
 cnn
 daily-mail
 engadget
-focus
 reddit-r-all
 the-hindu
 the-times-of-india
