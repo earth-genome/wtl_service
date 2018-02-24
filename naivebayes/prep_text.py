@@ -46,7 +46,7 @@ def build_stop_words(files=STOP_WORD_FILES):
     stop_words = ENGLISH_STOP_WORDS.union(new_words)
     return stop_words
 
-def vectorize(texts, stop_words='english'):
+def vectorize(texts, stop_words=build_stop_words()):
     """Transform an input list of strings to Tf-idf vectors.
 
     Arguments:
@@ -65,7 +65,7 @@ def vectorize(texts, stop_words='english'):
     vectors = vectorizer.fit_transform(texts)
     return vectors, vectorizer
 
-def count_vectorize(texts, stop_words='english'):
+def count_vectorize(texts, stop_words=build_stop_words()):
     """Transform an input list of strings to vectors of word counts.
 
     Arguments:
