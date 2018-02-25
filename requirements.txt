@@ -7,3 +7,6 @@ urllib3
 re
 dateutil
 datetime
+sklearn
+nltk
+functools
