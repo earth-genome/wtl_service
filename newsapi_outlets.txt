@@ -31,3 +31,10 @@ reddit-r-all
 the-hindu
 the-times-of-india
 usa-today
+al-jazeera-english
+abc-news-au
+bbc-news
+cbc-news
+the-globe-and-mail
+wired
+the-guardian-uk
