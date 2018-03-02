@@ -142,8 +142,9 @@ def freeze_model(nbc, data, labels, x_val_scores, freeze_dir):
     now = datetime.datetime.now().isoformat()
     modelfile = os.path.join(freeze_dir, now + 'model.pkl')
     datafile = os.path.join(freeze_dir, now + 'data.pkl')
-    joblib.dump((nbc.vectorizer, nbc.classifier), modelfile)
-    joblib.dump((data, labels, x_val_scores), datafile)
+    # temp: protocol=2 for back compatibility with python2.7
+    joblib.dump((nbc.vectorizer, nbc.classifier), modelfile, protocol=2)
+    joblib.dump((data, labels, x_val_scores), datafile, protocol=2)
 
     # reset symlink LATEST_MODEL to point to current model
     latest = os.path.join(freeze_dir, LATEST_MODEL)
