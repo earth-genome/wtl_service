@@ -1,10 +1,13 @@
 # Add to good_locations database a story that is a good candidate to
 # have been or that already has been enhanced by satellite imagery.
 
-# usage: python good_story.py http://mystory.nytimes.com
+# usage: python good_story.py http://mystory.nytimes.com [-n] [-h]
 
-import sys
+# Optional flags:
+# -h: Help
+# -n: This is a negative training case.
 
+import argparse
 import config
 import story_maker
 import firebaseio
@@ -50,6 +53,23 @@ def good_story(url):
     """
     return
 
+def neg_story(url):
+    """Upload a negative training case to firebase database."""
+    try:
+        story = story_maker.new_story(url=url)
+    except Exception as e:
+        print('Exception passed: {}'.format(repr(e)))
+        print('\nFailed to create story from url {}\n'.format(url))
+        return
+    text = story_maker.new_text(story)
+    
+    # uploads
+    negbase = firebaseio.DB(config.FIREBASE_NEG_URL)
+    negbase.put_item(story)
+    log_url(url, 'sat_neg_cases.txt')
+    negbase.put_item(text)
+    return
+
 def log_url(url, logfile):
     """Local logging of urls."""
     with open(logfile,'r+') as f:
@@ -59,13 +79,23 @@ def log_url(url, logfile):
     return
 
 if __name__ == '__main__':
-    try:
-        url = sys.argv[1]
-    except IndexError:
-        print('Usage: python good_story.py http://mystory.nytimes.com')
-        sys.exit(1)
-    good_story(url)
-
-
-
+    parser = argparse.ArgumentParser(
+        description='Add a story to a Firebase story database.'
+    )
+    parser.add_argument(
+        'url',
+        type=str,
+        help='URL of story to upload.'
+    )
+    parser.add_argument(
+        '-n', '--negative_case',
+        action='store_true',
+        help=('Flag: This is a negative training case. ' +
+            '(True if set, else False.)')
+    )
+    args = parser.parse_args()
+    if args.negative_case:
+        neg_story(args.url)
+    else:
+        good_story(args.url)
 

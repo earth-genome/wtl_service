@@ -31,7 +31,7 @@ def process_html(html):
 def chunk_text(text, N=8, chunk_size=800):
 	# Accepts a large string.  Returns a list of `N` chunks, each with
 	# `chunk_size` words.
-    text = BeautifulSoup(text,'html.parser').text.encode('UTF-8')
+    text = BeautifulSoup(text,'html.parser').text
     words = text.split()
     words = [str(x) for x in words]
 

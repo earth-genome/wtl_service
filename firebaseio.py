@@ -16,7 +16,7 @@ Class DB: Firebase database, with methods for manipulating
 
 """
 
-import firebase
+from firebase.firebase import FirebaseApplication
 import re
 from dateutil.parser import parse
 
@@ -28,7 +28,7 @@ KNOWN_GL_CATEGORIES = [
     '/texts'
     ]
 
-class DB(firebase.FirebaseApplication):
+class DB(FirebaseApplication):
     """Firebase database. 
 
     Attributes:
@@ -45,7 +45,7 @@ class DB(firebase.FirebaseApplication):
     """
 
     def __init__(self,database_url):
-        firebase.FirebaseApplication.__init__(self,database_url, None)
+        FirebaseApplication.__init__(self,database_url, None)
         self.url = database_url
     
     def put_item(self,item):
@@ -110,31 +110,18 @@ class DBItem(object):
     def make_idx(self, max_len=96):
         """Construct an index for a database item.
 
-        Generically, idx is based on title, but it includes date if drawn
-        from Newsapi (with outlet known). Lacking title, the url is
+        Generically, idx is based on title. Lacking title, the url is
         substituted.
 
         Returns: a unicode string.
         """
         try:
-            outlet = self.record['outlet']
-            date = parse(self.record['date']).isoformat()
+            idx = self.record['title']
         except KeyError:
-            date = ''
-        try:
-            title = self.record['title']
-        except KeyError:
-            title = ''
-        if date is not '':
-            idx = date + ' ' + title
-        elif title is not '':
-            idx = title
-        else:
-            try: 
+            try:
                 idx = record['url']
             except KeyError:               
                 raise
-
         idx = re.sub(FB_FORBIDDEN_CHARS,'',idx)
         return idx[:max_len]
     

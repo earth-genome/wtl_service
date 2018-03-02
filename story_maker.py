@@ -118,11 +118,11 @@ def new_text(story, category='/texts'):
     text_chunks = extract_text.get_text(story.record['url'])
     return firebaseio.DBItem(category,story.idx,text_chunks)
 
-def check_sat(text_chunks, chars='atellite'):
+def check_sat(text_chunks, chars='satellite'):
     """Check whether the word '(S)satellite' appears in text.
     """
     for c in text_chunks:
-        if chars in c:
+        if chars in c.lower():
             return True
     return False
 
