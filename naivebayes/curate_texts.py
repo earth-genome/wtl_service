@@ -22,9 +22,9 @@ GOOD_LOCATIONS = firebaseio.DB(config.FIREBASE_GL_URL)
 NEGATIVE_TRAINING_CASES = firebaseio.DB(config.FIREBASE_NEG_URL)
 STORY_SEEDS = firebaseio.DB(config.FIREBASE_URL)
 
-def grab(database):
+def grab(database, category='/texts'):
     """Download texts from a Firebase database."""
-    texts_dict = database.get('/texts', None)
+    texts_dict = database.get(category, None)
     texts = [' '.join(chunks) for chunks in texts_dict.values()]
     return list(texts_dict.keys()), texts
 

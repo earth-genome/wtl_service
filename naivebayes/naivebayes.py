@@ -45,6 +45,7 @@ import os
 import sys
 
 from sklearn.externals import joblib
+from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
 
 # TODO: better module handling
@@ -53,8 +54,12 @@ import curate_texts
 import extract_text
 import prep_text
 
+import pdb
+
 MODEL_DIR = 'NBmodels'
 LATEST_MODEL = 'latest_model.pkl'
+POS_DB = curate_texts.GOOD_LOCATIONS
+NEG_DB = curate_texts.NEGATIVE_TRAINING_CASES
 
 
 class NBClassifier(object):
@@ -104,39 +109,36 @@ class NBClassifier(object):
         prob = self.__call__([text])[0]
         return prob
 
-    def predict_db_texts(self, database):
-        """Return probability for all texts in a Firebase database."""
+    def predict_db_texts(self, database, threshold=None):
+        """Return probabilities for texts in a Firebase database.
+
+        Keyword argument:
+            threshold: If given, only those texts with probabilities greater
+            than threshold are returned (None or float in [0,1)).
+
+        Returns: dict of text names and probabilities
+        """
         names, texts = curate_texts.grab(database)
         probs = self.__call__(texts)
-        return {name:prob for name,prob in zip(names, probs)}
-
-    def classify_db_texts(self, database, threshold=.7):
-        """Find texts meeting probability threshold in a Firebase database."""
-        predictions = self.predict_db_texts(database)
-        positives = {name:prob for name, prob in predictions.items()
-                     if prob >= threshold}
-        return positives
+        predictions = {name:prob for name,prob in zip(names, probs)}
+        if threshold is not None:
+            predictions = {
+                name:prob for name, prob in predictions.items()
+                if prob >= threshold
+            }
+        return predictions
             
-def train_model(data, labels, cross_validate=False, freeze_dir=None):
-    """Train a binary mutltinomial naive-Bayes text classifier.
+def train_model(vectors, labels, vectorizer):
+    """Train a binary mutltinomial naive-Bayes classifier.
 
-    Returns: An NBClassifer instance; if a freeze_dir is given, the
-        model is additionally pickled to disk.
+    Returns: An NBClassifer instance
     """
-    vectors, vectorizer = prep_text.vectorize(data)
     classifier = MultinomialNB().fit(vectors, labels)
     nbc = NBClassifier(vectorizer=vectorizer, classifier=classifier)
-    if cross_validate:
-        # TODO
-        pass
-    else:
-        x_val_scores = None
-    if freeze_dir is not None:
-        freeze_model(nbc, data, labels, x_val_scores, freeze_dir)
     return nbc
 
-def freeze_model(nbc, data, labels, x_val_scores, freeze_dir):
-    """Pickle model and training data + cross validation scores."""
+def freeze_model(nbc, model_data, freeze_dir):
+    """Pickle model and training data."""
     if not os.path.exists(freeze_dir):
         os.makedirs(freeze_dir)
     now = datetime.datetime.now().isoformat()
@@ -144,7 +146,7 @@ def freeze_model(nbc, data, labels, x_val_scores, freeze_dir):
     datafile = os.path.join(freeze_dir, now + 'data.pkl')
     # temp: protocol=2 for back compatibility with python2.7
     joblib.dump((nbc.vectorizer, nbc.classifier), modelfile, protocol=2)
-    joblib.dump((data, labels, x_val_scores), datafile, protocol=2)
+    joblib.dump(model_data, datafile, protocol=2)
 
     # reset symlink LATEST_MODEL to point to current model
     latest = os.path.join(freeze_dir, LATEST_MODEL)
@@ -160,29 +162,43 @@ def freeze_model(nbc, data, labels, x_val_scores, freeze_dir):
     os.symlink(filenames[0], latest)
     return
 
-def train_from_dbs(neg_db, pos_db,
-                   cross_validate=False, freeze_dir='NBmodels'):
-    """Train from our Firebase databases."""
-    neg_texts = curate_texts.grab(neg_db)[1]
-    pos_texts = curate_texts.grab(pos_db)[1]
+def train_from_dbs(neg_db=NEG_DB, pos_db=POS_DB, category='/texts',
+                   test_frac=0, freeze_dir=MODEL_DIR):
+    """Train from our Firebase databases.
+
+    Keyword arguments:
+        dbcat: '/texts' (and eventually (?) '/keywords', '/imagewords')
+        test_frac: Fraction of data to be reserved for testing (default 0).
+        freeze_dir: If given, the model will be pickled to disk in this dir.
+
+    Returns an NBClassifier instance and test_score
+    """
+    neg_texts = curate_texts.grab(neg_db, category)[1]
+    pos_texts = curate_texts.grab(pos_db, category)[1]
     texts =  neg_texts + pos_texts
     labels = ([0 for _ in range(len(neg_texts))] +
               [1 for _ in range(len(pos_texts))])
-    nbc = train_model(texts, labels,
-                      cross_validate=cross_validate, freeze_dir=freeze_dir)
-    return nbc
+    if category == '/texts':
+        vectors, vectorizer = prep_text.vectorize(texts)
+    # random_state=0 provides the same shuffle every time 
+    train_vectors, test_vectors, train_labels, test_labels = train_test_split(
+            vectors, labels, test_size=test_frac, random_state=0)
+    nbc = train_model(train_vectors, train_labels, vectorizer)
+    if test_vectors.shape[0] > 0:
+        score = nbc.classifier.score(test_vectors, test_labels)
+    else:
+        score = None
+    if freeze_dir is not None:
+        model_data = {
+            'texts': texts,
+            'labels': labels,
+            'train_data': (train_vectors, train_labels),
+            'test_data': (test_vectors, test_labels),
+            'test_score': score
+        }
+        freeze_model(nbc, model_data, freeze_dir)
+    return nbc, score
 
-# TODO:  turn this into cross validation (using classifier.score method)
-def test_model(train_data, train_targets, test_data, test_targets):
-    """Test a Multinomial Naive Bayes text classifier.
-    
-    Returns: error rate on a labeled test dataset.
-    """
-    vecs, izer = get_vectors(train_data)
-    classifier = MultinomialNB().fit(vecs, train_targets)
-    test_vecs = izer.transform(test_data)
-    preds = classifier.predict(test_vecs)
-    return np.mean(preds == test_targets)
         
 
 
