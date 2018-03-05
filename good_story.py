@@ -8,67 +8,29 @@
 # -n: This is a negative training case.
 
 import argparse
+
 import config
-import story_maker
 import firebaseio
 
-def good_story(url):
-    """Upload story to firebase database."""
+# logfiles
+LOG_NEG = 'sat_neg_cases.txt'
+LOG_POS = 'sat_pos_cases.txt'
+LOG_SAT = 'sat_stories.txt'
+
+def good_story(url, database, logfile):
+    """Upload story created from url to firebase database."""
     try:
-        story = story_maker.new_story(url=url)
+        record = extract_text.get_parsed_text(url)
+        record.update({'url':url})
+        story = firebaseio.DBITEM('/stories', None, record)
+        database.put_item(story)
+        log_url(url, logfile)
+        if check_sat(record['text']):
+            log_url(url, LOG_SAT)
     except Exception as e:
         print('Exception passed: {}'.format(repr(e)))
         print('\nFailed to create story from url {}\n'.format(url))
-        return
-    text = story_maker.new_text(story)
-    geolocs = story_maker.find_facilities(story,text.record)
-    story.record.update(geolocs)
-    # Future: add locations once locations extraction is refined
-    """
-    if geolocs['locations'] != 'Unlocated':
-        locations = [story_maker.new_location(name, record=rec, story=story)
-                 for name, rec in geolocs['locations'].iteritems()]
-    else:
-        locations = []
-    """
-    
-    # uploads
-    gl = firebaseio.DB(config.FIREBASE_GL_URL)
-    gl.put_item(story)
-    if story_maker.check_sat(text.record):
-        gl.put('/satellite_stories',story.idx,story.record)
-        log_url(url, 'sat_stories.txt')
-    else:
-        log_url(url, 'sat_candidates.txt')
-    gl.put_item(text)
-
-    """
-    for l in locations:
-        if not gl.check_known(l):
-            gl.put_item(l)
-        else:
-            existing_loc = gl.get('/locations', l.idx)
-            # TODO: reconcile l with existing_loc record, in partic
-            # adding current story to list of stories
-    """
-    return
-
-def neg_story(url):
-    """Upload a negative training case to firebase database."""
-    try:
-        story = story_maker.new_story(url=url)
-    except Exception as e:
-        print('Exception passed: {}'.format(repr(e)))
-        print('\nFailed to create story from url {}\n'.format(url))
-        return
-    text = story_maker.new_text(story)
-    
-    # uploads
-    negbase = firebaseio.DB(config.FIREBASE_NEG_URL)
-    negbase.put_item(story)
-    log_url(url, 'sat_neg_cases.txt')
-    negbase.put_item(text)
-    return
+    return 
 
 def log_url(url, logfile):
     """Local logging of urls."""
@@ -77,6 +39,14 @@ def log_url(url, logfile):
         if url not in lines:
             f.write(url+'\n')
     return
+
+def check_sat(text, chars='satellite'):
+    """Check whether the word '(S)satellite' appears in text.
+    """
+    if chars in text.lower():
+        return True
+    else:
+        return False
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -95,7 +65,10 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
     if args.negative_case:
-        neg_story(args.url)
+        database = firebaseio.DB(config.FIREBASE_NEG_URL)
+        logfile = LOG_NEG
     else:
-        good_story(args.url)
-
+        database = firebaseio.DB(config.FIREBASE_GL_URL)
+        logfile = LOG_POS
+        
+    story = good_story(args.url, database, logfile)

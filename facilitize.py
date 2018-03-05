@@ -1,48 +1,60 @@
+"""Reprocess entities returned from Watson Natural Language Understanding.
 
-import config
-from watson_developer_cloud import NaturalLanguageUnderstandingV1
-import watson_developer_cloud.natural_language_understanding_v1 as natty
+Reprocessing involves (1) filtering unwanted entities; (2) geolocating;
+(3) simplifying data returned to include only relevance and geocoordinates.
 
-# Defines a global set of words that are repeatedly surfaced as facilities,
-# even though we don't want to include them.  Add new facilies as a separate
-# line (without quotations) to bad_list.txt
+"""
+
+import re
+
+from firebaseio import FB_FORBIDDEN_CHARS
+import geolocate
+
+import pdb
+
+# include these entity types:
+ENTITY_TYPES = set(['Location', 'Facility', 'GeographicFeature',
+                'NaturalEvent'])
+
+# but exclude these subtypes:
+EXCLUDED_SUBTYPES = set([
+    'Continent',
+    'Country',
+    'Region',
+    'USState',
+    'StateOrCounty',
+    'MountainRange'
+])
+
+# And exclude these specific entities.  Add new excluded facilies as a
+# separate line (without quotations) to bad_list.txt.
 with open ("bad_list.txt", "r") as badfile:
     data = badfile.readlines()
-    BAD_SET = set([x.strip() for x in data])
+    EXCLUDED_ENTITIES = set([x.strip() for x in data])
 
+def reprocess(entities):
+    entities = filter_entities(entities)
+    return entities
+    cleaned = {}
+    for e in entities:
+        name = re.sub(FB_FORBIDDEN_CHARS, '', e['text'])
+        coords = geolocate.geocode(e['text'])
+        data = {'coords': coords, 'relevance': e['relevance']}
+        cleaned.update({name: data})
+    return cleaned
+    
+def filter_entities(entities):
+    """Filter entities against custom include/exclude sets."""
+    entities = [e for e in entities if e['type'] in ENTITY_TYPES]
+    entities = [e for e in entities if not excluded_subtype(e)]
+    entities = [e for e in entities if e['text'] not in EXCLUDED_ENTITIES]
+    return entities
 
-def entity_extraction(text):
-	# Accepts a string of text (without special characters) and returns all
-	# entities as identified by the IBM Watson developer APIs.  These entities
-	# are returned as a list of people, places, and things, which will be
-	# filtered to just find 'Facilities' or 'Geographic Features'
-	nlu = NaturalLanguageUnderstandingV1(
-		version='2017-02-27',
-		username=config.WATSON_USER,
-		password=config.WATSON_PASS
-	)
-
-	x = nlu.analyze(
-		text=text,
-		features=natty.Features(
-			entities=natty.EntitiesOptions(), 
-			keywords=natty.KeywordsOptions()
-		)
-	)
-
-	return x['entities']
-
-
-def acceptable_entity(entity):
-	# Returns True if the supplied entity is acceptable, i.e., a facility or
-	# geographic feature AND not in the bad list.  Else False.
-    if entity['type'] in ['Facility', 'GeographicFeature', 'NaturalEvent']:
-        if entity['text'] not in BAD_SET:
-            return True
-    else:
+def excluded_subtype(entity):
+    """Check subtypes against excluded set. Returns True if exlcuded."""
+    try:
+        subtypes = set(entity['disambiguation']['subtype'])
+    except KeyError:
         return False
-
-
-
-
-# [e for e in entities if acceptable_entity(e)]
+    return bool(subtypes.intersection(EXCLUDED_SUBTYPES))
+    

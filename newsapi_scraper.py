@@ -9,10 +9,11 @@ Or from main: python newsapi_scraper.py
 """
 
 import os
-import requests
-import datetime
 
+import datetime
 import random
+import requests
+
 import config
 import story_maker
 import firebaseio
@@ -52,16 +53,12 @@ def scrape():
                     'description': article['description'],
                     'date': article['publishedAt']
                 }
-                story = story_maker.new_story(
-                    category='/stories', **metadata)
+                story = firebaseio.DBITEM('/stories', None, metadata)
                 if not storyseeds.check_known(story):
-                    print(metadata['url'])
-                    story_maker.add_facilities(story)
                     storyseeds.put_item(story)
-                    if story.record['locations'] != 'Unlocated':
-                        geoloc = story_maker.new_story(
-                            category='/geolocated', **story.record)
-                        storyseeds.put_item(geoloc)
+                    print(metadata['url'])
+                    # TODO: add classifier / pipe output appropriately
+                    #full_record = extract_text.get_parsed_text(metadata['url'])
             except Exception as e:
                 log += 'Article {}\n'.format(article['url'])
                 log += 'Exception: {}\n'.format(repr(e))

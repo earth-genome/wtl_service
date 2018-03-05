@@ -1,51 +1,64 @@
-# extracts and chunks text from a web page into cleaned and manageable bites.
-import requests
-import html2text
-from bs4 import BeautifulSoup
-import urllib3
+"""Uses Watson Natural Language Understanding (NLU) to extract text,
+metadata, and higher-order features from input url.
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+Features are defined in parse_text(), currently:
+    metadata, entities, keywords
 
-BAD_REQUESTS = [400, 401, 403]
-FAUX_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.10;' +
-    'rv:39.0) Gecko/20100101 Firefox/39.0'
-}
+External functions:
+    get_text:  Returns text and metadata only from url
+    get_parsed_text:  Returns text and features from url, with
+        entities reprocessed with routines in facilitize.py
 
-def process_html(html):
-	# Accepts HTML and returns the text therein.
-	text_maker = html2text.HTML2Text()
-	text_maker.ignore_links = True
-	text_maker.bypass_tables = True
-	text_maker.unicode_snob = False
-	text_maker.decode_errors = 'ignore'
-	text_maker.ignore_links = True
-	text_maker.ignore_anchors = True
-	text_maker.ignore_images = True
-	text_maker.re_unescape = True
-	text_maker.skip_internal_links = True
+"""
 
-	return text_maker.handle(html)
+import watson_developer_cloud as wdc
+import watson_developer_cloud.natural_language_understanding_v1 as nlu
 
+from config import WATSON_USER, WATSON_PASS
+import facilitize
 
-def chunk_text(text, N=8, chunk_size=800):
-	# Accepts a large string.  Returns a list of `N` chunks, each with
-	# `chunk_size` words.
-    text = BeautifulSoup(text,'html.parser').text
-    words = text.split()
-    words = [str(x) for x in words]
-
-    def _chunks(l, n):
-	    # Yield successive n-sized chunks from l.
-        for i in range(0, len(l), n):
-            yield l[i:i + n]
-
-    return [' '.join(t) for t in _chunks(words, chunk_size)][0:N]
-
+AUTH = wdc.NaturalLanguageUnderstandingV1(
+        version='2017-02-27',
+        username=WATSON_USER,
+        password=WATSON_PASS
+)
 
 def get_text(url):
-    html = requests.get(url, verify=False)
-    if html.status_code in BAD_REQUESTS:
-        html = requests.get(url, verify=False, headers=FAUX_HEADERS)
-    text = process_html(html.text)
-    return chunk_text(text)
+    """Retrieve text and metadata (only) from url."""
+    x = AUTH.analyze(
+        url=url,
+        features=nlu.Features(
+            metadata=nlu.MetadataOptions() 
+        ),
+        return_analyzed_text=True
+    )
+
+    text = ' '.join(x['analyzed_text'].split())
+
+    return {'text': text, 'metadata': x['metadata']}
+
+def get_parsed_text(url):
+    """Retrieve text and select NLU features from url.
+
+    Text and entities are reprocessed before being returned.
+
+    Returns:  dict containing text, metadata, entities, keywords.
+    """
+    x = AUTH.analyze(
+        url=url,
+        features=nlu.Features(
+            metadata=nlu.MetadataOptions(),
+            entities=nlu.EntitiesOptions(), 
+			keywords=nlu.KeywordsOptions()
+        ),
+        return_analyzed_text=True
+    )
+
+    parsed = {
+        'text': ' '.join(x['analyzed_text'].split()),
+        'metadata': x['metadata'],
+        'locations': facilitize.reprocess(x['entities']),
+        'keywords': x['keywords']
+    }
+    return parsed
+
