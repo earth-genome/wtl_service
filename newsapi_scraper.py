@@ -45,18 +45,19 @@ def scrape():
             continue
 
         for article in articles:
-            try: 
+            try:
+                url = article['url']
                 metadata = {
-                    'url': article['url'],
+                    'url': url,
                     'outlet': outlet,
                     'title': article['title'],
                     'description': article['description'],
-                    'date': article['publishedAt']
+                    'publication_date': article['publishedAt']
                 }
                 story = firebaseio.DBITEM('/stories', None, metadata)
                 if not storyseeds.check_known(story):
                     storyseeds.put_item(story)
-                    print(metadata['url'])
+                    print(url)
                     # TODO: add classifier / pipe output appropriately
                     #full_record = extract_text.get_parsed_text(metadata['url'])
             except Exception as e:

@@ -1,16 +1,24 @@
-"""Reprocess entities returned from Watson Natural Language Understanding.
+"""Reprocess entities and keywords returned from Watson Natural Language
+Understanding.
 
-Reprocessing involves (1) filtering unwanted entities; (2) geolocating;
-(3) simplifying data returned to include only relevance and geocoordinates.
+Reprocessing for entities involves (1) filtering unwanted entities;
+(2) geolocating; (3) simplifying data returned to include only relevance
+and geocoordinates.
 
+Reprocessing for keywords involves simplifying data structure.
+
+For both, dict keys need to be simplified against firebase forbidden
+characters ahead of uploading to firebase.
+
+External functions:
+    reprocess(entities)
+    clean_keywords(keywords)
 """
 
 import re
 
 from firebaseio import FB_FORBIDDEN_CHARS
 import geolocate
-
-import pdb
 
 # include these entity types:
 ENTITY_TYPES = set(['Location', 'Facility', 'GeographicFeature',
@@ -34,12 +42,23 @@ with open ("bad_list.txt", "r") as badfile:
 
 def reprocess(entities):
     entities = filter_entities(entities)
-    return entities
     cleaned = {}
     for e in entities:
-        name = re.sub(FB_FORBIDDEN_CHARS, '', e['text'])
-        coords = geolocate.geocode(e['text'])
-        data = {'coords': coords, 'relevance': e['relevance']}
+        try:
+            name = e['disambiguation']['name']
+            coords = geolocate.geocode(name)
+        except KeyError:
+            name = e['text']
+            coords = geolocate.geocode(name)
+        name = re.sub(FB_FORBIDDEN_CHARS, '', name)
+        try:
+            dbpedia = e['disambiguation']['dbpedia_resource']
+        except KeyError:
+            dbpedia = None
+        data = {
+            'coords': coords,
+            'relevance': e['relevance'],
+            'dbpedia': dbpedia}
         cleaned.update({name: data})
     return cleaned
     
@@ -57,4 +76,13 @@ def excluded_subtype(entity):
     except KeyError:
         return False
     return bool(subtypes.intersection(EXCLUDED_SUBTYPES))
-    
+
+def clean_keywords(keywords):
+    """Check forbidden characters and simplify NLU data structure."""
+    cleaned = {
+        re.sub(FB_FORBIDDEN_CHARS, '', kw['text']): kw['relevance']
+        for kw in keywords
+    }
+    return cleaned
+
+

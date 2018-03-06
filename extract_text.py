@@ -6,8 +6,8 @@ Features are defined in parse_text(), currently:
 
 External functions:
     get_text:  Returns text and metadata only from url
-    get_parsed_text:  Returns text and features from url, with
-        entities reprocessed with routines in facilitize.py
+    get_parsed_text:  Returns text and features from url, reprocessed
+        with routines in facilitize.py
 
 """
 
@@ -23,6 +23,8 @@ AUTH = wdc.NaturalLanguageUnderstandingV1(
         password=WATSON_PASS
 )
 
+META_TYPES = ['title', 'publication_date', 'image']
+
 def get_text(url):
     """Retrieve text and metadata (only) from url."""
     x = AUTH.analyze(
@@ -34,13 +36,14 @@ def get_text(url):
     )
 
     text = ' '.join(x['analyzed_text'].split())
+    metadata = {k:v for k,v in x['metadata'].items() if k in META_TYPES}
 
-    return {'text': text, 'metadata': x['metadata']}
+    return text, metadata
 
 def get_parsed_text(url):
     """Retrieve text and select NLU features from url.
 
-    Text and entities are reprocessed before being returned.
+    Text, metadata, and entities are reprocessed before being returned.
 
     Returns:  dict containing text, metadata, entities, keywords.
     """
@@ -54,11 +57,11 @@ def get_parsed_text(url):
         return_analyzed_text=True
     )
 
-    parsed = {
+    record = {k:v for k,v in x['metadata'].items() if k in META_TYPES}
+    record.update({
         'text': ' '.join(x['analyzed_text'].split()),
-        'metadata': x['metadata'],
         'locations': facilitize.reprocess(x['entities']),
-        'keywords': x['keywords']
-    }
-    return parsed
+        'keywords': facilitize.clean_keywords(x['keywords'])
+    })
+    return record
 

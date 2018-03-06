@@ -10,6 +10,7 @@
 import argparse
 
 import config
+import extract_text
 import firebaseio
 
 # logfiles
@@ -20,9 +21,9 @@ LOG_SAT = 'sat_stories.txt'
 def good_story(url, database, logfile):
     """Upload story created from url to firebase database."""
     try:
-        record = extract_text.get_parsed_text(url)
-        record.update({'url':url})
-        story = firebaseio.DBITEM('/stories', None, record)
+        record = {'url': url}
+        record.update(extract_text.get_parsed_text(url))
+        story = firebaseio.DBItem('/stories', None, record)
         database.put_item(story)
         log_url(url, logfile)
         if check_sat(record['text']):
