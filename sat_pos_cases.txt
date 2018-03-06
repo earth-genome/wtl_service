@@ -6,7 +6,6 @@ http://www.reuters.com/article/us-southchinasea-china-spratlys-idUSKBN16Z005
 http://www.businessinsider.com/china-ghost-cities-satellite-images-2017-3
 https://www.theguardian.com/world/2014/mar/13/malaysia-airlines-flight-satellite-images
 http://nation.time.com/2011/05/25/george-clooneys-satellite-project-captures-sudan-violence-in-real-time/
-https://www.washingtonpost.com/news/worldviews/wp/2016/09/19/astonishing-time-lapse-satellite-imagery-shows-rapid-growth-of-refugee-camps/
 http://www.popsci.com/new-satellite-images-show-extent-florida-algal-bloom
 https://ww2.kqed.org/science/2017/01/25/before-and-after-the-rains-impact-on-three-california-reservoirs/
 https://www.wired.com/2012/07/landsat-city-change/
@@ -14,9 +13,7 @@ http://www.vox.com/policy-and-politics/2017/1/20/14332462/photos-crowd-trump-ina
 http://mashable.com/2017/04/16/nasa-photos-greenland-glacier-crack/
 http://www.sacbee.com/news/state/article144604369.html
 https://phys.org/news/2016-11-blazing-southern-states.html
-https://www.washingtonpost.com/news/worldviews/wp/2016/11/14/new-satellite-imagery-shows-how-burmas-military-is-torching-villages/
 http://www.cnn.com/2017/04/18/middleeast/human-rights-watch-report-syria-mosque-bombing/
-https://www.washingtonpost.com/news/worldviews/wp/2016/09/14/75000-syrians-are-trapped-near-jordans-border-satellite-images-show-some-are-dying/
 https://news.mongabay.com/2016/10/exclusive-new-satellite-images-show-ecuador-drilling-next-to-yasunis-itt/
 https://www.seeker.com/melting-glaciers-in-bolivia-could-wash-away-towns-2057039929.html
 https://www.bloomberg.com/news/features/2015-07-08/satellite-images-show-economies-growing-and-shrinking-in-real-time
@@ -57,3 +54,5 @@ https://www.theguardian.com/world/2018/mar/03/dozens-of-fighters-killed-in-turki
 http://www.cbc.ca/news/canada/montreal/small-quebec-village-sued-for-trying-to-protect-its-drinking-water-wins-legal-battle-1.4555774
 https://www.cnbc.com/2017/09/27/most-expensive-house-in-the-u-s-worth-500-million.html
 https://www.bostonglobe.com/metro/2018/03/05/over-million-penguins-discovered-antarctic-islands-cape-cod-researchers/Q0MxJc6vCkpOs6DoOvz5gP/story.html
+https://www.cnn.com/2016/09/15/middleeast/jordan-rukban-refugee-camp/index.html
+https://www.hrw.org/news/2017/12/17/burma-40-rohingya-villages-burned-october

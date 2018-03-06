@@ -1,6 +1,5 @@
 time
 bloomberg
-the-washington-post
 the-new-york-times
 reuters
 national-geographic
@@ -25,7 +24,6 @@ metro
 business-insider-uk
 cnbc
 cnn
-daily-mail
 engadget
 reddit-r-all
 the-hindu
