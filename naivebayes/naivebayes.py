@@ -1,42 +1,25 @@
 """Routines to train, save, restore, and run a binary multinomial Naive Bayes
-text classifier.
+classifier.
 
-External class:
-    NBClassifier:  Wrapper to restore and run a multinomial naive-Bayes text
+External classes:
+    NBClassifier:  Wrapper to restore and run a multinomial naive-Bayes 
        classifier.
-
-    Attributes:
-        vectorizer: an instance of a vectorizer (typically TfidfVectorizer)
-            from sklearn.feature_extraction.text, with all associated methods.
-        classifier: an instance of a MultinomialNB classifier from
-            from sklearn.naive_bayes, with all associated methods
-
-    Methods:
-        __call__:  Return probabilities that texts fall in positive class.
-        predict_url:  Run __call__ on text retrieved from single input url.
-        predict_db_texts:  Run __call__ on all texts in a database.
-        classify_db_texts:  Return texts that meet a threshold probability.
+    NBTextClassifier: Descendant class with additional methods to
+        classify text specifically.
+    NBKeywordClassifier: Descendant class with methods to classify keywords.
 
 External functions:
     train_model:  Train an NBClassifier instance from data and labels.
     train_from_dbs:  Train an NBClassifier instance from texts in databases.
 
-
 Usage:
    To run the latest stored classifer, e.g. on a url:
-   > nbc = NBClassifier()
+   > nbc = NBTextClassifier()
    > nbc.predict_url(url)
 
-   To run on all stories from newsapi_scraper.py for today, with
-   database instantiated as STORY_SEEDS (e.g. curate_texts.STORY_SEEDS)
-   > curate_texts.upload(STORY_SEEDS)
-   > positives = nbc.classify_db_texts(STORY_SEEDS)
-   # At the end of the day:
-   > curate_texts.clear_all(STORY_SEEDS)
-
-   To train a model from databases instantiated as NEGATIVE_TRAINING_CASES
-   and GOOD_LOCATIONS (e.g. via curate_texts)
-   > nbc = train_from_dbs(NEGATIVE_TRAINING_CASES, GOOD_LOCATIONS)
+   To train a model from databases (e.g. NEG_DB, POS_DB below):
+   > nbc = train_from_dbs(neg_db=NEG_DB, pos_db=POS_DB, 
+         x_val=5, material='text', freeze_dir=TEXT_MODEL_DIR)
 
 """
 
@@ -44,51 +27,55 @@ import datetime
 import os
 import sys
 
+import pkg_resources
 from sklearn.externals import joblib
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.naive_bayes import MultinomialNB
 
-# TODO: better module handling
 sys.path.append('../')
-import curate_texts
+import config
 import extract_text
-import prep_text
+import firebaseio
+from naivebayes import curate_texts
+from naivebayes import prep_text
 
-import pdb
-
-MODEL_DIR = 'NBmodels'
+TEXT_MODEL_DIR = pkg_resources.resource_filename(__name__, 'NBtext_models')
+DEFAULT_MODEL_DIR = TEXT_MODEL_DIR
+KW_MODEL_DIR = pkg_resources.resource_filename(__name__, 'NBkw_models')
 LATEST_MODEL = 'latest_model.pkl'
-POS_DB = curate_texts.GOOD_LOCATIONS
-NEG_DB = curate_texts.NEGATIVE_TRAINING_CASES
-
+DEFAULT_THRESHOLD = .7
+POS_DB = firebaseio.DB(config.FIREBASE_GL_URL)
+NEG_DB = firebaseio.DB(config.FIREBASE_NEG_URL)
 
 class NBClassifier(object):
-    """Wrapper to restore and run a multinomial naive-Bayes text classifier.
+    """Wrapper to restore and run a multinomial naive-Bayes classifier.
 
     Attributes:
-        vectorizer: an instance of a vectorizer (typically TfidfVectorizer)
-            from sklearn.feature_extraction.text, with all associated methods.
+        vectorizer: an instance of a vectorizer (typically TfidfVectorizer
+            from sklearn.feature_extraction.text, with all associated methods).
         classifier: an instance of a MultinomialNB classifier from
             from sklearn.naive_bayes, with all associated methods
+        threshold: minimal accept probability for positive class 
+        
 
     Methods:
         __call__:  Return probabilities that texts fall in positive class.
-        predict_url:  Run __call__ on text retrieved from single input url.
-        predict_db_texts:  Run __call__ on all texts in a database.
-        classify_db_texts:  Return texts that meet a threshold probability.
 
 """
     
-    def __init__(self, model_file=os.path.join(MODEL_DIR, LATEST_MODEL),
-                 vectorizer=None, classifier=None):
+    def __init__(self,
+                 model_file='/'.join((DEFAULT_MODEL_DIR, LATEST_MODEL)),
+                 vectorizer=None, classifier=None, threshold=None):
         if vectorizer is not None and classifier is not None:
             self.vectorizer = vectorizer
             self.classifier = classifier
+            self.threshold = threshold
         else:
             try:
-                self.vectorizer, self.classifier = joblib.load(model_file)
+                self.vectorizer, self.classifier, self.threshold = joblib.load(
+                    model_file)
             except FileNotFoundError:
-                print('No saved model found.')
+                print('No saved classifier model found.')
                 raise
 
     def __call__(self, texts):
@@ -101,41 +88,88 @@ class NBClassifier(object):
         vectors = self.vectorizer.transform(texts)
         probs = self.classifier.predict_proba(vectors)
         return probs[:,1]
+    
 
+class NBTextClassifier(NBClassifier):
+    """Restores an NBClassifier model and provides addtional methods for
+    classifying text.
+
+    Additional methods:
+        predict_url:  Run __call__ on text retrieved from single input url.
+        classify_story:  Returns class and probability for text in a
+            firebaseio.DBItem story record.
+        predict_db_texts:  Run __call__ on all texts in a database.
+    
+    """
+    
+    def __init__(self, model_file='/'.join((TEXT_MODEL_DIR, LATEST_MODEL))):
+        NBClassifier.__init__(self, model_file=model_file)
+        
     def predict_url(self, url):
         """Return positive class probability for text retrieved from url."""
-        chunks = extract_text.get_text(url)
-        text = ' '.join(chunks)
+        text = extract_text.get_text(url)[0]
         prob = self.__call__([text])[0]
         return prob
 
-    def predict_db_texts(self, database, threshold=None):
-        """Return probabilities for texts in a Firebase database.
+    def classify_story(self, story, threshold=None):
+        """Check class probability for story text against threshold.
 
-        Keyword argument:
-            threshold: If given, only those texts with probabilities greater
-            than threshold are returned (None or float in [0,1)).
+        Returns 1 (0) if threshold is met (not met), along with probability.
+        """
+        if threshold is None:
+            threshold = self.threshold
+        try: 
+            prob = self.__call__([story.record['text']])[0]
+            classification = 1 if prob >= threshold else 0
+        except KeyError as ke:
+            print(ke)
+            classification, prob = None, None
+        except TypeError as te:
+            print(te)
+            classification = None
+        return classification, prob
+        
+    def predict_db_texts(self, database):
+        """Return probabilities for texts in a Firebase database.
 
         Returns: dict of text names and probabilities
         """
-        names, texts = curate_texts.grab(database)
+        names, texts = curate_texts.grab(database, material='text')
         probs = self.__call__(texts)
         predictions = {name:prob for name,prob in zip(names, probs)}
-        if threshold is not None:
-            predictions = {
-                name:prob for name, prob in predictions.items()
-                if prob >= threshold
-            }
         return predictions
-            
-def train_model(vectors, labels, vectorizer):
-    """Train a binary mutltinomial naive-Bayes classifier.
 
-    Returns: An NBClassifer instance
+    
+class NBKeywordClassifier(NBClassifier):
+    """Restores an NBClassifier model and provides addtional methods for
+    classifying keywords.
+
+    Additonal methods:
+        classify_story:  Returns class and probability for keywords in a
+            firebaseio.DBItem story record.
     """
-    classifier = MultinomialNB().fit(vectors, labels)
-    nbc = NBClassifier(vectorizer=vectorizer, classifier=classifier)
-    return nbc
+    
+    def __init__(self, model_file='/'.join((KW_MODEL_DIR, LATEST_MODEL))):
+        NBClassifier.__init__(self, model_file=model_file)
+
+    def classify_story(self, story, threshold=None):
+        """Check class probability for story text against threshold.
+
+        Returns 1 (0) if threshold is met (not met), along with probability.
+        """
+        if threshold is None:
+            threshold = self.threshold
+        try: 
+            prob = self.__call__([story.record['keywords']])[0]
+            classification = 1 if prob >= threshold else 0
+        except KeyError as ke:
+            print(ke)
+            classification, prob = None, None
+        except TypeError as te:
+            print(te)
+            classification = None
+        return classification, prob
+
 
 def freeze_model(nbc, model_data, freeze_dir):
     """Pickle model and training data."""
@@ -145,7 +179,8 @@ def freeze_model(nbc, model_data, freeze_dir):
     modelfile = os.path.join(freeze_dir, now + 'model.pkl')
     datafile = os.path.join(freeze_dir, now + 'data.pkl')
     # temp: protocol=2 for back compatibility with python2.7
-    joblib.dump((nbc.vectorizer, nbc.classifier), modelfile, protocol=2)
+    joblib.dump((nbc.vectorizer, nbc.classifier, nbc.threshold),
+                modelfile, protocol=2)
     joblib.dump(model_data, datafile, protocol=2)
 
     # reset symlink LATEST_MODEL to point to current model
@@ -162,43 +197,49 @@ def freeze_model(nbc, model_data, freeze_dir):
     os.symlink(filenames[0], latest)
     return
 
-def train_from_dbs(neg_db=NEG_DB, pos_db=POS_DB, category='/texts',
-                   test_frac=0, freeze_dir=MODEL_DIR):
+def train_from_dbs(neg_db=NEG_DB, pos_db=POS_DB, material='text',
+                   x_val=5, threshold=DEFAULT_THRESHOLD, freeze_dir=None):
     """Train from our Firebase databases.
 
     Keyword arguments:
-        dbcat: '/texts' (and eventually (?) '/keywords', '/imagewords')
-        test_frac: Fraction of data to be reserved for testing (default 0).
+        material: 'texts' (and eventually (?) 'keywords', 'imagewords')
+        x_val: integer k indicating k-fold cross-validation, or None
         freeze_dir: If given, the model will be pickled to disk in this dir.
 
-    Returns an NBClassifier instance and test_score
+    Returns an NBClassifier instance and cross-validation scores
     """
-    neg_texts = curate_texts.grab(neg_db, category)[1]
-    pos_texts = curate_texts.grab(pos_db, category)[1]
-    texts =  neg_texts + pos_texts
-    labels = ([0 for _ in range(len(neg_texts))] +
-              [1 for _ in range(len(pos_texts))])
-    if category == '/texts':
-        vectors, vectorizer = prep_text.vectorize(texts)
-    # random_state=0 provides the same shuffle every time 
-    train_vectors, test_vectors, train_labels, test_labels = train_test_split(
-            vectors, labels, test_size=test_frac, random_state=0)
-    nbc = train_model(train_vectors, train_labels, vectorizer)
-    if test_vectors.shape[0] > 0:
-        score = nbc.classifier.score(test_vectors, test_labels)
+    neg = curate_texts.grab(neg_db, material=material)[1]
+    pos = curate_texts.grab(pos_db)[1]
+    data =  neg + pos
+    labels = ([0 for _ in range(len(neg))] + [1 for _ in range(len(pos))])
+    if material == 'text':
+        vectors, vectorizer = prep_text.vectorize(data)
+    classifier = MultinomialNB().fit(vectors, labels)
+    nbc = NBClassifier(vectorizer=vectorizer, classifier=classifier,
+                       threshold=threshold)
+    if x_val is not None:
+        scores = cross_val_score(MultinomialNB(), vectors, labels, cv=x_val)
     else:
-        score = None
+        scores = None
     if freeze_dir is not None:
         model_data = {
-            'texts': texts,
+            'data': data,
             'labels': labels,
-            'train_data': (train_vectors, train_labels),
-            'test_data': (test_vectors, test_labels),
-            'test_score': score
+            'cross_validation_scores': scores
         }
         freeze_model(nbc, model_data, freeze_dir)
-    return nbc, score
-
-        
+    return nbc, scores
 
 
+"""
+# Future: If real testing becomes preferred to cross validation: 
+# (random_state=0 provides the same shuffle every time)
+test_frac = .1
+train_vectors, test_vectors, train_labels, test_labels = train_test_split(
+        vectors, labels, test_size=test_frac, random_state=0)
+nbc = train_model(train_vectors, train_labels, vectorizer)
+if test_vectors.shape[0] > 0:
+        score = nbc.classifier.score(test_vectors, test_labels)
+else:
+    score = None
+"""
