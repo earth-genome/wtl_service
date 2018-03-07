@@ -16,9 +16,10 @@ Class DB: Firebase database, with methods for manipulating
 
 """
 
-from firebase.firebase import FirebaseApplication
 import re
+
 from dateutil.parser import parse
+from firebase.firebase import FirebaseApplication
 
 FB_FORBIDDEN_CHARS = u'[.$\[\]#/?\n]'
 KNOWN_GL_CATEGORIES = [
@@ -45,7 +46,7 @@ class DB(FirebaseApplication):
     """
 
     def __init__(self,database_url):
-        FirebaseApplication.__init__(self,database_url, None)
+        FirebaseApplication.__init__(self, database_url, None)
         self.url = database_url
     
     def put_item(self,item):
@@ -53,10 +54,10 @@ class DB(FirebaseApplication):
         Upload an item to databse. Returns the record if successful,
         otherwise None.
         """
-        return self.put(item.category,item.idx,item.record)
+        return self.put(item.category, item.idx, item.record)
 
     def check_known(self,item):
-        if self.get(item.category,item.idx) is None:
+        if self.get(item.category, item.idx) is None:
             return False
         else:
             return True
@@ -77,14 +78,14 @@ class DB(FirebaseApplication):
         return item
                 
     def delete_item(self,item):
-        self.delete(item.category,item.idx)
+        self.delete(item.category, item.idx)
 
-    def delete_category(self,category):
-        self.delete(category,None)
+    def delete_category(self, category):
+        self.delete(category, None)
 
-    def delete_all_mentions(self,idx):
+    def delete_all_mentions(self, idx):
         for c in KNOWN_GL_CATEGORIES:
-            self.delete(c,idx)
+            self.delete(c, idx)
 
 class DBItem(object):
     """Creates a firebase database item.
