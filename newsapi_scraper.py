@@ -25,6 +25,8 @@ import datetime
 import json
 import os
 import random
+import signal
+import sys
 
 import requests
 
@@ -35,8 +37,8 @@ from naivebayes import naivebayes
 
 CLASSIFIER = naivebayes.NBTextClassifier()
 
-#BASE_URL = 'https://newsapi.org/v2/everything'
-BASE_URL = 'https://newsapi.org/v1/articles'
+BASE_URL = 'https://newsapi.org/v2/everything'
+#BASE_URL = 'https://newsapi.org/v2/top-headlines'
 
 with open('newsapi_outlets.txt','r') as f:
     OUTLETS = [line.strip() for line in f]
@@ -46,17 +48,26 @@ STORY_SEEDS = firebaseio.DB(config.FIREBASE_URL)
 EXCEPTION_DIR = 'NewsAPIexception_logs'
 FEED_DIR = 'NewsAPI_WTLfeeds'
 
-import pdb
-
 def scrape():
 
     except_log = ''
     feed = {}
+
+    def signal_handler(*args):
+        print('KeyboardInterrupt: Writing logs before exiting...')
+        log_feed(feed)
+        log_exceptions(except_log)
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+
+    start_date = datetime.date.today().isoformat()
     for outlet in OUTLETS:
         print("\n%s\n" % outlet)
+        
         payload = {
-            'source': outlet,
-            #'from': datetime.date.today().isoformat(),
+            'sources': outlet,
+            'from': start_date,
             'apiKey': config.NEWS_API_KEY
         }
         try:
@@ -80,39 +91,41 @@ def scrape():
                 story = firebaseio.DBItem('/stories', None, metadata)
                 if not STORY_SEEDS.check_known(story):
                     STORY_SEEDS.put_item(story)
-                    feed.update(check_for_feed(story))                    
+                    feed.update(vet_for_feed(story))                    
             except Exception as e:
                 except_log += 'Article {}\n'.format(article['url'])
                 except_log += 'Exception: {}\n'.format(repr(e))
                 continue
-    if feed != {}:
-        log_feed(feed)
-    if except_log != '':
-        log_exceptions(except_log)
+    log_feed(feed)
+    log_exceptions(except_log)
     print('complete')
     return
 
-def check_for_feed(story):
+def vet_for_feed(story):
     """Determine whether story belongs in the WTL feed.
 
-    Returns: None or dict-formatted story data to add to feed.
+    Returns: None or dict-formatted story data to add to feed. Also
+        uploads accepted stories to '/WTL' on STORY_SEEDS.
     """
     url = story.record['url']
     story.record.update(extract_text.get_parsed_text(url))
     classification, prob = CLASSIFIER.classify_story(story)
     if classification == 1:
         story.record.update({'probability': prob})
+        STORY_SEEDS.put('/WTL', story.idx, story.record)
         story.record.pop('text')
         story.record.pop('keywords')
-        story_feed = {story.idx: story.record}
-        print('Added to feed @ prob {:.2f}: {}\n'.format(prob, url))
+        feed_record = {story.idx: story.record}
+        print('Adding to feed @ prob {:.2f}: {}\n'.format(prob, url))
     else:
-        story_feed = {}
+        feed_record = {}
         print('Declined @ prob {:.2f}: {}\n'.format(prob, url))
-    return story_feed
+    return feed_record
 
 def log_feed(feed, dir=FEED_DIR):
     """Write feed to json file."""
+    if feed == {}:
+        return
     if not os.path.exists(dir):
         os.makedirs(dir)
     feedfile = os.path.join(dir, datetime.datetime.now().isoformat()+'.json')
@@ -122,6 +135,8 @@ def log_feed(feed, dir=FEED_DIR):
 
 def log_exceptions(log, dir=EXCEPTION_DIR):
     """Write exceptions to file."""
+    if log == '':
+        return
     if not os.path.exists(dir):
             os.makedirs(dir)
     logfile = os.path.join(dir, datetime.date.today().isoformat()+'.log')
