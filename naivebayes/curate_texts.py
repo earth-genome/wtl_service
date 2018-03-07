@@ -11,26 +11,20 @@ External functions:
 from datetime import date
 import sys
 
-# TODO: better module handling
 sys.path.append('../')
-import config
-import firebaseio
-import story_maker
+import extract_text
 
-# our firebase databases
-GOOD_LOCATIONS = firebaseio.DB(config.FIREBASE_GL_URL)
-NEGATIVE_TRAINING_CASES = firebaseio.DB(config.FIREBASE_NEG_URL)
-STORY_SEEDS = firebaseio.DB(config.FIREBASE_URL)
-
-def grab(database, category='/texts'):
-    """Download texts from a Firebase database."""
-    texts_dict = database.get(category, None)
-    texts = [' '.join(chunks) for chunks in texts_dict.values()]
-    return list(texts_dict.keys()), texts
+def grab(database, category='/stories', material='text'):
+    """Download story materials from a Firebase database."""
+    stories = database.get(category, None)
+    names = list(stories.keys())
+    materials = [v[material] for v in stories.values()]
+    return names, materials
 
 def upload(database,
             start_date=date.today().isoformat(),
             end_date=None,
+            to_category='/texts',
             from_category='/stories'):
     """Given stories in Firebase and a date range, upload their texts to
     Firebase.
@@ -64,12 +58,13 @@ def upload(database,
         return date_filter
     
     date_filter = build_date_filter(start_date, end_date)
-    for name, metadata in stories.items():
+    for name, record in stories.items():
         try: 
-            if date_filter(metadata['date']):
-                story = firebaseio.DBItem(from_category, name, metadata) 
-                text = story_maker.new_text(story)
-                database.put_item(text)
+            if date_filter(record['publication_date']):
+                text = extract_text.get_text(record['url'])[0]
+                record.update({'text': text})
+                text_item = firebaseio.DBItem(to_category, name, record) 
+                database.put_item(text_item)
         except KeyError:
             pass
     return
