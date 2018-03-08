@@ -1,5 +1,5 @@
-""" Routines to manage texts associated to Firebase stories for training
- and running a classifier.
+"""Routines to manage texts associated to Firebase stories for training
+ and running a classifier.  (Currently deprecated.)
 
 External functions:
     grab():  Download texts from a Firebase database.
@@ -9,17 +9,11 @@ External functions:
 
 """
 from datetime import date
+import re
 import sys
 
 sys.path.append('../')
 import extract_text
-
-def grab(database, category='/stories', material='text'):
-    """Download story materials from a Firebase database."""
-    stories = database.get(category, None)
-    names = list(stories.keys())
-    materials = [v[material] for v in stories.values()]
-    return names, materials
 
 def upload(database,
             start_date=date.today().isoformat(),
