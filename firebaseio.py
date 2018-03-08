@@ -22,8 +22,7 @@ from dateutil.parser import parse
 from firebase.firebase import FirebaseApplication
 
 FB_FORBIDDEN_CHARS = u'[.$\%\[\]#/?\n]'
-BASE_CATEGORY = '/stories',
-
+BASE_CATEGORY = '/stories'
 
 class DB(FirebaseApplication):
     """Firebase database. 
@@ -35,7 +34,6 @@ class DB(FirebaseApplication):
         put_item
         check_known (if item is in database)
         grab_all (materials from specified subheading)
-        find_item
         delete_item
         delete_category
         delete_all_mentions (of item from specified categories)
@@ -59,46 +57,34 @@ class DB(FirebaseApplication):
         else:
             return True
 
-    def grab_all(self, category=BASE_CATEGORY, material='text'):
+    def grab_all(self, category=BASE_CATEGORY, data_type='text'):
         """Download specified materials from all stories in given category.
 
-        Supported material types include 'text', 'keywords', 'image', or any
+        Supported data_type can be 'text', 'keywords', 'image', or any
         other secondary heading in the database.
 
-        Returns:  List of story indexes and list of materials.
+        Returns:  List of story indices and list of data.
         """
         stories = self.get(category, None)
-        names = list(stories.keys())
+        indices = list(stories.keys())
         try: 
-            materials = [v[material] for v in stories.values()]
+            data = [v[data_type] for v in stories.values()]
         except KeyError:
-            materials = None
-        return names, materials
-
-    # TODO: Improve search functionality. As far as I can tell
-    # the firebase query functionality does not exist in the python api.
-    # Achtung! This will possibly touch every item in the database.
-    def find_item(self, idx, categories=[BASE_CATEGORY]):
-        item = {c:None for c in categories}
-        for c in categories:
-            items = self.get(c,None)
-            if items is not None:
-                try:
-                    record = items[idx]
-                    item[c] = DBItem(c,idx,record)
-                except KeyError:
-                    pass
-        return item
+            data = None
+        return indices, data
                 
     def delete_item(self,item):
         self.delete(item.category, item.idx)
+        return
 
     def delete_category(self, category):
         self.delete(category, None)
+        return
 
     def delete_all_mentions(self, idx, categories=[BASE_CATEGORY]):
         for c in categories:
             self.delete(c, idx)
+        return
 
 class DBItem(object):
     """Creates a firebase database item.
