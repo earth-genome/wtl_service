@@ -22,12 +22,8 @@ from dateutil.parser import parse
 from firebase.firebase import FirebaseApplication
 
 FB_FORBIDDEN_CHARS = u'[.$\%\[\]#/?\n]'
-KNOWN_GL_CATEGORIES = [
-    '/stories',
-    '/satellite_stories',
-    '/locations',
-    '/texts'
-    ]
+BASE_CATEGORY = '/stories',
+
 
 class DB(FirebaseApplication):
     """Firebase database. 
@@ -37,19 +33,20 @@ class DB(FirebaseApplication):
 
     Methods for manipulating DBItem instances:
         put_item
-        check_known
-        get_item
+        check_known (if item is in database)
+        grab_all (materials from specified subheading)
         find_item
         delete_item
         delete_category
+        delete_all_mentions (of item from specified categories)
         
     """
 
-    def __init__(self,database_url):
+    def __init__(self, database_url):
         FirebaseApplication.__init__(self, database_url, None)
         self.url = database_url
     
-    def put_item(self,item):
+    def put_item(self, item):
         """
         Upload an item to databse. Returns the record if successful,
         otherwise None.
@@ -62,12 +59,28 @@ class DB(FirebaseApplication):
         else:
             return True
 
+    def grab_all(self, category=BASE_CATEGORY, material='text'):
+        """Download specified materials from all stories in given category.
+
+        Supported material types include 'text', 'keywords', 'image', or any
+        other secondary heading in the database.
+
+        Returns:  List of story indexes and list of materials.
+        """
+        stories = self.get(category, None)
+        names = list(stories.keys())
+        try: 
+            materials = [v[material] for v in stories.values()]
+        except KeyError:
+            materials = None
+        return names, materials
+
     # TODO: Improve search functionality. As far as I can tell
     # the firebase query functionality does not exist in the python api.
     # Achtung! This will possibly touch every item in the database.
-    def find_item(self,idx):
-        item = {c:None for c in KNOWN_GL_CATEGORIES}
-        for c in KNOWN_GL_CATEGORIES:
+    def find_item(self, idx, categories=[BASE_CATEGORY]):
+        item = {c:None for c in categories}
+        for c in categories:
             items = self.get(c,None)
             if items is not None:
                 try:
@@ -83,8 +96,8 @@ class DB(FirebaseApplication):
     def delete_category(self, category):
         self.delete(category, None)
 
-    def delete_all_mentions(self, idx):
-        for c in KNOWN_GL_CATEGORIES:
+    def delete_all_mentions(self, idx, categories=[BASE_CATEGORY]):
+        for c in categories:
             self.delete(c, idx)
 
 class DBItem(object):

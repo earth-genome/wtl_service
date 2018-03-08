@@ -36,8 +36,8 @@ sys.path.append('../')
 import config
 import extract_text
 import firebaseio
-from naivebayes import curate_texts
 from naivebayes import prep_text
+from naivebayes import prep_keywords
 
 TEXT_MODEL_DIR = pkg_resources.resource_filename(__name__, 'NBtext_models')
 DEFAULT_MODEL_DIR = TEXT_MODEL_DIR
@@ -134,7 +134,7 @@ class NBTextClassifier(NBClassifier):
 
         Returns: dict of text names and probabilities
         """
-        names, texts = curate_texts.grab(database, material='text')
+        names, texts = database.grab_all(material='text')
         probs = self.__call__(texts)
         predictions = {name:prob for name,prob in zip(names, probs)}
         return predictions
@@ -208,11 +208,12 @@ def train_from_dbs(neg_db=NEG_DB, pos_db=POS_DB, material='text',
 
     Returns an NBClassifier instance and cross-validation scores
     """
-    neg = curate_texts.grab(neg_db, material=material)[1]
-    pos = curate_texts.grab(pos_db)[1]
+    neg = neg_db.grab_all(material=material)[1]
+    pos = pos_db.grab_all(material=material)[1]
     data =  neg + pos
     labels = ([0 for _ in range(len(neg))] + [1 for _ in range(len(pos))])
-    if material == 'text':
+    # 'keywords' is WIP
+    if material == 'text' or material == 'keywords':
         vectors, vectorizer = prep_text.vectorize(data)
     classifier = MultinomialNB().fit(vectors, labels)
     nbc = NBClassifier(vectorizer=vectorizer, classifier=classifier,
