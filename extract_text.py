@@ -35,8 +35,8 @@ def get_text(url):
         return_analyzed_text=True
     )
 
-    text = ' '.join(x['analyzed_text'].split())
     metadata = {k:v for k,v in x['metadata'].items() if k in META_TYPES}
+    text = ' '.join(x['analyzed_text'].split())
 
     return text, metadata
 
@@ -58,10 +58,15 @@ def get_parsed_text(url):
     )
 
     record = {k:v for k,v in x['metadata'].items() if k in META_TYPES}
-    record.update({
-        'text': ' '.join(x['analyzed_text'].split()),
-        'locations': facilitize.reprocess(x['entities']),
-        'keywords': facilitize.clean_keywords(x['keywords'])
-    })
+    record.update({'text': ' '.join(x['analyzed_text'].split())})
+    try:
+        locations = facilitize.reprocess(x['entities'])
+    except KeyError:
+        locations = None
+    try:
+        keywords = facilitize.clean_keywords(x['keywords'])
+    except KeyError:
+        keywords = None
+    record.update({'locations': locations, 'keywords': keywords})
     return record
 
