@@ -33,7 +33,8 @@ class DB(FirebaseApplication):
     Methods for manipulating DBItem instances:
         put_item
         check_known (if item is in database)
-        grab_all (materials from specified subheading)
+        grab_data (materials from specified subheading)
+        grab_stories (all stories from a category)
         delete_item
         delete_category
         delete_all_mentions (of item from specified categories)
@@ -57,7 +58,7 @@ class DB(FirebaseApplication):
         else:
             return True
 
-    def grab_all(self, category=BASE_CATEGORY, data_type='text'):
+    def grab_data(self, category=BASE_CATEGORY, data_type='text'):
         """Download specified materials from all stories in given category.
 
         Supported data_type can be 'text', 'keywords', 'image', or any
@@ -65,13 +66,23 @@ class DB(FirebaseApplication):
 
         Returns:  List of story indices and list of data.
         """
-        stories = self.get(category, None)
-        indices = list(stories.keys())
+        raw = self.get(category, None)
+        indices = list(raw.keys())
         try: 
-            data = [v[data_type] for v in stories.values()]
+            data = [v[data_type] for v in raw.values()]
         except KeyError:
             data = None
         return indices, data
+
+    def grab_stories(self, category=BASE_CATEGORY):
+        """Download all stories in a given category.
+
+        Returns a list of DBItems.
+        """
+        raw = self.get(category, None)
+        stories = [DBItem(category, idx, record) for idx, record in
+                   raw.items()]
+        return stories
                 
     def delete_item(self,item):
         self.delete(item.category, item.idx)
