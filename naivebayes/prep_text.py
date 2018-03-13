@@ -2,9 +2,9 @@
 
 Defaults are tuned to news stories scraped from NewsAPI.
 
-External functions: vectorize(), get_vocab_count()
+External functions: build_vectorizer(), get_vocab_count()
 
-    Usage:  vectors, vectorizer = vectorize(texts)
+    Usage:  vectors, vectorizer = build_vectorizer(texts)
 
 For diagnostics on a text corpus:
 
@@ -54,7 +54,7 @@ def build_stop_words(filenames):
 
 STOP_WORDS = build_stop_words(STOP_WORD_FILES)
 
-def vectorize(texts, stop_words=STOP_WORDS):
+def build_vectorizer(texts, stop_words=STOP_WORDS):
     """Transform an input list of strings to Tf-idf vectors.
 
     Arguments:
