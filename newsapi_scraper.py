@@ -13,11 +13,9 @@ Outputs:
 
     Exceptions are logged in EXCEPTION_DIR.
 
-The CLASSIFIER variable determines the classifier via the module accessed,
-with the expectation that the instantiation loads the most 
-recently pickled model.  The CLASSIFER has method classify_story() that
-operates on an instance of the firebaseio.DBItem class. See
-check_for_feed() below.
+The CLASSIFIER variable loads a pickled classifier, which has method
+classify_story() that operates on an instance of the firebaseio.DBItem class.
+See use in vet_for_feed() below.
 
 """
 
@@ -29,13 +27,13 @@ import signal
 import sys
 
 import requests
+from sklearn.externals import joblib
 
 import config
 import extract_text
 import firebaseio
-from naivebayes import naivebayes
 
-CLASSIFIER = naivebayes.NBTextClassifier()
+CLASSIFIER = joblib.load('naivebayes/NBtext_models/latest_model.pkl')
 
 BASE_URL = 'https://newsapi.org/v2/everything'
 #BASE_URL = 'https://newsapi.org/v2/top-headlines'
@@ -45,6 +43,7 @@ with open('newsapi_outlets.txt','r') as f:
 random.shuffle(OUTLETS)
 
 STORY_SEEDS = firebaseio.DB(config.FIREBASE_URL)
+
 EXCEPTION_DIR = 'NewsAPIexception_logs'
 FEED_DIR = 'NewsAPI_WTLfeeds'
 
@@ -61,13 +60,12 @@ def scrape():
 
     signal.signal(signal.SIGINT, signal_handler)
 
-    start_date = datetime.date.today().isoformat()
     for outlet in OUTLETS:
         print("\n%s\n" % outlet)
         
         payload = {
             'sources': outlet,
-            'from': start_date,
+            'from': datetime.date.today().isoformat(),
             'apiKey': config.NEWS_API_KEY
         }
         try:
@@ -79,8 +77,8 @@ def scrape():
             continue
 
         for article in articles:
+            url = article['url']
             try:
-                url = article['url']
                 metadata = {
                     'url': url,
                     'outlet': outlet,
@@ -88,10 +86,21 @@ def scrape():
                     'description': article['description'],
                     'publication_date': article['publishedAt']
                 }
+            except KeyError:
+                metadata = {
+                    'url': url,
+                    'outlet': outlet
+                }
+            try:
                 story = firebaseio.DBItem('/stories', None, metadata)
                 if not STORY_SEEDS.check_known(story):
-                    STORY_SEEDS.put_item(story)
-                    feed.update(vet_for_feed(story))                    
+                    story, classification = vet_for_feed(story)
+                    if classification == 1:
+                        feed.update({story.idx: story.record})
+                        STORY_SEEDS.put('/WTL', story.idx, story.record)
+                    story.record.pop('text')
+                    story.record.pop('keywords')
+                STORY_SEEDS.put('/stories', story.idx, story.record)
             except Exception as e:
                 except_log += 'Article {}\n'.format(article['url'])
                 except_log += 'Exception: {}\n'.format(repr(e))
@@ -104,23 +113,17 @@ def scrape():
 def vet_for_feed(story):
     """Determine whether story belongs in the WTL feed.
 
-    Returns: None or dict-formatted story data to add to feed. Also
-        uploads accepted stories to '/WTL' on STORY_SEEDS.
+    Returns: Updated story and classification (0/1).
     """
     url = story.record['url']
     story.record.update(extract_text.get_parsed_text(url))
     classification, prob = CLASSIFIER.classify_story(story)
+    story.record.update({'probability': prob})
     if classification == 1:
-        story.record.update({'probability': prob})
-        STORY_SEEDS.put('/WTL', story.idx, story.record)
-        story.record.pop('text')
-        story.record.pop('keywords')
-        feed_record = {story.idx: story.record}
         print('Adding to feed @ prob {:.2f}: {}\n'.format(prob, url))
     else:
-        feed_record = {}
         print('Declined @ prob {:.2f}: {}\n'.format(prob, url))
-    return feed_record
+    return story, classification
 
 def log_feed(feed, dir=FEED_DIR):
     """Write feed to json file."""
