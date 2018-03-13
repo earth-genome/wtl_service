@@ -133,7 +133,9 @@ def train_from_dbs(neg_db=NEG_DB, pos_db=POS_DB, data_type='text',
     data =  neg + pos
     labels = ([0 for _ in range(len(neg))] + [1 for _ in range(len(pos))])
     if data_type == 'text':
-        vectors, vectorizer = prep_text.vectorize(data)
+        vectors, vectorizer = prep_text.build_vectorizer(data)
+    elif data_type == 'image':
+        vectors, vectorizer = prep_image.build_vectorizer(data)
     else:
         return None, None
     classifier = MultinomialNB().fit(vectors, labels)
