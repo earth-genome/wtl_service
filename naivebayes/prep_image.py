@@ -1,4 +1,21 @@
+"""Functions to vectorize images ahead of classification.
 
+Watson VisualRecognition is used to tag images, and the returned tags and
+relevance scores are then used to build a vocabulary and corresponding
+vectors. Vectorizing opterations are modeled after those in
+sklearn.feature_extraction.text (ref. prep_text.py) for seamless integration
+in sklearn classifiers (ref. naivebayes.py).
+
+External function:
+    build_vectorizer: Creates vectors and a vectorizer from list of urls
+
+External class:
+    ImageVectorizer:
+        Attribute: vocabulary_
+        Method:  transform (a list of urls into vectors)
+
+"""
+ 
 import json
 import numpy as np
 import sys
@@ -14,7 +31,11 @@ AUTH = wdc.VisualRecognitionV3(
 )
 
 class ImageVectorizer(object):
+    """Vectorize images.
 
+    Attribute: vocabulary_
+    Method: transform (a list of urls into vectors)
+    """
     def __init__(self, vocabulary):
         self.vocabulary_ = vocabulary
 
@@ -37,7 +58,8 @@ class ImageVectorizer(object):
                 vectors[n, self.vocabulary_[word]] = score
         return vectors
 
-def vectorize(img_urls):
+def build_vectorizer(img_urls):
+    """Create vectors and a vectorizer from a list of image urls."""
     tagslist = tag_images(img_urls)
     vocab = build_vocabulary(tagslist)
     vectorizer = ImageVectorizer(vocab)
