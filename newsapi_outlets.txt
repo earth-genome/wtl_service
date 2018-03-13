@@ -15,7 +15,6 @@ the-economist
 the-next-web
 fortune
 associated-press
-financial-times
 recode
 techradar
 the-huffington-post
