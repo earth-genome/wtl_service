@@ -96,7 +96,7 @@ def scrape():
                 if not STORY_SEEDS.check_known(story):
                     story, classification = vet_for_feed(story)
                     if classification == 1:
-                        feed.update({story.idx: story.record})
+                        feed.update({story.idx: story.record.copy()})
                         STORY_SEEDS.put('/WTL', story.idx, story.record)
                     story.record.pop('text')
                     story.record.pop('keywords')
