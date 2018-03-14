@@ -35,7 +35,7 @@ import firebaseio
 import tag_image
 
 CLASSIFIER = joblib.load('naivebayes/Stacker_models/latest_model.pkl')
-TAG_IMAGE = True  # set True if CLASSIFIER processes image tags, else False
+PARSE_IMAGES = True  # True if CLASSIFIER processes image tags, else False
 #CLASSIFIER = joblib.load('naivebayes/NBtext_models/latest_model.pkl')
 
 BASE_URL = 'https://newsapi.org/v2/everything'
@@ -127,16 +127,20 @@ def scrape():
     print('complete')
     return
 
-def retrieve_content(url, tag_image=TAG_IMAGE):
+def retrieve_content(url, parse_image=PARSE_IMAGES):
     """Get parsed text and image from story url.
 
-    Keyword argument tag_image: True/False
+    Arguments:
+        url: url for news story
+        parse_image: True/False
+
+    Returns: dict of parsed data types and their data
     """
     try:
         record = extract_text.get_parsed_text(url)
     except:
         raise
-    if tag_image:
+    if parse_image:
         try:
             tags = tag_image.get_tags(record['image'])
             record.update({'image_tags': tags})
