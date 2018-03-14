@@ -15,6 +15,7 @@ Usage:
 
    To run the latest stored text classifer, e.g. on a url:
    > from sklearn.externals import joblib
+   > import extract_text
    > nbc = joblib.load('/'.join((TEXT_MODEL_DIR, 'latest_model.pkl')))
    > text = extract_text.get_text(url)[0]
    > nbc([text])
@@ -32,7 +33,6 @@ from sklearn.naive_bayes import MultinomialNB
 
 sys.path.append('../')
 import config
-import extract_text
 import firebaseio
 from naivebayes import freezer
 from naivebayes import prep_text
@@ -51,8 +51,9 @@ class NBClassifier(object):
     Attributes:
         vectorizer: an instance of a vectorizer (typically TfidfVectorizer
             from sklearn.feature_extraction.text, with all associated methods).
-        data_type: from secondary subheadings in firebase ('text', 'image',...)
-            inferred from the relevant vectorizer (prep_text, prep_image,...)
+        data_type: from secondary subheadings in firebase ('text',
+            'image_tags',...), inferred from the relevant vectorizer
+            (prep_text, prep_image,...)
         classifier: an instance of a MultinomialNB classifier from
             from sklearn.naive_bayes, with all associated methods
         threshold: minimal accept probability for positive class
@@ -73,7 +74,7 @@ class NBClassifier(object):
         if type(self.vectorizer).__name__ == 'TfidfVectorizer':
             self.data_type = 'text'
         elif type(self.vectorizer).__name__ == 'ImageVectorizer':
-            self.data_type = 'image'
+            self.data_type = 'image_tags'
         else:
             raise AttributeError('Vectorizer not recognized.')
 
@@ -122,7 +123,7 @@ def train_from_dbs(neg_db=NEG_DB, pos_db=POS_DB, data_type='text',
     """Train from our Firebase databases.
 
     Keyword arguments:
-        data_type: 'text' or 'image'
+        data_type: 'text' or 'image_tags'
         x_val: integer k indicating k-fold cross-validation, or None
         freeze_dir: If given, the model will be pickled to disk in this dir.
 
@@ -134,7 +135,7 @@ def train_from_dbs(neg_db=NEG_DB, pos_db=POS_DB, data_type='text',
     labels = ([0 for _ in range(len(neg))] + [1 for _ in range(len(pos))])
     if data_type == 'text':
         vectors, vectorizer = prep_text.build_vectorizer(data)
-    elif data_type == 'image':
+    elif data_type == 'image_tags':
         vectors, vectorizer = prep_image.build_vectorizer(data)
     else:
         return None, None
