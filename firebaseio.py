@@ -24,6 +24,10 @@ from firebase.firebase import FirebaseApplication
 FB_FORBIDDEN_CHARS = u'[.$\%\[\]#/?\n]'
 BASE_CATEGORY = '/stories'
 
+# In general data values will be strings, but for the following types,
+# values are dicts of strings paired with relevance scores and/or geocoords
+DICT_DATA_TYPES = ('image_tags', 'keywords', 'locations')
+
 class DB(FirebaseApplication):
     """Firebase database. 
 
@@ -68,10 +72,15 @@ class DB(FirebaseApplication):
         """
         raw = self.get(category, None)
         indices = list(raw.keys())
-        try: 
-            data = [v[data_type] for v in raw.values()]
-        except KeyError:
-            data = None
+        data = []
+        for v in raw.values():
+            try: 
+                data.append(v[data_type])
+            except KeyError:
+                if data_type in DICT_DATA_TYPES:
+                    data.append({})
+                else:
+                    data.append('')
         return indices, data
 
     def grab_stories(self, category=BASE_CATEGORY):
