@@ -27,10 +27,13 @@ BASE_CATEGORY = '/stories'
 # Firebase deletes keys with empty dicts as values.  For classification,
 # we need the empty data record.
 EMPTY_DATA_VALUES = {
+    'description': '',
     'image': '',
     'image_tags': {},
     'keywords': {},
     'locations': {},
+    'outlet': '',
+    'probability': 0.,
     'publication_date': '',
     'text': '',
     'title': '',
