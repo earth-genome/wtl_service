@@ -15,7 +15,7 @@ Outputs:
 
 The CLASSIFIER variable loads a pickled classifier, which has method
 classify_story() that operates on an instance of the firebaseio.DBItem class.
-See use in vet_for_feed() below.
+
 
 """
 
@@ -32,8 +32,10 @@ from sklearn.externals import joblib
 import config
 import extract_text
 import firebaseio
+import tag_image
 
 CLASSIFIER = joblib.load('naivebayes/Stacker_models/latest_model.pkl')
+TAG_IMAGE = True  # set True if CLASSIFIER processes image tags, else False
 #CLASSIFIER = joblib.load('naivebayes/NBtext_models/latest_model.pkl')
 
 BASE_URL = 'https://newsapi.org/v2/everything'
@@ -92,15 +94,29 @@ def scrape():
                     'url': url,
                     'outlet': outlet
                 }
+            story = firebaseio.DBItem('/stories', None, metadata)
+            
             try:
-                story = firebaseio.DBItem('/stories', None, metadata)
                 if not STORY_SEEDS.check_known(story):
-                    story, classification = vet_for_feed(story)
-                    if classification == 1:
-                        feed.update({story.idx: story.record.copy()})
-                        STORY_SEEDS.put('/WTL', story.idx, story.record)
-                    story.record.pop('text')
-                    story.record.pop('keywords')
+                    story.record.update(retrieve_content(url))
+            except Exception as e:
+                except_log += 'Article {}\n'.format(url)
+                except_log += 'Exception: {}\n'.format(repr(e))
+                continue
+            
+            classification, probability = CLASSIFIER.classify_story(story)
+            story.record.update({'probability': probability})
+            try:
+                if classification == 1:
+                    feed.update({story.idx: story.record.copy()})
+                    STORY_SEEDS.put('/WTL', story.idx, story.record)
+                    print('Adding to feed @ prob {:.2f}: {}\n'.format(
+                            probability, url))
+                else:
+                    print('Declined @ prob {:.2f}: {}\n'.format(
+                        probability, url))
+                story.record.pop('text')
+                story.record.pop('keywords')
                 STORY_SEEDS.put('/stories', story.idx, story.record)
             except Exception as e:
                 except_log += 'Article {}\n'.format(article['url'])
@@ -111,20 +127,24 @@ def scrape():
     print('complete')
     return
 
-def vet_for_feed(story):
-    """Determine whether story belongs in the WTL feed.
+def retrieve_content(url, tag_image=TAG_IMAGE):
+    """Get parsed text and image from story url.
 
-    Returns: Updated story and classification (0/1).
+    Keyword argument tag_image: True/False
     """
-    url = story.record['url']
-    story.record.update(extract_text.get_parsed_text(url))
-    classification, prob = CLASSIFIER.classify_story(story)
-    story.record.update({'probability': prob})
-    if classification == 1:
-        print('Adding to feed @ prob {:.2f}: {}\n'.format(prob, url))
-    else:
-        print('Declined @ prob {:.2f}: {}\n'.format(prob, url))
-    return story, classification
+    try:
+        record = extract_text.get_parsed_text(url)
+    except:
+        raise
+    if tag_image:
+        try:
+            tags = tag_image.get_tags(record['image'])
+            record.update({'image_tags': tags})
+        except KeyError:
+            pass
+        except:
+            raise
+    return record
 
 def log_feed(feed, dir=FEED_DIR):
     """Write feed to json file."""
