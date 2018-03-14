@@ -81,7 +81,7 @@ class NBClassifier(object):
     def __call__(self, data):
         """Return probabilities that data fall in positive class.
 
-        Argument:  List of strings.
+        Argument:  List of strings or dicts (as required by self.vectorizer)
 
         Return:  List of probabilities.
         """
@@ -98,12 +98,15 @@ class NBClassifier(object):
             threshold = self.threshold
         try: 
             prob = self.__call__([story.record[self.data_type]])[0]
+        except KeyError:
+            try:
+                data.append(firebaseio.EMPTY_DATA_VALUES[data_type])
+            except KeyError:
+                print('Firebaseio: No EMPTY_DATA_VALUE assigned.\n')
+                raise
+        if threshold is not None: 
             classification = 1 if prob >= threshold else 0
-        except KeyError as ke:
-            print(ke)
-            classification, prob = None, None
-        except TypeError as te:
-            print(te)
+        else:
             classification = None
         return classification, prob
         

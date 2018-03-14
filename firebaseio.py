@@ -24,9 +24,18 @@ from firebase.firebase import FirebaseApplication
 FB_FORBIDDEN_CHARS = u'[.$\%\[\]#/?\n]'
 BASE_CATEGORY = '/stories'
 
-# In general data values will be strings, but for the following types,
-# values are dicts of strings paired with relevance scores and/or geocoords
-DICT_DATA_TYPES = ('image_tags', 'keywords', 'locations')
+# Firebase deletes keys with empty dicts as values.  For classification,
+# we need the empty data record.
+EMPTY_DATA_VALUES = {
+    'image': '',
+    'image_tags': {},
+    'keywords': {},
+    'locations': {},
+    'publication_date': '',
+    'text': '',
+    'title': '',
+    'url': ''
+}
 
 class DB(FirebaseApplication):
     """Firebase database. 
@@ -66,7 +75,7 @@ class DB(FirebaseApplication):
         """Download specified materials from all stories in given category.
 
         Supported data_type can be 'text', 'keywords', 'image', or any
-        other secondary heading in the database.
+        secondary heading listed in EMPTY_DATA_VALUES.
 
         Returns:  List of story indices and list of data.
         """
@@ -77,10 +86,11 @@ class DB(FirebaseApplication):
             try: 
                 data.append(v[data_type])
             except KeyError:
-                if data_type in DICT_DATA_TYPES:
-                    data.append({})
-                else:
-                    data.append('')
+                try:
+                    data.append(EMPTY_DATA_VALUES[data_type])
+                except KeyError:
+                    print('Firebaseio: No EMPTY_DATA_VALUE assigned.\n')
+                    raise
         return indices, data
 
     def grab_stories(self, category=BASE_CATEGORY):
