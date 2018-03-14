@@ -122,7 +122,7 @@ def train_from_dbs(neg_db=NEG_DB, pos_db=POS_DB, data_type='text',
     """Train from our Firebase databases.
 
     Keyword arguments:
-        data_type: 'text' (and eventually (?) 'image', 'keywords')
+        data_type: 'text' or 'image'
         x_val: integer k indicating k-fold cross-validation, or None
         freeze_dir: If given, the model will be pickled to disk in this dir.
 
