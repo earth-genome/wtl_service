@@ -100,7 +100,8 @@ class NBClassifier(object):
             prob = self.__call__([story.record[self.data_type]])[0]
         except KeyError:
             try:
-                data.append(firebaseio.EMPTY_DATA_VALUES[data_type])
+                prob = self.__call__(
+                    [firebaseio.EMPTY_DATA_VALUES[self.data_type]])[0]
             except KeyError:
                 print('Firebaseio: No EMPTY_DATA_VALUE assigned.\n')
                 raise
