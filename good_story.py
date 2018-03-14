@@ -30,6 +30,8 @@ def good_story(url, database, logfile):
         record.update({'image_tags': tag_image.get_tags(record['image'])})
     except KeyError:
         pass
+    except:
+        raise
     try:
         story = firebaseio.DBItem('/stories', None, record)
         database.put_item(story)
