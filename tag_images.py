@@ -1,8 +1,10 @@
 """Apply Watson Vision Recognition to tag images with keywords describing
 their subject matter.
 
-External function: tag_images
+External function: get_tags
 """ 
+
+import json
 
 import watson_developer_cloud as wdc
 
@@ -13,7 +15,7 @@ AUTH = wdc.VisualRecognitionV3(
     api_key=WATSON_VISION_API_KEY
 )
 
-def tag_images(img_urls):
+def get_tags(img_urls):
     """Apply Watson Vision Recognition to tag images with class names.
 
     Argument: List of urls.
