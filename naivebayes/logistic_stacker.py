@@ -85,26 +85,21 @@ class LogisticStacker(object):
         self.threshold = threshold
 
     def __call__(self, stories):
-        import pdb
-        pdb.set_trace()
         features = [[ic.classify_story(s)[1] for ic in self.input_classifiers]
                     for s in stories]
         features = np.array(features)
         probs = self.stacker.predict_proba(features)
         return probs[:,1]
 
-    def classify_story(self, story, threshold=None):
-        """Check class probability for story against threshold.
+    def classify_story(self, story):
+        """Check class probability for story against self.threshold.
 
         Returns 1 (0) if threshold is met (not met), along with probability.
         """
-        if threshold is None:
-            threshold = self.threshold
-        try: 
-            prob = self.__call__([story])[0]
+        prob = self.__call__([story])[0]
+        if self.threshold is not None:
             classification = 1 if prob >= threshold else 0
-        except TypeError as te:
-            print(te)
+        else:
             classification = None
         return classification, prob    
         
