@@ -89,13 +89,11 @@ class NBClassifier(object):
         probs = self.classifier.predict_proba(vectors)
         return probs[:,1]
 
-    def classify_story(self, story, threshold=None):
-        """Check class probability for story against threshold.
+    def classify_story(self, story):
+        """Check class probability for story against self.threshold.
 
         Returns 1 (0) if threshold is met (not met), along with probability.
         """
-        if threshold is None:
-            threshold = self.threshold
         try: 
             prob = self.__call__([story.record[self.data_type]])[0]
         except KeyError:
@@ -105,7 +103,7 @@ class NBClassifier(object):
             except KeyError:
                 print('Firebaseio: No EMPTY_DATA_VALUE assigned.\n')
                 raise
-        if threshold is not None: 
+        if self.threshold is not None:
             classification = 1 if prob >= threshold else 0
         else:
             classification = None
