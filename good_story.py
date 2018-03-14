@@ -12,6 +12,7 @@ import argparse
 import config
 import extract_text
 import firebaseio
+import tag_image
 
 # logfiles
 LOG_NEG = 'sat_neg_cases.txt'
@@ -23,6 +24,13 @@ def good_story(url, database, logfile):
     try:
         record = {'url': url}
         record.update(extract_text.get_parsed_text(url))
+    except: 
+        raise
+    try:
+        record.update({'image_tags': tag_image.get_tags(record['image'])})
+    except KeyError:
+        pass
+    try:
         story = firebaseio.DBItem('/stories', None, record)
         database.put_item(story)
         log_url(url, logfile)
@@ -30,7 +38,7 @@ def good_story(url, database, logfile):
             log_url(url, LOG_SAT)
     except Exception as e:
         print('Exception passed: {}'.format(repr(e)))
-        print('\nFailed to create story from url {}\n'.format(url))
+        print('Failed to post story for url {}\n'.format(url))
     return 
 
 def log_url(url, logfile):
