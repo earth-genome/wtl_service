@@ -9,17 +9,18 @@ External functions:
     train_from_dbs:  Train an NBClassifier instance from texts in databases.
 
 Usage:
+   To train a model from databases (e.g. NEG_DB, POS_DB below):
+   > nbc, scores = train_from_dbs(neg_db=NEG_DB, pos_db=POS_DB, 
+         x_val=5, data_type='text', threshold=.7, freeze_dir=TEXT_MODEL_DIR)
+
    To run the latest stored text classifer, e.g. on a url:
+   > from sklearn.externals import joblib
    > nbc = joblib.load('/'.join((TEXT_MODEL_DIR, 'latest_model.pkl')))
    > text = extract_text.get_text(url)[0]
    > nbc([text])
 
    To run on a DBItem story:
    > nbc.classify_story(story)
-
-   To train a model from databases (e.g. NEG_DB, POS_DB below):
-   > nbc = train_from_dbs(neg_db=NEG_DB, pos_db=POS_DB, 
-         x_val=5, data_type='text', threshold=.7, freeze_dir=TEXT_MODEL_DIR)
 
 """
 
@@ -40,7 +41,6 @@ from naivebayes import prep_image
 
 TEXT_MODEL_DIR = pkg_resources.resource_filename(__name__, 'NBtext_models')
 IMAGE_MODEL_DIR = pkg_resources.resource_filename(__name__, 'NBimage_models')
-DEFAULT_MODEL_DIR = TEXT_MODEL_DIR
 POS_DB = firebaseio.DB(config.FIREBASE_GL_URL)
 NEG_DB = firebaseio.DB(config.FIREBASE_NEG_URL)
 DEFAULT_THRESHOLD = .65
