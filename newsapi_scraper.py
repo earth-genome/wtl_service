@@ -33,7 +33,8 @@ import config
 import extract_text
 import firebaseio
 
-CLASSIFIER = joblib.load('naivebayes/NBtext_models/latest_model.pkl')
+CLASSIFIER = joblib.load('naivebayes/Stacker_models/latest_model.pkl')
+#CLASSIFIER = joblib.load('naivebayes/NBtext_models/latest_model.pkl')
 
 BASE_URL = 'https://newsapi.org/v2/everything'
 #BASE_URL = 'https://newsapi.org/v2/top-headlines'
