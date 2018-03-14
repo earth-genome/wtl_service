@@ -55,7 +55,10 @@ class ImageVectorizer(object):
         vectors = np.zeros((len(img_urls), len(self.vocabulary_)))
         for n, tags in enumerate(tagslist): 
             for word, score in tags.items():
-                vectors[n, self.vocabulary_[word]] = score
+                try: 
+                    vectors[n, self.vocabulary_[word]] = score
+                except KeyError:
+                    pass
         return vectors
 
 def build_vectorizer(img_urls):
