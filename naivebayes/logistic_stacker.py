@@ -98,7 +98,7 @@ class LogisticStacker(object):
         """
         prob = self.__call__([story])[0]
         if self.threshold is not None:
-            classification = 1 if prob >= threshold else 0
+            classification = 1 if prob >= self.threshold else 0
         else:
             classification = None
         return classification, prob    

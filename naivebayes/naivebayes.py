@@ -104,7 +104,7 @@ class NBClassifier(object):
                 print('Firebaseio: No EMPTY_DATA_VALUE assigned.\n')
                 raise
         if self.threshold is not None:
-            classification = 1 if prob >= threshold else 0
+            classification = 1 if prob >= self.threshold else 0
         else:
             classification = None
         return classification, prob
