@@ -95,15 +95,16 @@ def scrape():
                     'outlet': outlet
                 }
             story = firebaseio.DBItem('/stories', None, metadata)
-            
-            try:
-                if not STORY_SEEDS.check_known(story):
-                    story.record.update(retrieve_content(url))
-            except Exception as e:
-                except_log += 'Article {}\n'.format(url)
-                except_log += 'Exception: {}\n'.format(repr(e))
+            if STORY_SEEDS.check_known(story):
                 continue
             
+            try:
+                story.record.update(retrieve_content(url))
+            except Exception as e:
+                except_log += 'Article {}\n'.format(url)
+                except_log += 'Retrieving content: {}\n'.format(repr(e))
+                continue
+
             classification, probability = CLASSIFIER.classify_story(story)
             story.record.update({'probability': probability})
             try:
@@ -114,13 +115,13 @@ def scrape():
                             probability, url))
                 else:
                     print('Declined @ prob {:.2f}: {}\n'.format(
-                        probability, url))
+                            probability, url))
                 story.record.pop('text')
                 story.record.pop('keywords')
                 STORY_SEEDS.put('/stories', story.idx, story.record)
             except Exception as e:
                 except_log += 'Article {}\n'.format(article['url'])
-                except_log += 'Exception: {}\n'.format(repr(e))
+                except_log += 'Uploading to db: {}\n'.format(repr(e))
                 continue
     log_feed(feed)
     log_exceptions(except_log)
