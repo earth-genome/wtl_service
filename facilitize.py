@@ -30,8 +30,8 @@ EXCLUDED_SUBTYPES = set([
     'Country',
     'Region',
     'USState',
-    'StateOrCounty',
-    'MountainRange'
+#    'StateOrCounty',
+#    'MountainRange'
 ])
 
 # And exclude these specific entities.  Add new excluded facilies as a
@@ -46,19 +46,24 @@ def reprocess(entities):
     for e in entities:
         try:
             name = e['disambiguation']['name']
-            coords = geolocate.geocode(name)
         except KeyError:
             name = e['text']
-            coords = geolocate.geocode(name)
+        coords = geolocate.geocode(name)
         name = re.sub(FB_FORBIDDEN_CHARS, '', name)
         try:
             dbpedia = e['disambiguation']['dbpedia_resource']
         except KeyError:
-            dbpedia = None
+            dbpedia = ''
+        try:
+            subtype = e['disambiguation']['subtype']
+        except KeyError:
+            subtype = ''
         data = {
             'coords': coords,
             'relevance': e['relevance'],
-            'dbpedia': dbpedia}
+            'dbpedia': dbpedia,
+            'subtype': subtype
+        }
         cleaned.update({name: data})
     return cleaned
     
