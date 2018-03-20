@@ -6,4 +6,5 @@ dateutil
 datetime
 sklearn
 nltk
+geopy
 
