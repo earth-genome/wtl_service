@@ -1,3 +1,4 @@
+# Routines to cluster geolocations (WIP)
 
 import json
 import time
@@ -60,25 +61,28 @@ class GeoCluster(object):
 
     def __call__(self):
         core_locations = self.find_largest_cluster()
-        #store_to_pop = []
         for loc_name, loc_data in core_locations.items():
             osm = self.get_nearest_osm(loc_name, loc_data)
-            loc_data.update({'osm': osm})
-        #    if osm:
-        #        loc_data.update({'osm': osm})
-        #    else:
-        #        store_to_pop.append(loc_name)
-        #for stp in store_to_pop:
-        #    core_locations.pop(stp)
+            loc_data.update({'osm': [osm]})
         augments = self.augment_cluster(core_locations)
         core_locations.update(augments)
         return core_locations
 
     def augment_cluster(self, cluster):
+        """Add previously ungeolocated places to cluster.
+
+        The routine attempts to geolocate via OSM and adds to
+        cluster locations which are within self.max_dist of an
+        existing cluster point.
+
+        Argument cluster: dict of locations
+        
+        Returns: dict of location updates
+        """
         unlocated = self.get_unlocated()
         augments = {}
         for loc_name, loc_data in unlocated.items():
-            sleep()
+            sleep() 
             osm_candidates = geolocate.search_osm(loc_name)
             good_candidates = []
             for cand in osm_candidates:
