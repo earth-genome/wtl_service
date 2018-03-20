@@ -32,11 +32,12 @@ from sklearn.externals import joblib
 import config
 import extract_text
 import firebaseio
+import geocluster
 import tag_image
 
-CLASSIFIER = joblib.load('naivebayes/Stacker_models/latest_model.pkl')
-PARSE_IMAGES = True  # True if CLASSIFIER processes image tags, else False
-#CLASSIFIER = joblib.load('naivebayes/NBtext_models/latest_model.pkl')
+#CLASSIFIER = joblib.load('naivebayes/Stacker_models/latest_model.pkl')
+PARSE_IMAGES = False  # True if CLASSIFIER processes image tags, else False
+CLASSIFIER = joblib.load('naivebayes/NBtext_models/latest_model.pkl')
 
 BASE_URL = 'https://newsapi.org/v2/everything'
 #BASE_URL = 'https://newsapi.org/v2/top-headlines'
@@ -65,7 +66,7 @@ def scrape():
 
     for outlet in OUTLETS:
         print("\n%s\n" % outlet)
-        
+
         payload = {
             'sources': outlet,
             'from': datetime.date.today().isoformat(),
@@ -110,7 +111,11 @@ def scrape():
             try:
                 if classification == 1:
                     feed.update({story.idx: story.record.copy()})
+                    gc = GeoCluster(story.record['locations'])
+                    core_locations = gc()
+                    story.record.update({'core_locations': core_locations})
                     STORY_SEEDS.put('/WTL', story.idx, story.record)
+                    story.record.pop('core_locations')
                     print('Adding to feed @ prob {:.2f}: {}\n'.format(
                             probability, url))
                 else:
