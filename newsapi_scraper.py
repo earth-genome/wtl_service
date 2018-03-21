@@ -38,6 +38,7 @@ import tag_image
 #CLASSIFIER = joblib.load('naivebayes/Stacker_models/latest_model.pkl')
 PARSE_IMAGES = False  # True if CLASSIFIER processes image tags, else False
 CLASSIFIER = joblib.load('naivebayes/NBtext_models/latest_model.pkl')
+#CLASSIFIER = joblib.load('naivebayes/NBtext_models/2018-03-08T16:52:42.079077model.pkl')
 
 BASE_URL = 'https://newsapi.org/v2/everything'
 #BASE_URL = 'https://newsapi.org/v2/top-headlines'
@@ -45,6 +46,9 @@ BASE_URL = 'https://newsapi.org/v2/everything'
 with open('newsapi_outlets.txt','r') as f:
     OUTLETS = [line.strip() for line in f]
 random.shuffle(OUTLETS)
+
+#FROM_DATE = datetime.date.today() - datetime.timedelta(days=2)
+FROM_DATE = datetime.date.today()
 
 STORY_SEEDS = firebaseio.DB(config.FIREBASE_URL)
 
@@ -69,7 +73,7 @@ def scrape():
 
         payload = {
             'sources': outlet,
-            'from': datetime.date.today().isoformat(),
+            'from': FROM_DATE.isoformat(),
             'apiKey': config.NEWS_API_KEY
         }
         try:
@@ -108,26 +112,34 @@ def scrape():
 
             classification, probability = CLASSIFIER.classify_story(story)
             story.record.update({'probability': probability})
-            try:
-                if classification == 1:
-                    feed.update({story.idx: story.record.copy()})
-                    gc = GeoCluster(story.record['locations'])
+            if classification == 1:
+                print('Adding to feed @ prob {:.2f}: {}\n'.format(
+                    probability, url))
+                try:
+                    gc = geocluster.GeoCluster(story.record['locations'])
                     core_locations = gc()
                     story.record.update({'core_locations': core_locations})
+                except Exception as e:
+                    except_log += 'Article {}\n'.format(article['url'])
+                    except_log += 'Clustering: {}\n'.format(repr(e))
+                    story.record.update({'core_locations': {}})
+                try:
                     STORY_SEEDS.put('/WTL', story.idx, story.record)
-                    story.record.pop('core_locations')
-                    print('Adding to feed @ prob {:.2f}: {}\n'.format(
-                            probability, url))
-                else:
-                    print('Declined @ prob {:.2f}: {}\n'.format(
-                            probability, url))
-                story.record.pop('text')
-                story.record.pop('keywords')
+                    feed.update({story.idx: story.record.copy()})
+                except Exception as e:
+                    except_log += 'Article {}\n'.format(article['url'])
+                    except_log += 'Uploading to WTL: {}\n'.format(repr(e))
+                story.record.pop('core_locations')
+            else:
+                print('Declined @ prob {:.2f}: {}\n'.format(
+                    probability, url))
+            story.record.pop('text')
+            story.record.pop('keywords')
+            try:
                 STORY_SEEDS.put('/stories', story.idx, story.record)
             except Exception as e:
                 except_log += 'Article {}\n'.format(article['url'])
-                except_log += 'Uploading to db: {}\n'.format(repr(e))
-                continue
+                except_log += 'Uploading to StorySeeds: {}\n'.format(repr(e))
     log_feed(feed)
     log_exceptions(except_log)
     print('complete')
