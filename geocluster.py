@@ -1,8 +1,47 @@
-"""Routines to cluster partially geolcated locations.
+"""Routines to cluster (partly) geolcated locations.
+
+The fundamental entity worked on by these routines is a dict, often
+taking variable name 'locations', of the following form:
+
+{'Ginzan Onsen': {'coords': {'lat': 38.5704041, 'lon': 140.5304678},
+  'relevance': 0.824213},
+ 'Ginzan River': {'coords': {'lat': 38.5704041, 'lon': 140.5304678},
+  'relevance': 0.365675},
+ 'Japan': {'coords': {'lat': 36.204824, 'lon': 138.252924},
+  'dbpedia': 'http://dbpedia.org/resource/Japan',
+  'relevance': 0.755042},
+ 'Nobezawa Ginzan Silver Mine': {'relevance': 0.391877},
+ 'North Hokkaido': {'coords': {'lat': 43.2203266, 'lon': 142.8634737},
+  'relevance': 0.270608},
+ 'South Okinawa': {'coords': {'lat': 26.2124013, 'lon': 127.6809317},
+  'relevance': 0.257954},
+ 'Tohoku': {'relevance': 0.251835, 'subtype': ['City']}}
+
+The 'relevance' key is expected for use in selecting among clusters.
+'coords' is expected for at least one of the given locations.
+Other keys are allowed.
+
+A subdict might be passed with name 'clusters' or 'core_locations'.
+
+That said, the base class GeoCluster is a lightweight affair which
+operates directly on latitude/longitude coordinates given in
+an (n,2) numpy array.
+
+Simple use of this base class might entail, on input array coords:
+> gc = GeoCluster(max_dist=150, min_size=1)
+> coord_clusters = gc.cluster(coords)
+> cluster_plot(coord_clusters)
+
+The descendant class GrowGeoCluster handles locations of form
+specified above, bulkier in its machinations to handle incomplete data.
+
+Usage:
+> ggc = GrowGeoCluster(locations)
+> core_locations = ggc.seed_and_grow()
 
 Classes:
     GeoCluster:  Cluster lat/lon coordinates
-    CoreGeoCluster:  Descendant class to find and flesh out a largest
+    GrowGeoCluster:  Descendant class to find and flesh out a largest
         cluster from input locations, via search of OSM records.
 
 External functions:
@@ -12,21 +51,6 @@ External functions:
         target coordinates.
     cluster_plot: Scatterplot clusters of lat/lon coordinates.
 
-Usage:
-
-locations = {
-    'Ali Abad hospital': {
-        'coords': {'lat': 34.5205639, 'lon': 69.1301792},
-        'relevance': 0.659203
-    },
-    'Kabul': {
-        'coords': {'lat': 34.5553494, 'lon': 69.207486},
-        'dbpedia': 'http://dbpedia.org/resource/Kabul',
-        'relevance': 0.816886
-    }
-}
-gcg = CoreGeoCluster(locations)
-core_locations = gcg()
 
 """
 import json
@@ -64,7 +88,7 @@ class GeoCluster(object):
         cluster: cluster input coordinates
     """
     
-    def __init__(self, max_dist, min_size):
+    def __init__(self, max_dist=MAX_DIST, min_size=MIN_CLUSTER_SIZE):
         
         self.max_dist = max_dist
         self.max_radians = max_dist/geopy.distance.EARTH_RADIUS
@@ -87,23 +111,23 @@ class GeoCluster(object):
         return coord_clusters
 
     
-class CoreGeoCluster(GeoCluster):
+class GrowGeoCluster(GeoCluster):
     """Class to find and augment the largest cluster of input locations.
 
     (Descendant) Attributes:
         locations: dict with elements of form {loc_name: loc_data}
             where loc_data is a dict that may include 'coords' and
-            'relevance' as keys (among others).
+            'relevance' as keys (among others).  
             loc_data['coords'] takes form {'lat': lat, 'lon': lon}
-        coords: all lat/lon(s) specified in locations in the form of
-            an (n,2) numpy array
+        unlocated: initially unlocated entities drawn from locations 
         
     Public Methods:
-        __call__: Determine largest geolocated cluster and augment
-            with geolocations for initially unlocated entities.
-        augment_cluster: Add previously un-geolocated locations to
+        seed: Find a return a deep copy of largest cluster of locations.
+        seed_and_grow: Determine largest geolocated cluster, add OSM
+            records, and augment with geolocations for initially
+            unlocated entities.
+        augment_cluster: Add previously unlocated entities to
             cluster.
-        find_largest_cluster: Find largest cluster.
         get_nearest_osm: Get nearest OSM record for input location.
     """
     
@@ -111,20 +135,24 @@ class CoreGeoCluster(GeoCluster):
                  locations,
                  max_dist=MAX_DIST,
                  min_size=MIN_CLUSTER_SIZE):
-
         super().__init__(max_dist, min_size)
         # thread-safe deep copy
         self.locations = json.loads(json.dumps(locations))
-        try: 
-            self.coords = get_coord_array(self.locations)
-        except ValueError:
-            raise ValueError('No seed coordinates found.')
+        self.unlocated = get_unlocated(self.locations)
 
-    def __call__(self):
-        """Determine largest geolocated cluster and augment
-        with OSM geolocations for initially unlocated entities.
+    def seed(self):
+        """Find and return deep copy of largest cluster."""
+        seed_locations = self._find_largest_cluster()
+        return json.loads(json.dumps(seed_locations))
+
+    def seed_and_grow(self):
+        """Determine largest geolocated cluster, add OSM records,
+        and augment with OSM geolocations for initially unlocated
+        entities.
+
+        Returns: dict
         """
-        core_locations = self.find_largest_cluster()
+        core_locations = self.seed()
         for loc_name, loc_data in core_locations.items():
             osm = self.get_nearest_osm(loc_name, loc_data)
             loc_data.update({'osm': [osm]})
@@ -132,19 +160,18 @@ class CoreGeoCluster(GeoCluster):
         return core_locations
 
     def augment_cluster(self, cluster):
-        """Add previously ungeolocated places to cluster.
+        """Add previously unlocated places to cluster.
 
         The routine attempts to geolocate via OSM and adds to
-        cluster locations which are within self.max_dist of an
+        cluster new locations which are within self.max_dist of an
         existing cluster point.
 
         Argument cluster: dict of locations
         
         Returns: dict of location updates
         """
-        unlocated = get_unlocated(self.locations)
-        augments = {}
-        for loc_name, loc_data in unlocated.items():
+        additions = {}
+        for loc_name, loc_data in self.unlocated.items():
             sleep() 
             osm_candidates = geolocate.search_osm(loc_name)
             good_candidates = []
@@ -152,31 +179,8 @@ class CoreGeoCluster(GeoCluster):
                 if check_near(cand, cluster, max_dist=self.max_dist):
                     good_candidates.append(cand)
             if good_candidates:
-                augments.update({loc_name: {'osm': good_candidates}})
-        return augments
-
-    def find_largest_cluster(self, coord_clusters=None):
-        """Find largest cluster.
-
-        Routine selects by summed relevance scores if there are multiple
-            clusters of equal maximum size.
-
-        Argument:  list of (n,2) numpy arrays of lat/lon(s)
-
-        Returns:  Dict of locations.
-        """
-        if coord_clusters is None:
-            coord_clusters = super().cluster(self.coords)
-        max_size = np.max([len(c) for c in coord_clusters])
-        max_cc = [c for c in coord_clusters if len(c) == max_size]
-        max_locations = []
-        for mc in max_cc:
-            locations = self._filter_coords(mc)
-            relevance = np.sum([v['relevance']
-                                for v in locations.values()])
-            max_locations.append((locations, relevance))
-        max_locations.sort(key=lambda loc: loc[1], reverse=True)
-        return max_locations[0][0]
+                additions.update({loc_name: {'osm': good_candidates}})
+        return additions
 
     def get_nearest_osm(self, loc_name, loc_data):
         """Retrieve nearest search result from OSM.
@@ -190,10 +194,38 @@ class CoreGeoCluster(GeoCluster):
         """
         sleep()
         osm_candidates = geolocate.search_osm(loc_name)
-        coords = get_coord_array({loc_name: loc_data})
-        osm_rec = select_nearest(osm_candidates, coords,
+        osm_rec = select_nearest(osm_candidates, {loc_name: loc_data},
                                  max_dist=self.max_dist)
         return osm_rec
+
+    def _find_largest_cluster(self):
+        """Find largest cluster.
+
+        Routine selects by summed relevance scores if there are multiple
+            clusters of equal maximum size.
+
+        Argument locations: dict
+
+        Returns:  Subdict of locations.
+        """
+        try: 
+            coords = get_coord_array(self.locations)
+        except ValueError:
+            raise ValueError('No seed coordinates found.')
+        coord_clusters = super().cluster(coords)
+        max_size = np.max([len(c) for c in coord_clusters])
+        max_cc = [c for c in coord_clusters if len(c) == max_size]
+        max_locations = []
+        for mc in max_cc:
+            locs = self._filter_coords(mc)
+            try: 
+                relevance = np.sum([v['relevance']
+                                    for v in locs.values()])
+            except KeyError:
+                raise KeyError('Missing location relevance scores.')
+            max_locations.append((locs, relevance))
+        max_locations.sort(key=lambda loc: loc[1], reverse=True)
+        return max_locations[0][0]
 
     def _filter_coords(self, coords):
         """Return locations for which lat/lon appear in input coords.
@@ -273,22 +305,23 @@ def check_near(geoloc_proposal, cluster, max_dist=MAX_DIST):
             return True
     return False
 
-def select_nearest(geoloc_proposals, target_coords, max_dist):
-    """Select from among geolocation proposals.
+def select_nearest(geoloc_proposals, target_location, max_dist):
+    """From geolocation proposals, select nearest to target_location.
 
-    The proposal nearest to target_coords is returned, but only if
+    The proposal nearest to target_location is returned only if
         within max_dist.
 
     Arguments:
         geoloc_proposals: list of dicts with lat, lon as keys
             (typically, OSM records)
-        target_coords: tuple (lat, lon)
+        target_location: dict of form {loc_name: loc_data}
         max_dist: max accpetable distance form target_coords in km
 
     Returns: dict
     """
     if len(geoloc_proposals) == 0:
         return {}
+    target_coords = get_coord_array(target_location)
     proposals_dists = []
     for gp in geoloc_proposals:
         lat, lon = float(gp['lat']), float(gp['lon'])
@@ -301,12 +334,13 @@ def select_nearest(geoloc_proposals, target_coords, max_dist):
 
 # Utility to plot geoclusters
 
-def cluster_plot(coord_clusters, save_prefix, scaling=10):
+def cluster_plot(coord_clusters, output_filename, scaling=10):
     """Scatterplot clusters of lat/lon coords.
 
     Arguments:
         clusters: numpy array of shape (n,2)
-        save_prefix: text string
+        output_filename: text string (with image suffix, e.g. .png
+            or .jpg, or if no suffix, default is .png)
         scaling: graph points have area proportional to cluster size,
             scaled up by this factor
 
@@ -325,6 +359,6 @@ def cluster_plot(coord_clusters, save_prefix, scaling=10):
     ax.set_title('Coordinate clusters')
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
-    plt.savefig(save_prefix+'.png', bbox_inches='tight') 
+    plt.savefig(output_filename, bbox_inches='tight') 
     return
 
