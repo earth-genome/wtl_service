@@ -116,7 +116,7 @@ def scrape():
                 print('Adding to feed @ prob {:.2f}: {}\n'.format(
                     probability, url))
                 try:
-                    gc = geocluster.GeoCluster(story.record['locations'])
+                    gc = geocluster.CoreGeoCluster(story.record['locations'])
                     core_locations = gc()
                     story.record.update({'core_locations': core_locations})
                 except Exception as e:
