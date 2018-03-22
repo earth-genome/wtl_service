@@ -1,5 +1,34 @@
-# Routines to cluster geolocations (WIP)
+"""Routines to cluster partially geolcated locations.
 
+Classes:
+    GeoCluster:  Cluster lat/lon coordinates
+    CoreGeoCluster:  Descendant class to find and flesh out a largest
+        cluster from input locations, via search of OSM records.
+
+External functions:
+    check_near: Determine whether location is within given distance
+        of target cluster.
+    select_nearest: From proposed geolocations, select nearest to
+        target coordinates.
+    cluster_plot: Scatterplot clusters of lat/lon coordinates.
+
+Usage:
+
+locations = {
+    'Ali Abad hospital': {
+        'coords': {'lat': 34.5205639, 'lon': 69.1301792},
+        'relevance': 0.659203
+    },
+    'Kabul': {
+        'coords': {'lat': 34.5553494, 'lon': 69.207486},
+        'dbpedia': 'http://dbpedia.org/resource/Kabul',
+        'relevance': 0.816886
+    }
+}
+gcg = CoreGeoCluster(locations)
+core_locations = gcg()
+
+"""
 import json
 import time
 
@@ -59,7 +88,7 @@ class GeoCluster(object):
 
     
 class CoreGeoCluster(GeoCluster):
-    """Class to find and augment largest cluster of locations.
+    """Class to find and augment the largest cluster of input locations.
 
     (Descendant) Attributes:
         locations: dict with elements of form {loc_name: loc_data}
@@ -72,9 +101,10 @@ class CoreGeoCluster(GeoCluster):
     Public Methods:
         __call__: Determine largest geolocated cluster and augment
             with geolocations for initially unlocated entities.
-        find_largest_cluster: Find largest cluster.
         augment_cluster: Add previously un-geolocated locations to
             cluster.
+        find_largest_cluster: Find largest cluster.
+        get_nearest_osm: Get nearest OSM record for input location.
     """
     
     def __init__(self,
@@ -96,10 +126,9 @@ class CoreGeoCluster(GeoCluster):
         """
         core_locations = self.find_largest_cluster()
         for loc_name, loc_data in core_locations.items():
-            osm = self._get_nearest_osm(loc_name, loc_data)
+            osm = self.get_nearest_osm(loc_name, loc_data)
             loc_data.update({'osm': [osm]})
-        augments = self.augment_cluster(core_locations)
-        core_locations.update(augments)
+        core_locations.update(self.augment_cluster(core_locations))
         return core_locations
 
     def augment_cluster(self, cluster):
@@ -149,7 +178,7 @@ class CoreGeoCluster(GeoCluster):
         max_locations.sort(key=lambda loc: loc[1], reverse=True)
         return max_locations[0][0]
 
-    def _get_nearest_osm(self, loc_name, loc_data):
+    def get_nearest_osm(self, loc_name, loc_data):
         """Retrieve nearest search result from OSM.
 
         Arguments:
