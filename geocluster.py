@@ -119,6 +119,8 @@ class GrowGeoCluster(GeoCluster):
             where loc_data is a dict that may include 'coords' and
             'relevance' as keys (among others).  
             loc_data['coords'] takes form {'lat': lat, 'lon': lon}
+        coords: (n,2) array of available lat/lon coordinates in
+            locations
         unlocated: initially unlocated entities drawn from locations 
         
     Public Methods:
@@ -139,6 +141,10 @@ class GrowGeoCluster(GeoCluster):
         # thread-safe deep copy
         self.locations = json.loads(json.dumps(locations))
         self.unlocated = get_unlocated(self.locations)
+        try: 
+            self.coords = get_coord_array(self.locations)
+        except ValueError:
+            raise ValueError('No seed coordinates found.')
 
     def seed(self):
         """Find and return deep copy of largest cluster."""
@@ -208,11 +214,7 @@ class GrowGeoCluster(GeoCluster):
 
         Returns:  Subdict of locations.
         """
-        try: 
-            coords = get_coord_array(self.locations)
-        except ValueError:
-            raise ValueError('No seed coordinates found.')
-        coord_clusters = super().cluster(coords)
+        coord_clusters = super().cluster(self.coords)
         max_size = np.max([len(c) for c in coord_clusters])
         max_cc = [c for c in coord_clusters if len(c) == max_size]
         max_locations = []
