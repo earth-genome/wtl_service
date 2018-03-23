@@ -30,7 +30,7 @@ an (n,2) numpy array.
 Simple use of this base class might entail, on input array coords:
 > gc = GeoCluster(max_dist=150, min_size=1)
 > coord_clusters = gc.cluster(coords)
-> cluster_plot(coord_clusters)
+> cluster_plot(coord_clusters, 'scatterplot.png')
 
 The descendant class GrowGeoCluster handles locations of form
 specified above, bulkier in its machinations to handle incomplete data.
