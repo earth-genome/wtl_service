@@ -41,6 +41,9 @@ EMPTY_DATA_VALUES = {
     'url': ''
 }
 
+# For server-side date filtering.  Database Rules must include
+# (e.g.. for top-level key 'stories'):
+# "stories": {".indexOn": ["publication_date"]}
 EPOCH_START = '1970-01-01'
 TOMORROW = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
 
