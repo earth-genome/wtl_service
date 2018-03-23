@@ -18,6 +18,7 @@ Class DB: Firebase database, with methods for manipulating
 
 import re
 
+import datetime
 from dateutil.parser import parse
 from firebase.firebase import FirebaseApplication
 
@@ -39,6 +40,10 @@ EMPTY_DATA_VALUES = {
     'title': '',
     'url': ''
 }
+
+EPOCH_START = '1970-01-01'
+TOMORROW = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+
 
 class DB(FirebaseApplication):
     """Firebase database. 
@@ -74,15 +79,27 @@ class DB(FirebaseApplication):
         else:
             return True
 
-    def grab_data(self, category=BASE_CATEGORY, data_type='text'):
-        """Download specified materials from all stories in given category.
+    def grab_data(self,
+                  category=BASE_CATEGORY,
+                  startDate=EPOCH_START,
+                  endDate=TOMORROW,
+                  data_type='text'):
+        """Download specified materials for specified dates.
 
-        Supported data_type can be 'text', 'keywords', 'image', or any
-        secondary heading listed in EMPTY_DATA_VALUES.
+        Arguments:
+            category: database top-level key
+            startDate/endDate: isoformat date or datetime 
+            data_type: can be 'text', 'keywords', 'image', or any
+                secondary heading listed in EMPTY_DATA_VALUES.
 
         Returns:  List of story indices and list of data.
         """
-        raw = self.get(category, None)
+        params = {
+            'orderBy': '"publication_date"',
+            'startAt': '"' + startDate + '"',
+            'endAt': '"' + endDate + '"'
+        }
+        raw = self.get(category, None, params=params)
         indices = list(raw.keys())
         data = []
         for v in raw.values():
@@ -96,12 +113,24 @@ class DB(FirebaseApplication):
                     raise
         return indices, data
 
-    def grab_stories(self, category=BASE_CATEGORY):
-        """Download all stories in a given category.
+    def grab_stories(self,
+                     category=BASE_CATEGORY,
+                     startDate=EPOCH_START,
+                     endDate=TOMORROW):
+        """Download all stories in a given category between given dates.
+
+        Arguments:
+            category: database top-level key
+            startDate/endDate: isoformat date or datetime 
 
         Returns a list of DBItems.
         """
-        raw = self.get(category, None)
+        params = {
+            'orderBy': '"publication_date"',
+            'startAt': '"' + startDate + '"',
+            'endAt': '"' + endDate + '"'
+        }
+        raw = self.get(category, None, params=params)
         stories = [DBItem(category, idx, record) for idx, record in
                    raw.items()]
         return stories
