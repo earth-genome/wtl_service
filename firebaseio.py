@@ -184,7 +184,7 @@ class DBItem(object):
             idx = self.record['title']
         except KeyError:
             try:
-                idx = record['url']
+                idx = self.record['url']
             except KeyError:               
                 raise
         idx = re.sub(FB_FORBIDDEN_CHARS,'',idx)
