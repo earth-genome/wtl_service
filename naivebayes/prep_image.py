@@ -1,7 +1,7 @@
 """Functions to vectorize images ahead of classification.
 
-Image tags and relevance scores (extracted via module tag_image) are
-used to build a vocabulary and corresponding vectors. Vectorizing
+Image tags and relevance scores (extracted via module story_builder/tag_image)
+are used to build a vocabulary and corresponding vectors. Vectorizing
 opterations are modeled after those in sklearn.feature_extraction.text
 (ref. prep_text.py) for seamless integration in sklearn classifiers
 (ref. naivebayes.py).
@@ -18,9 +18,6 @@ External class:
  
 import numpy as np
 import sys
-
-sys.path.append('../')
-import tag_image
 
 class ImageVectorizer(object):
     """Vectorize images.
