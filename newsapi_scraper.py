@@ -15,8 +15,6 @@ Outputs:
 """
 
 import datetime
-import json
-import os
 import random
 import signal
 import sys
