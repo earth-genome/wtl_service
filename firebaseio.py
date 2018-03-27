@@ -45,7 +45,7 @@ EMPTY_DATA_VALUES = {
 # (e.g.. for top-level key 'stories'):
 # "stories": {".indexOn": ["publication_date"]}
 EPOCH_START = '1970-01-01'
-TOMORROW = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+NEXT_CENTURY = '2100-01-01'
 
 
 class DB(FirebaseApplication):
@@ -85,7 +85,7 @@ class DB(FirebaseApplication):
     def grab_data(self,
                   category=BASE_CATEGORY,
                   startDate=EPOCH_START,
-                  endDate=TOMORROW,
+                  endDate=NEXT_CENTURY,
                   data_type='text'):
         """Download specified materials for specified dates.
 
@@ -119,7 +119,7 @@ class DB(FirebaseApplication):
     def grab_stories(self,
                      category=BASE_CATEGORY,
                      startDate=EPOCH_START,
-                     endDate=TOMORROW):
+                     endDate=NEXT_CENTURY):
         """Download all stories in a given category between given dates.
 
         Arguments:
