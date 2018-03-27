@@ -30,6 +30,7 @@ import requests
 
 import config
 import firebaseio
+from logger import log_exceptions
 from story_builder import story_builder
 
 BASE_URL = 'https://newsapi.org/v2/everything'
@@ -45,7 +46,6 @@ FROM_DATE = datetime.date.today()
 STORY_SEEDS = firebaseio.DB(config.FIREBASE_URL)
 
 EXCEPTION_DIR = 'NewsAPIexception_logs'
-FEED_DIR = 'NewsAPI_WTLfeeds' # deprecated
 
 def scrape():
 
@@ -53,8 +53,7 @@ def scrape():
 
     def signal_handler(*args):
         print('KeyboardInterrupt: Writing logs before exiting...')
-        #log_feed(feed)
-        log_exceptions(except_log)
+        log_exceptions(except_log, directory=EXCEPTION_DIR)
         sys.exit(0)
 
     signal.signal(signal.SIGINT, signal_handler)
@@ -116,32 +115,10 @@ def scrape():
             except Exception as e:
                 except_log += 'Uploading article {}:\n{}\n'.format(url,
                                                                    repr(e))
-    log_exceptions(except_log)
+    log_exceptions(except_log, directory=EXCEPTION_DIR)
     print('complete')
     return
 
-
-def log_feed(feed, dir=FEED_DIR):
-    """Write feed to json file."""
-    if feed == {}:
-        return
-    if not os.path.exists(dir):
-        os.makedirs(dir)
-    feedfile = os.path.join(dir, datetime.datetime.now().isoformat()+'.json')
-    with open(feedfile, 'a') as f:
-        json.dump(feed, f, indent=4)
-    return
-
-def log_exceptions(log, dir=EXCEPTION_DIR):
-    """Write exceptions to file."""
-    if log == '':
-        return
-    if not os.path.exists(dir):
-            os.makedirs(dir)
-    logfile = os.path.join(dir, datetime.date.today().isoformat()+'.log')
-    with open(logfile, 'a') as f:
-        f.write(log)
-    return
         
 if __name__ == '__main__':
     scrape()
