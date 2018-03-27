@@ -1,5 +1,8 @@
 # Routines to determine geographic coordinates relevant to input text
 
+import sys
+
+sys.path.append('../')
 #from geopy.geocoders import Nominatim
 from nominatim import nominatim
 import requests

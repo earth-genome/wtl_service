@@ -15,10 +15,13 @@ External functions:
     clean_keywords(keywords)
 """
 
+import os
 import re
+import sys
 
+sys.path.append('../')
 from firebaseio import FB_FORBIDDEN_CHARS
-import geolocate
+from . import geolocate
 
 # include these entity types:
 ENTITY_TYPES = set(['Location', 'Facility', 'GeographicFeature',
@@ -35,10 +38,11 @@ EXCLUDED_SUBTYPES = set([
 ])
 
 # And exclude these specific entities.  Add new excluded facilies as a
-# separate line (without quotations) to bad_list.txt.
-with open ("bad_list.txt", "r") as badfile:
-    data = badfile.readlines()
-    EXCLUDED_ENTITIES = set([x.strip() for x in data])
+# separate line (without quotations) to facilities_stop_words.txt.
+FACILITIES_SW_FILE = os.path.join(os.path.dirname(__file__),
+                            'facilities_stop_words.txt')
+with open (FACILITIES_SW_FILE, "r") as swf:
+    EXCLUDED_ENTITIES = set([line.strip() for line in swf])
 
 def reprocess(entities):
     entities = filter_entities(entities)

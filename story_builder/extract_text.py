@@ -10,12 +10,14 @@ External functions:
         with routines in facilitize.py
 
 """
+import sys
 
 import watson_developer_cloud as wdc
 import watson_developer_cloud.natural_language_understanding_v1 as nlu
 
+sys.path.append('../')
 from config import WATSON_USER, WATSON_PASS
-import facilitize
+from . import facilitize
 
 AUTH = wdc.NaturalLanguageUnderstandingV1(
         version='2017-02-27',
