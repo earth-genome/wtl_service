@@ -1,17 +1,19 @@
-"""Wrapper to restore and run a naivebayes.LogisticStacker() model.
+"""Wrapper to restore and run a classifier on a news story.
 
-Returns a probability the story associated to input url is a good candidate
-for satellite imagery, based on latest stored model.
+Returns a probability the story (possibly text and image) associated to
+input url is a good candidate for satellite imagery, based on latest
+stored model.
 """
 
 import sys
 
 from sklearn.externals import joblib
 
-import extract_text
 import firebaseio
+from story_builder import story_builder
 
 CLASSIFIER = joblib.load('naivebayes/Stacker_models/latest_model.pkl')
+PARSE_IMAGES = True
 
 if __name__ == '__main__':
     try:
@@ -21,6 +23,7 @@ if __name__ == '__main__':
         print('Usage: python nbclassify_url.py http://story.nytimes.com')
         sys.exit()
     record = {'url': url}
-    record.update(extract_text.get_parsed_text(url))
+    record.update(
+        story_builder.retrieve_content(url, parse_image=PARSE_IMAGES))
     story = firebaseio.DBItem('/null', None, record)
     print('\nProbability: {:.2f}\n'.format(CLASSIFIER([story])[0]))
