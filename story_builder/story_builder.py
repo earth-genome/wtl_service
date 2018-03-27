@@ -3,6 +3,7 @@
 """
 
 import json
+import os
 import sys
 
 from sklearn.externals import joblib
@@ -16,7 +17,8 @@ from . import tag_image
 
 #CLASSIFIER = joblib.load('naivebayes/Stacker_models/latest_model.pkl')
 PARSE_IMAGES = False  # True if CLASSIFIER processes image tags, else False
-CLASSIFIER = joblib.load('naivebayes/NBtext_models/latest_model.pkl')
+CLASSIFIER = joblib.load(os.path.join(os.path.dirname(__file__),
+    '../naivebayes/NBtext_models/latest_model.pkl'))
 
 class StoryBuilder(object):
 
