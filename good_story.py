@@ -1,5 +1,5 @@
 # Add to good_locations database a story that is a good candidate to
-# have been or that already has been enhanced by satellite imagery.
+# be enhanced by satellite imagery.
 
 # usage: python good_story.py http://mystory.nytimes.com [-n] [-h]
 
@@ -10,9 +10,8 @@
 import argparse
 
 import config
-import extract_text
 import firebaseio
-import tag_image
+from story_builder import story_builder
 
 # logfiles
 LOG_NEG = 'sat_neg_cases.txt'
@@ -20,27 +19,23 @@ LOG_POS = 'sat_pos_cases.txt'
 LOG_SAT = 'sat_stories.txt'
 
 def good_story(url, database, logfile):
-    """Upload story created from url to firebase database."""
+    """Build and upload story created from url to firebase database."""
+    builder = story_builder.StoryBuilder(classifier=None, parse_images=True)
     try:
-        record = {'url': url}
-        record.update(extract_text.get_parsed_text(url))
-    except: 
+        story = builder(category='/stories', url=url)[0]
+    except Exception as e:
+        print('While creating story: {}'.format(repr(e)))
+        print('Failed to create story for url {}\n'.format(url))
         raise
     try:
-        record.update({'image_tags': tag_image.get_tags(record['image'])})
-    except KeyError:
-        pass
-    except:
-        raise
-    try:
-        story = firebaseio.DBItem('/stories', None, record)
         database.put_item(story)
         log_url(url, logfile)
-        if check_sat(record['text']):
+        if check_sat(story.record['text']):
             log_url(url, LOG_SAT)
     except Exception as e:
-        print('Exception passed: {}'.format(repr(e)))
+        print('While posting story: {}'.format(repr(e)))
         print('Failed to post story for url {}\n'.format(url))
+        raise
     return 
 
 def log_url(url, logfile):
