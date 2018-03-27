@@ -8,15 +8,10 @@ Outputs:
     All stories and their NewsAPI metadata are uploaded to Firbase
     (STORY_SEEDS).
 
-    Stories are classified and the best candidates sent to the WhereToLook
-    database.  (Previously also they were written to a json feed.)
+    After classification, the best candidate stories are sent to the
+    WhereToLook database.  
 
     Exceptions are logged in EXCEPTION_DIR.
-
-The CLASSIFIER variable loads a pickled classifier, which has method
-classify_story() that operates on an instance of the firebaseio.DBItem class.
-
-
 """
 
 import datetime

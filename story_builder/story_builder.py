@@ -1,5 +1,19 @@
 """Retrieve content, classify, and geolocate entities for a story.
 
+Class StoryBuilder: Parse text and/or image at url, geolocate and cluster
+    locations, and classify story.
+
+External function:
+    retrieve_content: Parse text and image associate to story.
+
+Usage, with default CLASSSIFIER:
+> metadata = {'url': 'http://my.url', etc.}  # only url is required
+> builder = StoryBuilder()
+> builder(**metadata)
+
+The CLASSIFIER variable loads a pickled classifier, which has method
+classify_story() that operates on an instance of the firebaseio.DBItem class.
+
 """
 
 import json
@@ -21,12 +35,31 @@ CLASSIFIER = joblib.load(os.path.join(os.path.dirname(__file__),
     '../naivebayes/NBtext_models/latest_model.pkl'))
 
 class StoryBuilder(object):
+    """Parse text and/or image at url, geolocate and cluster locations,
+        and classify story.
 
+    Attributes:
+        classifier: restored instance of (e.g. naivebayes or logistic
+            stacking) classifier
+        parse_images: True if classifier operates on image tags, else False
+
+    Method:
+        __call__: Build a story from url.
+    """
     def __init__(self, classifier=CLASSIFIER, parse_images=PARSE_IMAGES):
         self.classifier = classifier
         self.parse_images = parse_images
 
     def __call__(self, category='/null', **metadata):
+        """Build a story.
+
+        Arguments:
+            category: database top-level key
+            metadata: dict containing at least {'url': 'http://my.url'}
+
+        Returns: a firebaseio.DBItem story, its class label (0/1), and
+            a json dump of the story name and record
+        """
         try:
             url = metadata['url']
         except KeyError:
