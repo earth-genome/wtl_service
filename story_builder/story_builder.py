@@ -62,7 +62,7 @@ class StoryBuilder(object):
         """
         try:
             url = metadata['url']
-        except KeyError:
+        except KeyError as e:
             raise KeyError('StoryBuilder: Input URL required.')
         record = json.loads(json.dumps(metadata))
         
@@ -70,8 +70,8 @@ class StoryBuilder(object):
             record.update(
                 retrieve_content(url, parse_image=self.parse_images))
         except Exception as e:
-            raise Exception('Article {}.\n Retrieving content: {}\n'.format(
-                url, repr(e)))
+            raise Exception('Retrieving content for {}\n: {}\n'.format(url,
+                repr(e)))
                 
         story = firebaseio.DBItem(category, None, record)
         if self.classifier is None:

@@ -34,6 +34,10 @@ Simple use of this base class might entail, on input array coords:
 
 The descendant class GrowGeoCluster handles locations of form
 specified above, bulkier in its machinations to handle incomplete data.
+(The logic of growing a cluster with OpenStreetMap (OSM) data after
+seeding with Google Places API data is that the latter seems relatively
+terse in its responses, while OSM is so verbose as to be almost useless
+without some prior sense of the relevant region in which to search.)
 
 Usage:
 > ggc = GrowGeoCluster(locations)
@@ -50,7 +54,6 @@ External functions:
     select_nearest: From proposed geolocations, select nearest to
         target coordinates.
     cluster_plot: Scatterplot clusters of lat/lon coordinates.
-
 
 """
 import json
@@ -144,7 +147,7 @@ class GrowGeoCluster(GeoCluster):
         try: 
             self.coords = get_coord_array(self.locations)
         except ValueError:
-            raise ValueError('No seed coordinates found.')
+            raise ValueError('Geocluster: No seed coordinates found.')
 
     def seed(self):
         """Find and return deep copy of largest cluster."""
@@ -224,7 +227,7 @@ class GrowGeoCluster(GeoCluster):
                 relevance = np.sum([v['relevance']
                                     for v in locs.values()])
             except KeyError:
-                raise KeyError('Missing location relevance scores.')
+                raise KeyError('Geocluster: Missing relevance scores.')
             max_locations.append((locs, relevance))
         max_locations.sort(key=lambda loc: loc[1], reverse=True)
         return max_locations[0][0]
