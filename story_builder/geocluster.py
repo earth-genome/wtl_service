@@ -146,8 +146,8 @@ class GrowGeoCluster(GeoCluster):
         self.unlocated = get_unlocated(self.locations)
         try: 
             self.coords = get_coord_array(self.locations)
-        except ValueError:
-            raise ValueError('Geocluster: No seed coordinates found.')
+        except ValueError as e:
+            raise ValueError('No seed coordinates found.') from e
 
     def seed(self):
         """Find and return deep copy of largest cluster."""
@@ -227,7 +227,7 @@ class GrowGeoCluster(GeoCluster):
                 relevance = np.sum([v['relevance']
                                     for v in locs.values()])
             except KeyError:
-                raise KeyError('Geocluster: Missing relevance scores.')
+                raise KeyError('Missing relevance scores.') from e
             max_locations.append((locs, relevance))
         max_locations.sort(key=lambda loc: loc[1], reverse=True)
         return max_locations[0][0]

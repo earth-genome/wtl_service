@@ -63,15 +63,14 @@ class StoryBuilder(object):
         try:
             url = metadata['url']
         except KeyError as e:
-            raise KeyError('StoryBuilder: Input URL required.')
+            raise KeyError('StoryBuilder: kwarg url required.') from e
         record = json.loads(json.dumps(metadata))
         
         try:
             record.update(
                 retrieve_content(url, parse_image=self.parse_images))
         except Exception as e:
-            raise Exception('Retrieving content for {}: {}'.format(url,
-                                                                   repr(e)))
+            raise Exception('Retrieving content for {}\n'.format(url)) from e
                 
         story = firebaseio.DBItem(category, None, record)
         if self.classifier is None:
@@ -87,10 +86,10 @@ class StoryBuilder(object):
                 core_locations = ggc.seed_and_grow()
                 story.record.update({'core_locations': core_locations})
             except Exception as e:
-                print('Article {}.\n Clustering: {}\n'.format(url, repr(e)))
+                print('Clustering for article {}\n{}\n'.format(url, repr(e)))
                 story.record.update({'core_locations': {}})
         else:
-            print('Declined @ prob {:.2f}: {}\n'.format(probability, url))
+            print('Declined @ prob {:.3f}: {}\n'.format(probability, url))
         return story, classification, json.dumps({story.idx: story.record})
 
 def retrieve_content(url, parse_image=False):
