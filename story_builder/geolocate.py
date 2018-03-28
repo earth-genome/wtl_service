@@ -19,8 +19,8 @@ from geobox import geobox
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 def geocode(text):
-    """Accepts a text query and returns lat-lon coordinates and a
-    bounding box.
+    """Accepts a text query and returns lat-lon coordinates and
+    (if possible) a bounding box.
     """
     base = 'https://maps.googleapis.com/maps/api/place/textsearch/json'
     payload = {
@@ -36,9 +36,10 @@ def geocode(text):
         try: 
             viewport = data['results'][0]['geometry']['viewport']
             bbox = geobox.google_to_shapely_box(viewport).bounds
+            geoloc.update({'boundingbox': bbox})
         except KeyError:
-            bbox = ()
-        return geoloc, bbox
+            pass
+        return geoloc
     elif data['status'] == 'ZERO_RESULTS':
         return {}
     elif data['status'] == 'INVALID_REQUEST':

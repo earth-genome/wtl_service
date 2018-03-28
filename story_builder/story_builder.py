@@ -70,8 +70,8 @@ class StoryBuilder(object):
             record.update(
                 retrieve_content(url, parse_image=self.parse_images))
         except Exception as e:
-            raise Exception('Retrieving content for {}\n: {}\n'.format(url,
-                repr(e)))
+            raise Exception('Retrieving content for {}: {}'.format(url,
+                                                                   repr(e)))
                 
         story = firebaseio.DBItem(category, None, record)
         if self.classifier is None:

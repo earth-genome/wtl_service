@@ -52,7 +52,7 @@ def reprocess(entities):
             name = e['disambiguation']['name']
         except KeyError:
             name = e['text']
-        coords, bbox = geolocate.geocode(name)
+        coords = geolocate.geocode(name)
         name = re.sub(FB_FORBIDDEN_CHARS, '', name)
         try:
             dbpedia = e['disambiguation']['dbpedia_resource']
@@ -64,7 +64,6 @@ def reprocess(entities):
             subtype = ''
         data = {
             'coords': coords,
-            'boundingbox': bbox,
             'relevance': e['relevance'],
             'dbpedia': dbpedia,
             'subtype': subtype
