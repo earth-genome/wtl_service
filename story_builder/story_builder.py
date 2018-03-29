@@ -3,7 +3,7 @@
 Class StoryBuilder: Parse text and/or image at url, geolocate and cluster
     locations, and classify story.
 
-Usage, with default CLASSSIFIER and flags PARSE_IMAGES, HONE_LOCATIONS:
+Usage, with default CLASSSIFIER:
 > metadata = {'date_published': '2018-03-28', ...} #optional records for story
 > builder = StoryBuilder()
 > builder(url, **metadata)
@@ -30,7 +30,6 @@ CLASSIFIER = joblib.load(os.path.join(os.path.dirname(__file__),
     '../naivebayes/NBtext_models/latest_model.pkl'))
 #CLASSIFIER = joblib.load('naivebayes/Stacker_models/latest_model.pkl')
 PARSE_IMAGES = True  # required True if CLASSIFIER processes image tags
-HONE_LOCATIONS = True
 
 class StoryBuilder(object):
     """Parse text and/or image at url, geolocate and cluster locations,
@@ -40,20 +39,16 @@ class StoryBuilder(object):
         classifier: restored instance of (e.g. naivebayes or logistic
             stacking) classifier
         parse_images: True if classifier operates on image tags, else False
-        hone_locations: True/False to apply geoclustering routines
 
     Methods:
         __call__: Build a story from url.
         assemble_content: Assemble parsed url content into a basic story.
-        build: Classify and run geoclustering routines for story skeleton.
+        run_classifier: Classify story.
+        run_geoclustering: Run geoclustering for story.
     """
-    def __init__(self,
-                 classifier=CLASSIFIER,
-                 parse_images=PARSE_IMAGES,
-                 hone_locations=HONE_LOCATIONS):
+    def __init__(self, classifier=CLASSIFIER, parse_images=PARSE_IMAGES):
         self.classifier = classifier
         self.parse_images = parse_images
-        self.hone_locations = hone_locations
 
     def __call__(self, url, category='/null', **metadata):
         """Build a story from url.
@@ -63,12 +58,17 @@ class StoryBuilder(object):
             category: database top-level key
             metadata: options parameters to store in story record
 
-        Returns: a firebaseio.DBItem story, its class label (0/1), and
+        Returns: a firebaseio.DBItem story, its class label (0/1/None), and
             a json dump of the story name and record
         """
-        skeleton = self.assemble_content(url, category, **metadata)
-        story, classification, feed = self.build(skeleton)
-        return story, classification, feed
+        story = self.assemble_content(url, category, **metadata)
+        if self.classifier is None:
+            classification = None
+        else:
+            classification, probability = self.run_classifier(story)
+            story.record.update({'probability': probability})
+        story = self.run_geoclustering(story)
+        return story, classification, json.dumps({story.idx: story.record})
 
     def assemble_content(self, url, category='/null', **metadata):
         """Assemble parsed url content into a basic story.
@@ -81,8 +81,7 @@ class StoryBuilder(object):
         Returns: a firebaseio.DBItem story
         """
         record = json.loads(json.dumps(metadata))
-        if 'url' not in record.keys():
-            record.update({'url': url})
+        record.update({'url': url})
         try:
             record.update(extract_text.get_parsed_text(url))
         except Exception as e:
@@ -97,41 +96,45 @@ class StoryBuilder(object):
                 raise Exception('Tagging image for {}\n'.format(url)) from e
         return firebaseio.DBItem(category, None, record)
 
-    def build(self, skeleton):
-        """Classify and run geoclustering routines for story skeleton.
+    def run_classifier(self, story):
+        """Classify story.
 
-        Argument skeleton:  A firebasio.DBItem story that includes
+        Argument story:  A firebasio.DBItem story that includes
             parsed content as required for self.classifier (typically,
             returned from assemble_content)
 
-        Returns: a firebaseio.DBItem story, a class label (0/1/None), and
-            a json dump of the story name and record
+        Returns: a class label (0/1/None) and probability 
         """
-        url = skeleton.record['url']
-        story = firebaseio.DBItem(skeleton.category,
-                                  skeleton.idx,
-                                  json.loads(json.dumps(skeleton.record)))
+        url = story.record['url']
+        try: 
+            classification, probability = self.classifier.classify_story(
+                story)
+        except Exception as e:
+            raise Exception('Classifying {}'.format(url)) from e
+        result = 'Accepted' if classification == 1 else 'Declined'
+        print(result + ' for feed @ prob {:.3f}: {}\n'.format(
+            probability, url))
         
-        if self.classifier is None:
-            classification = None
-        else:
-            try: 
-                classification, probability = self.classifier.classify_story(
-                    story)
-            except Exception as e:
-                raise Exception('Classifying {}'.format(url)) from e
-            story.record.update({'probability': probability})
-            result = 'Accepted' if classification == 1 else 'Declined'
-            print(result + ' for feed @ prob {:.3f}: {}\n'.format(
-                probability, url))
+        return classification, probability
+    
+    def run_geoclustering(self, story):
+        """Run geoclustering routines for story.
 
-        if self.hone_locations:
-            try:
-                ggc = geocluster.GrowGeoCluster(story.record['locations'])
-                core_locations = ggc.seed_and_grow()
-            except Exception as e:
-                print('Clustering for article {}\n{}\n'.format(url, repr(e)))
-                core_locations = {}
-            story.record.update({'core_locations': core_locations})
+        Argument story:  A firebasio.DBItem story
+
+        Returns: a new firebaseio.DBItem story
+        """
+        url = story.record['url']
+        story = firebaseio.DBItem(story.category,
+                                  story.idx,
+                                  json.loads(json.dumps(story.record)))
+
+        try:
+            ggc = geocluster.GrowGeoCluster(story.record['locations'])
+            core_locations = ggc.seed_and_grow()
+        except Exception as e:
+            print('Clustering for article {}\n{}\n'.format(url, repr(e)))
+            core_locations = {}
+        story.record.update({'core_locations': core_locations})
                 
-        return story, classification, json.dumps({story.idx: story.record})
+        return story
