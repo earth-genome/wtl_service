@@ -20,4 +20,4 @@ if __name__ == '__main__':
         print('Usage: python classify_img.py http://url.to.image.jpg')
         sys.exit()
     tags = tag_image.get_tags(url)
-    print('\nProbability: {:.2f}\n'.format(CLASSIFIER([tags])[0]))
+    print('\nProbability: {:.3f}\n'.format(CLASSIFIER([tags])[0]))

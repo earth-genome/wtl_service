@@ -22,8 +22,6 @@ if __name__ == '__main__':
         print('Exiting.  No url specified.')
         print('Usage: python nbclassify_url.py http://story.nytimes.com')
         sys.exit()
-    record = {'url': url}
-    record.update(
-        story_builder.retrieve_content(url, parse_image=PARSE_IMAGES))
-    story = firebaseio.DBItem('/null', None, record)
-    print('\nProbability: {:.2f}\n'.format(CLASSIFIER([story])[0]))
+    builder = story_builder.StoryBuilder(classifier=None, parse_images=True)
+    story = builder.assemble_content(url)
+    print('\nProbability: {:.3f}\n'.format(CLASSIFIER([story])[0]))

@@ -20,4 +20,4 @@ if __name__ == '__main__':
         print('Usage: python classify_url_text.py http://story.nytimes.com')
         sys.exit()
     text = extract_text.get_text(url)[0]
-    print('\nProbability: {:.2f}\n'.format(CLASSIFIER([text])[0]))
+    print('\nProbability: {:.3f}\n'.format(CLASSIFIER([text])[0]))
