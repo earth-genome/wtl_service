@@ -26,9 +26,10 @@ from . import extract_text
 from . import geocluster
 from . import tag_image
 
+#CLASSIFIER = joblib.load(os.path.join(os.path.dirname(__file__),
+#    '../naivebayes/NBtext_models/latest_model.pkl'))
 CLASSIFIER = joblib.load(os.path.join(os.path.dirname(__file__),
-    '../naivebayes/NBtext_models/latest_model.pkl'))
-#CLASSIFIER = joblib.load('naivebayes/Stacker_models/latest_model.pkl')
+    '../naivebayes/Stacker_models/latest_model.pkl'))
 PARSE_IMAGES = True  # required True if CLASSIFIER processes image tags
 
 class StoryBuilder(object):
@@ -136,5 +137,8 @@ class StoryBuilder(object):
             print('Clustering for article {}\n{}\n'.format(url, repr(e)))
             core_locations = {}
         story.record.update({'core_locations': core_locations})
-                
+        story.record.update({
+            'core_centroid': geocluster.get_centroid(core_locations)
+        })
+    
         return story

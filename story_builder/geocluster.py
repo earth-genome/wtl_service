@@ -21,7 +21,7 @@ The 'relevance' key is expected for use in selecting among clusters.
 'coords' is expected for at least one of the given locations.
 Other keys are allowed.
 
-A subdict might be passed with name 'clusters' or 'core_locations'.
+A subdict might be passed with name 'cluster(s)' or 'core_locations'.
 
 That said, the base class GeoCluster is a lightweight affair which
 operates directly on latitude/longitude coordinates given in
@@ -181,7 +181,7 @@ class GrowGeoCluster(GeoCluster):
         """
         additions = {}
         for loc_name, loc_data in self.unlocated.items():
-            sleep() 
+            sleep()
             osm_candidates = geolocate.search_osm(loc_name)
             good_candidates = []
             for cand in osm_candidates:
@@ -254,6 +254,26 @@ class GrowGeoCluster(GeoCluster):
     
 # Helper functions to manipulate locations dicts
 
+def get_centroid(cluster):
+    """Find centroid of cluster points.
+
+    Argument cluster: dict of locations
+
+    Returns: dict with lat/lon
+    """
+    # WIP: redo after harmonizing google/osm locations
+    points = []
+    for loc_data in cluster.values():
+        if 'coords' in loc_data.keys():
+            lat = loc_data['coords']['lat']
+            lon = loc_data['coords']['lon']
+            points.append((lon, lat))
+        elif 'osm' in loc_data.keys():
+            for osm in loc_data['osm']:
+                points.append((float(osm['lon']), float(osm['lat'])))
+    centroid = geometry.MultiPoint(points).centroid
+    return {'lat': centroid.y, 'lon': centroid.x}
+        
 def get_unlocated(locations):
     """Extract locations that have no geolocation.
 
@@ -265,6 +285,9 @@ def get_unlocated(locations):
     for loc_name, loc_data in locations.items():
         if 'coords' not in loc_data.keys():
             unlocated.update({loc_name: loc_data})
+        else:
+            if not loc_data['coords']:
+                unlocated.update({loc_name: loc_data})
     return unlocated
     
 def get_coord_array(locations):
