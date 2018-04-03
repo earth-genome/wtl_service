@@ -49,6 +49,7 @@ Classes:
         cluster from input locations, via search of OSM records.
 
 External functions:
+    get_centroid:  Find centroid of cluster.
     check_near: Determine whether location is within given distance
         of target cluster.
     select_nearest: From proposed geolocations, select nearest to
