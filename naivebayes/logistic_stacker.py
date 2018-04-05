@@ -58,6 +58,10 @@ POS_DB = firebaseio.DB(config.FIREBASE_GL_URL)
 NEG_DB = firebaseio.DB(config.FIREBASE_NEG_URL)
 DEFAULT_THRESHOLD = .65
 
+# Until image traning database sufficiently samples possible tag words,
+# we will hand tune relative text / image weights:
+HAND_TUNE_PARAMS = np.array([.9, .1])
+
 class LogisticStacker(object):
     """Wrapper to restore and run a logistic regression stacking
     classifier.
@@ -114,12 +118,18 @@ class LogisticStacker(object):
         return predictions
 
 
-def train_from_dbs(*input_classifiers, neg_db=NEG_DB, pos_db=POS_DB, 
-                   x_val=5, threshold=DEFAULT_THRESHOLD, freeze_dir=None):
+def train_from_dbs(*input_classifiers,
+                   neg_db=NEG_DB, pos_db=POS_DB, 
+                   x_val=5,
+                   threshold=DEFAULT_THRESHOLD,
+                   hand_tune_params=None, 
+                   freeze_dir=None):
     """Train from our Firebase databases.
 
     Keyword arguments:
         x_val: integer k indicating k-fold cross-validation, or None
+        hand_tune_params: np.array of relative weights for input_classifiers,
+            or None
         freeze_dir: If given, the model will be pickled to disk in this dir.
 
     Returns a LogisticRegression instance and cross-validation scores
@@ -132,14 +142,24 @@ def train_from_dbs(*input_classifiers, neg_db=NEG_DB, pos_db=POS_DB,
                     for s in stories]
     features = np.array(features)
     stacker = LogisticRegression(verbose=1).fit(features, labels)
-    logstack = LogisticStacker(stacker, *input_classifiers,
-                               threshold=threshold)
-    if x_val is not None:
+
+    # Hand tuning:
+    if hand_tune_params:
+        assert len(hand_tune_params) == len(input_classifiers)
+        totalweight = np.sum(stacker.coef_)
+        stacker.coef_ = np.array([hand_tune_params*totalweight])
+
+    # x_val only functions correctly without hand tuning:
+    if x_val:
         scores = cross_val_score(LogisticRegression(), features, labels,
                                  cv=x_val)
     else:
         scores = None
-    if freeze_dir is not None:
+        
+    logstack = LogisticStacker(stacker,
+                               *input_classifiers,
+                               threshold=threshold)
+    if freeze_dir:
         model_data = {
             'data': json.dumps({s.idx:s.record for s in stories}, indent=4),
             'labels': labels,
