@@ -19,6 +19,7 @@ Outputs:
 import logging
 from logging import handlers
 import os
+import random
 import signal
 import sys
 
@@ -28,7 +29,7 @@ import config
 import firebaseio
 from story_builder import story_builder
 
-SOURCE_URL = 'https://gdelt-seeds.herokuapp.com/urls'
+GDELT_BASE_URL = 'https://gdelt-seeds.herokuapp.com/urls'
 
 STORY_SEEDS = firebaseio.DB(config.FIREBASE_URL)
 
@@ -40,18 +41,19 @@ def scrape():
     logger = _build_logger()
     signal.signal(signal.SIGINT, _signal_handler)
     builder = story_builder.StoryBuilder()
-    urls = _harvest_urls()
+    records = _harvest_gdelt_records()
 
-    for url in urls:
+    for rec in records:
+        url = rec.pop('url')
         try:
-            _build_and_post(url, builder, logger)
+            _build_and_post(url, builder, logger, **rec)
         except Exception as e:
             logger.error(url, exc_info=True)
 
     print('complete')
     return
 
-def _build_and_post(url, builder, logger):
+def _build_and_post(url, builder, logger, **metadata):
     """Build and post, ad hoc to scraping.
 
     Arguments:
@@ -61,7 +63,7 @@ def _build_and_post(url, builder, logger):
 
     Returns: record of post to '/stories' if successful, else {}
     """
-    story = builder.assemble_content(url, category='/stories')
+    story = builder.assemble_content(url, category='/stories', **metadata)
     # TODO for GDELT: we should either get titles from GDELT server or
     # check url (where?) before grabbing content
     if STORY_SEEDS.check_known(story):
@@ -79,11 +81,15 @@ def _build_and_post(url, builder, logger):
     story.record.pop('keywords')
     return STORY_SEEDS.put('/stories', story.idx, story.record)
         
-def _harvest_urls(source_url=SOURCE_URL):
-    """Retrieve urls."""
-    data = requests.get(source_url)
-    urls = data.json()['results']
-    return urls
+def _harvest_gdelt_records(base_url=GDELT_BASE_URL):
+    """Retrieve urls and associated metadata."""
+    data = requests.get(base_url)
+    records = data.json()['results']
+    for rec in records:
+        url = rec.pop('SOURCEURL')
+        rec.update({'url': url})
+    random.shuffle(records)
+    return records
 
 def _build_logger(directory=EXCEPTIONS_DIR, logfile=LOGFILE):
     logger = logging.getLogger(__name__)
