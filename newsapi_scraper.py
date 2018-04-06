@@ -91,7 +91,7 @@ def scrape():
             try:
                 story, classification, feed_rec = builder(**metadata)
             except Exception as e:
-                except_log += repr(e)
+                except_log += repr(e) + '\n'
                 continue
 
             if classification == 1:
