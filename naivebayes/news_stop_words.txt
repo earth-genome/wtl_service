@@ -6,4 +6,8 @@ said
 like
 share
 subscribe
-
+satellite
+satellites
+landsat
+digitalglobe
+modis
