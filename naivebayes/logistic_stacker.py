@@ -144,7 +144,7 @@ def train_from_dbs(*input_classifiers,
     stacker = LogisticRegression(verbose=1).fit(features, labels)
 
     # Hand tuning:
-    if hand_tune_params:
+    if hand_tune_params is not None:
         assert len(hand_tune_params) == len(input_classifiers)
         totalweight = np.sum(stacker.coef_)
         stacker.coef_ = np.array([hand_tune_params*totalweight])
@@ -161,7 +161,8 @@ def train_from_dbs(*input_classifiers,
                                threshold=threshold)
     if freeze_dir:
         model_data = {
-            'data': json.dumps({s.idx:s.record for s in stories}, indent=4),
+            'data': json.dumps({s.idx:s.record['url'] for s in stories},
+                               indent=4),
             'labels': labels,
             'cross_validation_scores': scores
         }
