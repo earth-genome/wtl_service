@@ -137,8 +137,9 @@ class StoryBuilder(object):
             print('Clustering for article {}\n{}\n'.format(url, repr(e)))
             core_locations = {}
         story.record.update({'core_locations': core_locations})
-        story.record.update({
-            'core_centroid': geocluster.get_centroid(core_locations)
-        })
+        if core_locations:
+            story.record.update({
+                'core_centroid': geocluster.get_centroid(core_locations)
+            })
     
         return story
