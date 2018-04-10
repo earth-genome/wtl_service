@@ -30,6 +30,9 @@ import config
 import firebaseio
 from story_builder import story_builder
 
+sys.path.append('grab-imagery/')
+from landsat import thumbnail_grabber
+
 WIRE_URLS = {
     'newsapi': 'https://newsapi.org/v2/everything',
     'gdelt': 'https://gdelt-seeds.herokuapp.com/urls'
@@ -50,6 +53,7 @@ def scrape(wires):
     logger = _build_logger()
     signal.signal(signal.SIGINT, _signal_handler)
     builder = story_builder.StoryBuilder()
+    img_grabber = thumbnail_grabber.ThumbnailGrabber(logger=logger)
     records = _harvest_records(wires)
 
     for rec in records:
@@ -59,19 +63,20 @@ def scrape(wires):
                 continue
         url = rec.pop('url')
         try:
-            _build_and_post(url, builder, logger, **rec)
+            _build_and_post(url, builder, img_grabber, logger, **rec)
         except Exception as e:
             logger.error(url, exc_info=True)
 
     print('complete')
     return
 
-def _build_and_post(url, builder, logger, **metadata):
+def _build_and_post(url, builder, img_grabber, logger, **metadata):
     """Build and post, ad hoc to scraping.
 
     Arguments:
         url type: str
         builder: story_builder.StoryBuilder instance
+        img_grabber: instance to source images and post to cloud storage
         logger: logging.getLogger instance
 
     Returns: record of post to '/stories' if successful, else {}
@@ -85,6 +90,13 @@ def _build_and_post(url, builder, logger, **metadata):
     story.record.update({'probability': prob})
     if clf == 1:
         story = builder.run_geoclustering(story)
+        try:
+            thumbnail_urls = img_grabber.source_and_post(
+                story.record['core_centroid']['lat'],
+                story.record['core_centroid']['lon'])
+            story.record.update({'thumbnails': thumbnail_urls})
+        except KeyError as e:
+            logger.error('Centroid coords: {}'.format(url), exc_info=True)
         try: 
             STORY_SEEDS.put('/WTL', story.idx, story.record)            
         except Exception as e:
