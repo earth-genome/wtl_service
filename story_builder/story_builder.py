@@ -13,23 +13,23 @@ classify_story() that operates on an instance of the firebaseio.DBItem class.
 
 """
 
+
 import json
 import os
-import sys
 
 from sklearn.externals import joblib
 
-sys.path.append('../')
-import config
 import firebaseio
-from . import extract_text
-from . import geocluster
-from . import tag_image
+from story_builder import extract_text
+from story_builder import geocluster
+from story_builder import tag_image
+
 
 #CLASSIFIER = joblib.load(os.path.join(os.path.dirname(__file__),
 #    '../naivebayes/NBtext_models/latest_model.pkl'))
 CLASSIFIER = joblib.load(os.path.join(os.path.dirname(__file__),
-    '../naivebayes/Stacker_models/latest_model.pkl'))
+#    '../naivebayes/Stacker_models/latest_model.pkl'))
+    '../naivebayes/Stacker_models/2018-04-02T10:38:17.577630model.pkl'))
 PARSE_IMAGES = True  # required True if CLASSIFIER processes image tags
 
 class StoryBuilder(object):

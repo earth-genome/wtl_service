@@ -17,11 +17,9 @@ External functions:
 
 import os
 import re
-import sys
 
-sys.path.append('../')
 from firebaseio import FB_FORBIDDEN_CHARS
-from . import geolocate
+from story_builder import geolocate
 
 # include these entity types:
 ENTITY_TYPES = set(['Location', 'Facility', 'GeographicFeature',

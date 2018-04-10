@@ -6,11 +6,9 @@ External function: get_tags
 
 import json
 import re
-import sys
 
 import watson_developer_cloud as wdc
 
-sys.path.append('../')
 from config import WATSON_VISION_API_KEY
 from firebaseio import FB_FORBIDDEN_CHARS
 

@@ -66,7 +66,7 @@ import numpy as np
 from shapely import geometry
 from sklearn.cluster import DBSCAN
 
-from . import geolocate
+from story_builder import geolocate
 
 MAX_DIST = 150
 MIN_CLUSTER_SIZE = 1

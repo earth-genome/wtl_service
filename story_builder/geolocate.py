@@ -5,10 +5,6 @@ relatively terse in its response, as compared to OpenStreetMap.
 
 """
 
-import sys
-
-sys.path.append('../')
-sys.path.append('grab-imagery/')
 from nominatim import nominatim
 import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
