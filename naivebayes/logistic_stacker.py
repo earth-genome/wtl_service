@@ -40,13 +40,11 @@ Usage:
 
 import json
 import numpy as np
-import sys
 
 import pkg_resources
 from sklearn.model_selection import cross_val_score
 from sklearn.linear_model import LogisticRegression
 
-sys.path.append('../')
 import config
 import firebaseio
 from naivebayes import freezer

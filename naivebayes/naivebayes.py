@@ -25,13 +25,10 @@ Usage:
 
 """
 
-import sys
-
 import pkg_resources
 from sklearn.model_selection import cross_val_score
 from sklearn.naive_bayes import MultinomialNB
 
-sys.path.append('../')
 import config
 import firebaseio
 from naivebayes import freezer
