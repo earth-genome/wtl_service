@@ -125,9 +125,9 @@ def train_from_dbs(*input_classifiers,
     """Train from our Firebase databases.
 
     Keyword arguments:
-        x_val: integer k indicating k-fold cross-validation, or None
+        x_val: integer k indicating k-fold cross-validation (or None)
         hand_tune_params: np.array of relative weights for input_classifiers,
-            or None
+            default None
         freeze_dir: If given, the model will be pickled to disk in this dir.
 
     Returns a LogisticRegression instance and cross-validation scores
@@ -143,7 +143,8 @@ def train_from_dbs(*input_classifiers,
 
     # Hand tuning:
     if hand_tune_params is not None:
-        assert len(hand_tune_params) == len(input_classifiers)
+        if len(hand_tune_params) != len(input_classifiers):
+            raise ValueError('Tuning parameters not matched to classifiers.')
         totalweight = np.sum(stacker.coef_)
         stacker.coef_ = np.array([hand_tune_params*totalweight])
 
