@@ -18,7 +18,6 @@ Outputs:
 
 import datetime
 import logging
-from logging import handlers
 import os
 import random
 import signal
@@ -45,8 +44,9 @@ FROM_DATE = datetime.date.today()
 
 STORY_SEEDS = firebaseio.DB(config.FIREBASE_URL)
 
-EXCEPTIONS_DIR = 'NewsScraperExceptions_logs'
-LOGFILE = 'newswire.log'
+EXCEPTIONS_DIR = os.path.join(os.path.dirname(__file__),
+                              'NewsScraperExceptions_logs')
+LOGFILE = 'newswire' + datetime.date.today().isoformat() + '.log'
 
 def scrape(wires):
 
@@ -159,9 +159,8 @@ def _build_logger(directory=EXCEPTIONS_DIR, logfile=LOGFILE):
     logger = logging.getLogger(__name__)
     if not os.path.exists(directory):
         os.makedirs(directory)
-    trfh = handlers.TimedRotatingFileHandler(
-        os.path.join(directory, logfile), when='D')
-    logger.addHandler(trfh)
+    fh = logging.FileHandler(os.path.join(directory, logfile))
+    logger.addHandler(fh)
     return logger
 
 def _signal_handler(*args):
