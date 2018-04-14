@@ -2,8 +2,7 @@
 Understanding.
 
 Reprocessing for entities involves (1) filtering unwanted entities;
-(2) geolocating; (3) simplifying data returned to include only relevance
-and geocoordinates.
+(2) simplifying entity data returned
 
 Reprocessing for keywords involves simplifying data structure.
 
@@ -19,7 +18,6 @@ import os
 import re
 
 from firebaseio import FB_FORBIDDEN_CHARS
-from story_builder import geolocate
 
 # include these entity types:
 ENTITY_TYPES = set(['Location', 'Facility', 'GeographicFeature',
@@ -50,7 +48,6 @@ def reprocess(entities):
             name = e['disambiguation']['name']
         except KeyError:
             name = e['text']
-        coords = geolocate.geocode(name)
         name = re.sub(FB_FORBIDDEN_CHARS, '', name)
         try:
             dbpedia = e['disambiguation']['dbpedia_resource']
@@ -61,7 +58,6 @@ def reprocess(entities):
         except KeyError:
             subtype = ''
         data = {
-            'coords': coords,
             'relevance': e['relevance'],
             'dbpedia': dbpedia,
             'subtype': subtype

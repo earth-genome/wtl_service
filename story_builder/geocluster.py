@@ -144,6 +144,9 @@ class GrowGeoCluster(GeoCluster):
         super().__init__(max_dist, min_size)
         # thread-safe deep copy
         self.locations = json.loads(json.dumps(locations))
+        for loc_name, loc_data in self.locations.items():
+            coords = geolocate.google_geocode(loc_name)
+            loc_data.update({'coords': coords})
         self.unlocated = get_unlocated(self.locations)
         try: 
             self.coords = get_coord_array(self.locations)
