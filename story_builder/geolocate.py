@@ -5,7 +5,7 @@ relatively terse in its response, as compared to OpenStreetMap.
 
 """
 
-from nominatim import nominatim
+from geopy import geocoders
 import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
@@ -14,7 +14,9 @@ from geobox import geobox
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-def geocode(text):
+OSM_LIMIT = 40
+    
+def google_geocode(text):
     """Accepts a text query and returns lat-lon coordinates and
     (if possible) a bounding box.
     """
@@ -50,8 +52,11 @@ def search_osm(place_name):
 
     Returns: list of dicts 
     """
-    nom = nominatim.Nominatim()
-    recs = nom.query(place_name)
-    return recs
+    nom = geocoders.Nominatim(user_agent='Earthrise.media')
+    recs = nom.geocode(place_name,
+                       exactly_one=False,
+                       addressdetails=True,
+                       limit=OSM_LIMIT)
+    return [r.raw for r in recs]
 
 
