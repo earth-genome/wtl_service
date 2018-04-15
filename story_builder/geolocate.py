@@ -57,6 +57,7 @@ def search_osm(place_name):
                        exactly_one=False,
                        addressdetails=True,
                        limit=OSM_LIMIT)
-    return [r.raw for r in recs]
+    raw = [r.raw for r in recs] if recs is not None else []
+    return raw
 
 
