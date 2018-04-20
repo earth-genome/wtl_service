@@ -91,9 +91,9 @@ def _build_and_post(url, builder, img_grabber, logger, **metadata):
     if clf == 1:
         story = builder.run_geoclustering(story)
         try:
+            centroid = _pull_centroid(story)
             thumbnail_urls = img_grabber.source_and_post(
-                story.record['core_centroid']['lat'],
-                story.record['core_centroid']['lon'])
+                centroid['lat'], centroid['lon'])
             story.record.update({'thumbnails': thumbnail_urls})
         except KeyError as e:
             logger.error('Centroid coords: {}'.format(url), exc_info=True)
@@ -106,6 +106,14 @@ def _build_and_post(url, builder, img_grabber, logger, **metadata):
     story.record.pop('keywords')
     return STORY_SEEDS.put('/stories', story.idx, story.record)
 
+def _pull_centroid(story):
+    """Retrieve centroid for highest-scored cluster in story."""
+    clusters = story.record['clusters']
+    sorted_by_score = sorted(
+                [(c['centroid'], c['score']) for c in clusters],
+                key=lambda s: s[1])
+    return next(reversed(sorted_by_score))[0]
+    
 def _harvest_records(wires):
     """Retrieve urls and associated metadata."""
     records = []

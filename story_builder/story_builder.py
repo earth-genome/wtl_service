@@ -131,15 +131,12 @@ class StoryBuilder(object):
                                   json.loads(json.dumps(story.record)))
 
         try:
-            ggc = geocluster.GrowGeoCluster(story.record['locations'])
-            core_locations = ggc.seed_and_grow()
+            ggc = geocluster.GrowGeoCluster()
+            core_locations, clusters = ggc(story.record['locations'])
         except Exception as e:
             print('Clustering for article {}\n{}\n'.format(url, repr(e)))
-            core_locations = {}
+            core_locations, clusters = {}, []
         story.record.update({'core_locations': core_locations})
-        if core_locations:
-            story.record.update({
-                'core_centroid': geocluster.get_centroid(core_locations)
-            })
+        story.record.update({'clusters': clusters})
     
         return story
