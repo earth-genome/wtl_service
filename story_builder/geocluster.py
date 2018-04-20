@@ -206,6 +206,7 @@ class GrowGeoCluster(GeoCluster):
 
     # WIP: ad hoc cluster scoring to be replaced with a classifier
     def _score(self, cluster):
+        """Ad hoc cluster scoring."""
         SCORE_THRESH = .5
         SIZE_THRESH = 40 # km
         unique_names, relevance_scores, sizes = [], [], []
