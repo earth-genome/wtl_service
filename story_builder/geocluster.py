@@ -326,8 +326,6 @@ def dbpedia_constrained_coding(places, geocoder):
     
 def coords_from_locations(locations):
     """Extract available lat/lon from locations dict.
-
-    Argument locations:  dict
     
     Returns: numpy array of shape (n,2)
     """
