@@ -17,7 +17,6 @@ Outputs:
 """
 
 import datetime
-import logging
 import os
 import random
 import signal
@@ -27,6 +26,7 @@ import requests
 
 import config
 import firebaseio
+import log_utilities
 from story_builder import story_builder
 
 sys.path.append('grab-imagery/')
@@ -50,8 +50,9 @@ LOGFILE = 'newswire' + datetime.date.today().isoformat() + '.log'
 
 def scrape(wires):
 
-    logger = _build_logger()
-    signal.signal(signal.SIGINT, _signal_handler)
+    logger = log_utilities.build_logger(EXCEPTIONS_DIR, LOGFILE,
+                                        logger_name='news_scraper')
+    signal.signal(signal.SIGINT, log_utilities.signal_handler)
     builder = story_builder.StoryBuilder()
     img_grabber = thumbnail_grabber.ThumbnailGrabber(logger=logger)
     records = _harvest_records(wires)
@@ -165,19 +166,6 @@ def _harvest_newsapi():
                 pass
             records.append(metadata)
     return records
-
-def _build_logger(directory=EXCEPTIONS_DIR, logfile=LOGFILE):
-    logger = logging.getLogger(__name__)
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    fh = logging.FileHandler(os.path.join(directory, logfile))
-    logger.addHandler(fh)
-    return logger
-
-def _signal_handler(*args):
-    print('KeyboardInterrupt: Writing logs before exiting...')
-    logging.shutdown()
-    sys.exit(0)
         
 if __name__ == '__main__':
     known_wires = set(WIRE_URLS.keys())
