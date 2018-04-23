@@ -109,10 +109,13 @@ def _build_and_post(url, builder, img_grabber, logger, **metadata):
 def _pull_centroid(story):
     """Retrieve centroid for highest-scored cluster in story."""
     clusters = story.record['clusters']
+    if not clusters:
+        raise KeyError('No geoclusters found.')
     sorted_by_score = sorted(
                 [(c['centroid'], c['score']) for c in clusters],
                 key=lambda s: s[1])
-    return next(reversed(sorted_by_score))[0]
+    centroid = next(reversed(sorted_by_score))[0]
+    return centroid
     
 def _harvest_records(wires):
     """Retrieve urls and associated metadata."""
@@ -128,8 +131,8 @@ def _harvest_gdelt():
     data = requests.get(WIRE_URLS['gdelt'])
     results = data.json()['results']
     for r in results:
-            url = r.pop('SOURCEURL')
-            r.update({'url': url})
+        url = r.pop('SOURCEURL')
+        r.update({'url': url})
     random.shuffle(results)
     return results
 
