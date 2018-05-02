@@ -22,6 +22,10 @@ import datetime
 from dateutil.parser import parse
 from firebase.firebase import FirebaseApplication
 
+FIREBASE_URL = 'https://overview-seeds.firebaseio.com'
+FIREBASE_GL_URL = 'https://good-locations.firebaseio.com'
+FIREBASE_NEG_URL = 'https://negative-training-cases.firebaseio.com/'
+
 FB_FORBIDDEN_CHARS = u'[.$\%\[\]#/?\n]'
 BASE_CATEGORY = '/stories'
 

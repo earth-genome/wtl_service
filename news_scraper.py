@@ -42,7 +42,7 @@ OUTLETS_FILE = 'newsapi_outlets.txt'
 #FROM_DATE = datetime.date.today() - datetime.timedelta(days=2)
 FROM_DATE = datetime.date.today()
 
-STORY_SEEDS = firebaseio.DB(config.FIREBASE_URL)
+STORY_SEEDS = firebaseio.DB(firebaseio.FIREBASE_URL)
 
 EXCEPTIONS_DIR = os.path.join(os.path.dirname(__file__),
                               'NewsScraperExceptions_logs')
@@ -56,6 +56,7 @@ def scrape(wires):
     builder = story_builder.StoryBuilder()
     img_grabber = thumbnail_grabber.ThumbnailGrabber(logger=logger)
     records = _harvest_records(wires)
+    print('{} news stories harvested.'.format(len(records)))
 
     for rec in records:
         if 'title' in rec.keys():

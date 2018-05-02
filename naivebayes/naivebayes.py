@@ -29,7 +29,6 @@ import pkg_resources
 from sklearn.model_selection import cross_val_score
 from sklearn.naive_bayes import MultinomialNB
 
-import config
 import firebaseio
 from naivebayes import freezer
 from naivebayes import prep_text
@@ -38,8 +37,8 @@ from naivebayes import prep_image
 
 TEXT_MODEL_DIR = pkg_resources.resource_filename(__name__, 'NBtext_models')
 IMAGE_MODEL_DIR = pkg_resources.resource_filename(__name__, 'NBimage_models')
-POS_DB = firebaseio.DB(config.FIREBASE_GL_URL)
-NEG_DB = firebaseio.DB(config.FIREBASE_NEG_URL)
+POS_DB = firebaseio.DB(firebaseio.FIREBASE_GL_URL)
+NEG_DB = firebaseio.DB(firebaseio.FIREBASE_NEG_URL)
 DEFAULT_THRESHOLD = .65
 
 class NBClassifier(object):

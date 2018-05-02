@@ -45,15 +45,14 @@ import pkg_resources
 from sklearn.model_selection import cross_val_score
 from sklearn.linear_model import LogisticRegression
 
-import config
 import firebaseio
 from naivebayes import freezer
 
 STACKER_MODEL_DIR = pkg_resources.resource_filename(
     __name__, 'Stacker_models'
 )
-POS_DB = firebaseio.DB(config.FIREBASE_GL_URL)
-NEG_DB = firebaseio.DB(config.FIREBASE_NEG_URL)
+POS_DB = firebaseio.DB(firebaseio.FIREBASE_GL_URL)
+NEG_DB = firebaseio.DB(firebaseio.FIREBASE_NEG_URL)
 DEFAULT_THRESHOLD = .65
 
 # Until image traning database sufficiently samples possible tag words,
