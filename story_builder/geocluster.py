@@ -77,7 +77,7 @@ import numpy as np
 from shapely import geometry
 from sklearn.cluster import DBSCAN
 
-from geobox import geobox
+from grab_imagery.geobox import geobox
 from story_builder import geolocate
 
 MAX_DIST = 150

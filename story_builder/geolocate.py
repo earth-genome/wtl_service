@@ -17,7 +17,7 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from shapely import geometry
 
 from config import GOOGLE_GEO_API_KEY
-from geobox import geobox
+from grab_imagery.geobox import geobox
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
     
