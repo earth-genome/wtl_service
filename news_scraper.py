@@ -26,11 +26,10 @@ import requests
 
 import config
 import firebaseio
-import log_utilities
 from story_builder import story_builder
 
-sys.path.append('grab-imagery/')
-from landsat import thumbnail_grabber
+from grab_imagery import log_utilities
+from grab_imagery.landsat import thumbnail_grabber
 
 WIRE_URLS = {
     'newsapi': 'https://newsapi.org/v2/everything',
