@@ -125,6 +125,7 @@ def _harvest_records(wires):
         records += _harvest_gdelt()
     if 'newsapi' in wires:
         records += _harvest_newsapi()
+    random.shuffle(records)
     return records
 
 def _harvest_gdelt():
