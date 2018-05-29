@@ -17,18 +17,19 @@ import news_scraper
 if __name__ == '__main__':
     
     today = datetime.date.today()
-    tomorrow = today + datetime.timedelta(days=1)
-    twoago = today - datetime.timedelta(days=2)
+    end = today + datetime.timedelta(days=1)
+    start = today - datetime.timedelta(days=3)
 
     stories = news_scraper.STORY_SEEDS.grab_stories(
         category='/WTL',
-        startDate=twoago.isoformat(),
-        endDate=tomorrow.isoformat())
+        startDate=start.isoformat(),
+        endDate=end.isoformat())
 
     cleaned = []
     for s in stories:
         try:
             d = {'title': s.record['title']}
+            d.update({'url': s.record['url']})
             d.update({
                 'locations': {
                     k:v['boundingbox'] for k,v
