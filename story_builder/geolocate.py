@@ -17,7 +17,8 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from shapely import geometry
 
 from config import GOOGLE_GEO_API_KEY
-from grab_imagery.geobox import geobox
+from firebaseio import FB_FORBIDDEN_CHARS
+from grab_imagery.geobox import geobox 
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
     
@@ -49,7 +50,7 @@ def google_geocode(text):
             # Google uses 'lng' while others (e.g. OSM) use 'lon':
             geoloc = {
                 'source': 'google',
-                'address': address,
+                'address': _clean_address(address),
                 'types': d['types'],
                 'lat': geom['location']['lat'],
                 'lon': geom['location']['lng'],
@@ -87,7 +88,7 @@ def osm_geocode(place_name):
             continue
         geoloc = {
             'source': 'osm',
-            'address': r['display_name'],
+            'address': _clean_address(r['display_name']),
             'types': [r['type']],
             'lat': float(r['lat']),
             'lon': float(r['lon']),
@@ -117,7 +118,7 @@ def dbpedia_geocode(url):
         return {}
     geoloc = {
         'source': 'dbpedia',
-        'address': re.sub('_', ' ', entity),
+        'address': _clean_address(re.sub('_', ' ', entity)),
         'lat': lat,
         'lon': lon,
     }
@@ -144,3 +145,5 @@ def _check_intersects(bounds, geolocs):
             return True
     return False
 
+def _clean_address(address):
+    return re.sub(FB_FORBIDDEN_CHARS, '', address)
