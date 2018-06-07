@@ -71,10 +71,10 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
     if args.negative_case:
-        database = firebaseio.DB(config.FIREBASE_NEG_URL)
+        database = firebaseio.DB(firebaseio.FIREBASE_NEG_URL)
         logfile = LOG_NEG
     else:
-        database = firebaseio.DB(config.FIREBASE_GL_URL)
+        database = firebaseio.DB(firebaseio.FIREBASE_GL_URL)
         logfile = LOG_POS
         
     story = good_story(args.url, database, logfile)
