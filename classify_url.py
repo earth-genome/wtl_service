@@ -12,7 +12,8 @@ from sklearn.externals import joblib
 import firebaseio
 from story_builder import story_builder
 
-CLASSIFIER = joblib.load('naivebayes/Stacker_models/latest_model.pkl')
+CLASSIFIER = joblib.load('bagofwords/Stacker_models/latest_model.pkl')
+
 PARSE_IMAGES = True
 
 if __name__ == '__main__':
@@ -24,4 +25,4 @@ if __name__ == '__main__':
         sys.exit()
     builder = story_builder.StoryBuilder(classifier=None, parse_images=True)
     story = builder.assemble_content(url)
-    print('\nProbability: {:.3f}\n'.format(CLASSIFIER([story])[0]))
+    print('\nProbability: {:.3f}\n'.format(CLASSIFIER.predict_story(story)))

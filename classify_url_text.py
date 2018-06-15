@@ -10,7 +10,7 @@ from sklearn.externals import joblib
 
 from story_builder import extract_text
 
-CLASSIFIER = joblib.load('naivebayes/NBtext_models/latest_model.pkl')
+CLASSIFIER = joblib.load('bagofwords/Text_models/latest_model.pkl')
 
 if __name__ == '__main__':
     try:
@@ -20,4 +20,4 @@ if __name__ == '__main__':
         print('Usage: python classify_url_text.py http://story.nytimes.com')
         sys.exit()
     text = extract_text.get_text(url)[0]
-    print('\nProbability: {:.3f}\n'.format(CLASSIFIER([text])[0]))
+    print('\nProbability: {:.3f}\n'.format(CLASSIFIER.predict_datum(text)))
