@@ -17,12 +17,14 @@ from story_builder import story_builder
 LOG_NEG = 'sat_neg_cases.txt'
 LOG_POS = 'sat_pos_cases.txt'
 LOG_SAT = 'sat_stories.txt'
+LOG_TEST_POS = 'sat_pos_test.txt'
+LOG_TEST_NEG = 'sat_neg_test.txt'
 
-def good_story(url, database, logfile):
+def good_story(url, database, category, logfile):
     """Build and upload story created from url to firebase database."""
     builder = story_builder.StoryBuilder(classifier=None, parse_images=True)
     try:
-        story = builder(category='/stories', url=url)[0]
+        story = builder(category=category, url=url)[0]
     except Exception as e:
         print('While creating story: {}'.format(repr(e)))
         print('Failed to create story for url {}\n'.format(url))
@@ -40,7 +42,7 @@ def good_story(url, database, logfile):
 
 def log_url(url, logfile):
     """Local logging of urls."""
-    with open(logfile,'r+') as f:
+    with open(logfile,'a+') as f:
         lines = [l.strip() for l in f]
         if url not in lines:
             f.write(url+'\n')
@@ -66,15 +68,22 @@ if __name__ == '__main__':
     parser.add_argument(
         '-n', '--negative_case',
         action='store_true',
-        help=('Flag: This is a negative training case. ' +
+        help=('Flag: This is a negative training or test case. ' +
+            '(True if set, else False.)')
+    )
+    parser.add_argument(
+        '-t', '--test',
+        action='store_true',
+        help=('Flag: This is a test rather than training story.' +
             '(True if set, else False.)')
     )
     args = parser.parse_args()
     if args.negative_case:
         database = firebaseio.DB(firebaseio.FIREBASE_NEG_URL)
-        logfile = LOG_NEG
+        logfile = LOG_TEST_NEG if args.test else LOG_NEG
     else:
         database = firebaseio.DB(firebaseio.FIREBASE_GL_URL)
-        logfile = LOG_POS
+        logfile = LOG_TEST_POS if args.test else LOG_POS
+    category = '/test' if args.test else '/stories'
         
-    story = good_story(args.url, database, logfile)
+    story = good_story(args.url, database, category, logfile)
