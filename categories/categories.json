@@ -1,1 +1,16 @@
-categories-v4-14cats.json
+{
+    "energy": 0,
+    "volcano": 1,
+    "farm": 2,
+    "industry": 3,
+    "construction": 4,
+    "crowd": 5,
+    "wildlands/land rights": 6,
+    "ice": 7,
+    "disaster": 8,
+    "waste": 9,
+    "fire": 10,
+    "archaeology": 11,
+    "water": 12,
+    "conflict": 13
+}
