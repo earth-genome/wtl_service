@@ -17,7 +17,7 @@ from story_builder import story_builder
 
 # Currently available categories
 with open('categories/categories.json', 'r') as f:
-    CATEGORIES = list(json.load(f).keys())
+    AVAIL_CATEGORIES = list(json.load(f).keys())
 
 # logfiles
 LOG_NEG = 'sat_neg_cases.txt'
@@ -88,7 +88,7 @@ if __name__ == '__main__':
         '-c', '--categories',
         action='append',
         type=str,
-        help='Apply a category labels from {}\n'.format(CATEGORIES) +
+        help='Apply a category labels from {}\n'.format(AVAIL_CATEGORIES) +
             '(Option can be used multiple times, or none.)'
     )
         
@@ -100,8 +100,9 @@ if __name__ == '__main__':
         database = firebaseio.DB(firebaseio.FIREBASE_GL_URL)
         logfile = LOG_TEST_POS if args.test else LOG_POS
     db_category = '/test' if args.test else '/stories'
-    if not set(args.categories).issubset(CATEGORIES):
-        sys.exit('Category labels {} must be from {}'.format(args.categories,
-                                                             CATEGORIES))
+    categories = args.categories if args.categories else []
+    if not set(categories).issubset(AVAIL_CATEGORIES):
+        sys.exit('Category labels {} must be from {}'.format(
+            categories, AVAIL_CATEGORIES))
     story = good_story(
-        args.url, args.categories, database, db_category, logfile)
+        args.url, categories, database, db_category, logfile)
