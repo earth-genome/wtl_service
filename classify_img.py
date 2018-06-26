@@ -10,7 +10,7 @@ from sklearn.externals import joblib
 
 from story_builder import tag_image
 
-CLASSIFIER = joblib.load('bagofwords/Image_models/latest_model.pkl')
+CLASSIFIER = joblib.load('bagofwords/NBimage_models/latest_model.pkl')
 
 if __name__ == '__main__':
     try:

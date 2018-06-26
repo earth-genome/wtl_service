@@ -10,7 +10,7 @@ from sklearn.externals import joblib
 
 from story_builder import extract_text
 
-CLASSIFIER = joblib.load('bagofwords/Text_models/latest_model.pkl')
+CLASSIFIER = joblib.load('bagofwords/NBtext_models/latest_model.pkl')
 
 if __name__ == '__main__':
     try:
