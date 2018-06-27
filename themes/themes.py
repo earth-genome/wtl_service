@@ -11,10 +11,10 @@ This class descends from bagofwords.BoWClassifier, specializing as follows:
 
 To train with defaults:
 tc = ThemeClassifier()
-c = train_from_db(freeze_dir='/path/to/save/model')
+tc.train_from_dbs(freeze_dir='/path/to/save/model')
 
 To get themes for a DBItem story:
-themes, probs = c.predict_story_themes(story)
+themes = tc.predict_story_themes(story)
 
 
 """
@@ -101,8 +101,8 @@ class ThemeClassifier(bagofwords.BoWClassifier):
 
         Argument probs:  List of probabilities
 
-        Returns: List of tuples of form (theme, prob)
+        Returns: Dict of themes and their probabilities
         """
-        predicted_themes =  [(self.themesinv[n], p) for n,p in enumerate(probs)
-                             if p >= self.threshold]
+        predicted_themes = {self.themesinv[n]: p for n,p in enumerate(probs)
+                            if p >= self.threshold}
         return predicted_themes
