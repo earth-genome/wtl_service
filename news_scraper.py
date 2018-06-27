@@ -38,7 +38,6 @@ WIRE_URLS = {
 
 # NewsAPI:
 OUTLETS_FILE = 'newsapi_outlets.txt'
-#FROM_DATE = datetime.date.today() - datetime.timedelta(days=2)
 FROM_DATE = datetime.date.today()
 
 STORY_SEEDS = firebaseio.DB(firebaseio.FIREBASE_URL)
@@ -46,6 +45,26 @@ STORY_SEEDS = firebaseio.DB(firebaseio.FIREBASE_URL)
 EXCEPTIONS_DIR = os.path.join(os.path.dirname(__file__),
                               'NewsScraperExceptions_logs')
 LOGFILE = 'newswire' + datetime.date.today().isoformat() + '.log'
+
+# -- test --
+# To test a trial classifier, include this code and one more section below.
+import json
+#from sklearn.externals import joblib
+#TRIAL_CLF = joblib.load('bagofwords/MLPstacker_models/latest_model.pkl')
+
+def comp(story, clf, prob, trial_clf, trial_prob):
+    """Write examples where trial and incumbent classifier disagree."""
+    if trial_clf != clf:
+        disagree = {
+                'idx': story.idx,
+                'url': story.record['url'],
+                'Incumbent classifier': prob,
+                'Trial classifier': trial_prob
+        }
+        with open(datetime.date.today() + 'ClassifierComps.txt', 'a') as f:
+            json.dump(disagree, f, indent=4)
+    return
+# -- end test -- 
 
 def scrape(wires):
 
@@ -65,7 +84,7 @@ def scrape(wires):
         url = rec.pop('url')
         try:
             _build_and_post(url, builder, img_grabber, logger, **rec)
-        except Exception as e:
+        except:
             logger.error(url, exc_info=True)
 
     print('complete')
@@ -88,8 +107,19 @@ def _build_and_post(url, builder, img_grabber, logger, **metadata):
     if STORY_SEEDS.check_known(story):
         return {}
     clf, prob = builder.run_classifier(story)
+
+    # -- test -- To test a trial classifier, uncomment this try-except clause:
+    #try:
+    #    trial_clf, trial_prob = TRIAL_CLF.classify_story(story)
+    #    print('Trial clf, prob: {}, {}\n'.format(trial_clf, trial_prob))
+    #    comp(story, clf, prob, trial_clf, trial_prob)
+    #except:
+    #    print('Exception in comp {}'.format(story.idx))
+    # -- end test -- 
+    
     story.record.update({'probability': prob})
     if clf == 1:
+        story.record.update({'themes': builder.identify_themes(story)})
         story = builder.run_geoclustering(story)
         try:
             centroid = _pull_centroid(story)
@@ -131,10 +161,8 @@ def _harvest_records(wires):
 def _harvest_gdelt():
     """"Retrieve urls and metadata from the GDELT service."""
     data = requests.get(WIRE_URLS['gdelt'])
-    results = data.json()['results']
-    for r in results:
-        url = r.pop('SOURCEURL')
-        r.update({'url': url})
+    results = [{'url': r['SOURCEURL'], 'GLOBALEVENTID': r['GLOBALEVENTID']}
+               for r in data.json()['results']]
     random.shuffle(results)
     return results
 

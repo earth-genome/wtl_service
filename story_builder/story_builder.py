@@ -29,6 +29,8 @@ from story_builder import tag_image
 CLASSIFIER = joblib.load(os.path.join(os.path.dirname(__file__),
     '../bagofwords/Stacker_models/latest_model.pkl'))
 PARSE_IMAGES = True  # required True if CLASSIFIER processes image tags
+THEME_CLASSIFIER = joblib.load(os.path.join(os.path.dirname(__file__),
+    '../themes/MLPtext_models/latest_model.pkl'))
 
 class StoryBuilder(object):
     """Parse text and/or image at url, geolocate and cluster locations,
@@ -45,9 +47,11 @@ class StoryBuilder(object):
         run_classifier: Classify story.
         run_geoclustering: Run geoclustering for story.
     """
-    def __init__(self, classifier=CLASSIFIER, parse_images=PARSE_IMAGES):
+    def __init__(self, classifier=CLASSIFIER, parse_images=PARSE_IMAGES,
+                 theme_classifier=THEME_CLASSIFIER):
         self.classifier = classifier
         self.parse_images = parse_images
+        self.theme_classifier = theme_classifier
 
     def __call__(self, url, category='/null', **metadata):
         """Build a story from url.
@@ -66,6 +70,8 @@ class StoryBuilder(object):
         else:
             classification, probability = self.run_classifier(story)
             story.record.update({'probability': probability})
+            if classification == 1:
+                story.record.update({'themes': self.identify_themes(story)})
         story = self.run_geoclustering(story)
         return story, classification, json.dumps({story.idx: story.record})
 
@@ -115,7 +121,21 @@ class StoryBuilder(object):
             probability, url))
         
         return classification, probability
-    
+
+    def identify_themes(self, story):
+        """Apply the theme classifier to the story.
+
+        Argument story: A DBItem story
+
+        Returns: List of tuples of form (theme, probability)
+        """
+        try:
+            themes = self.theme_classifier.predict_story_themes(story)
+        except Exception as e:
+            print('Identifying themes for {}\n{}\n'.format(url, repr(e)))
+            themes = []
+        return themes
+        
     def run_geoclustering(self, story):
         """Run geoclustering routines for story.
 
