@@ -1,0 +1,14 @@
+conflict
+volcano
+wildlands/land rights
+energy
+water
+waste
+farm
+fire
+industry
+archaeology
+crowd
+ice
+disaster
+construction

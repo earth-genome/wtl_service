@@ -15,9 +15,9 @@ import config
 import firebaseio
 from story_builder import story_builder
 
-# Currently available categories
-with open('categories/categories.json', 'r') as f:
-    AVAIL_CATEGORIES = list(json.load(f).keys())
+# Currently available themes
+with open('themes/known_themes.txt', 'r') as f:
+    KNOWN_THEMES = [l.strip() for l in f.readlines()]
 
 # logfiles
 LOG_NEG = 'sat_neg_cases.txt'
@@ -26,7 +26,7 @@ LOG_SAT = 'sat_stories.txt'
 LOG_TEST_POS = 'sat_pos_test.txt'
 LOG_TEST_NEG = 'sat_neg_test.txt'
 
-def good_story(url, categories, database, db_category, logfile):
+def good_story(url, themes, database, db_category, logfile):
     """Build and upload story created from url to firebase database."""
     builder = story_builder.StoryBuilder(classifier=None, parse_images=True)
     try:
@@ -35,7 +35,7 @@ def good_story(url, categories, database, db_category, logfile):
         print('While creating story: {}'.format(repr(e)))
         print('Failed to create story for url {}\n'.format(url))
         raise
-    story.record.update({'categories': categories})
+    story.record.update({'themes': themes})
     try:
         database.put_item(story)
         log_url(url, logfile)
@@ -85,10 +85,10 @@ if __name__ == '__main__':
             '(True if set, else False.)')
     )
     parser.add_argument(
-        '-c', '--categories',
+        '-th', '--themes',
         action='append',
         type=str,
-        help='Apply a category labels from {}\n'.format(AVAIL_CATEGORIES) +
+        help='Apply a theme from {}\n'.format(KNOWN_THEMES) +
             '(Option can be used multiple times, or none.)'
     )
         
@@ -100,9 +100,11 @@ if __name__ == '__main__':
         database = firebaseio.DB(firebaseio.FIREBASE_GL_URL)
         logfile = LOG_TEST_POS if args.test else LOG_POS
     db_category = '/test' if args.test else '/stories'
-    categories = args.categories if args.categories else []
-    if not set(categories).issubset(AVAIL_CATEGORIES):
-        sys.exit('Category labels {} must be from {}'.format(
-            categories, AVAIL_CATEGORIES))
+    themes = args.themes if args.themes else []
+    if not set(themes).issubset(KNOWN_THEMES):
+        query = input('Themes {} are not from {}'.format(
+            themes, KNOWN_THEMES) + '\nContinue? [y/n] ')
+        if query.lower() != 'y':
+            sys.exit('Exiting...')
     story = good_story(
-        args.url, categories, database, db_category, logfile)
+        args.url, themes, database, db_category, logfile)
