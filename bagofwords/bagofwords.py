@@ -180,7 +180,7 @@ class BoWClassifier(object):
 
 
 class BinaryBoWClassifier(BoWClassifier):
-    """BowClassifier descendant for binary classification.
+    """BoWClassifier descendant for binary classification.
 
     Returns probabilities / classifications for positive class only.
     """
