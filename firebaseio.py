@@ -184,9 +184,9 @@ class DBItem(object):
 
         Returns: a unicode string.
         """
-        try:
+        if 'title' in self.record.keys():
             idx = self.record['title']
-        except KeyError:
+        if not idx:
             try:
                 idx = self.record['url']
             except KeyError:               
