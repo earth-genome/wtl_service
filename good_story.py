@@ -9,6 +9,7 @@
 
 import argparse
 import json
+import os
 import sys
 
 import config
@@ -49,10 +50,14 @@ def good_story(url, themes, database, db_category, logfile):
 
 def log_url(url, logfile):
     """Local logging of urls."""
-    with open(logfile,'a+') as f:
-        lines = [l.strip() for l in f]
-        if url not in lines:
+    if not os.path.exists(logfile):
+        with open(logfile, 'a') as f:
             f.write(url+'\n')
+    else:
+        with open(logfile, 'r+') as f:
+            lines = [l.strip() for l in f]
+            if url not in lines:
+                f.write(url+'\n')
     return
 
 def check_sat(text, chars='satellite'):
