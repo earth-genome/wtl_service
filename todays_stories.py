@@ -30,9 +30,13 @@ if __name__ == '__main__':
         try:
             d = {'title': s.record['title']}
             d.update({'url': s.record['url']})
+            if 'themes' in s.record.keys():
+                d.update({'themes': s.record['themes']})
+            else:
+                d.update({'themes': {}})
             d.update({
                 'locations': {
-                    k:v['boundingbox'] for k,v
+                    k:(v['lat'], v['lon']) for k,v
                     in s.record['core_locations'].items()
                 }
             })
