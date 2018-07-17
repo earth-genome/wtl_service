@@ -72,28 +72,31 @@ class ThemeClassifier(bagofwords.BoWClassifier):
             freeze_dir: If given, the model will be pickled to this directory
         """
         stories = db.grab_stories()
-        texts, labels = [], []
-        for s in stories:
-            try:
-                texts.append(s.record['text'])
-            except KeyError:
-                continue
-            try:
-                labels.append(s.record['themes'])
-            except KeyError:
-                labels.append([])
-        all_labels = [c for l in labels for c in l]
-        counts = Counter(all_labels)
-        print('Distribution of themes: {}\n'.format(counts))
-              
-        self.themes = {c:n for n,c in enumerate(set(all_labels))}
-        self.themesinv = {v:k for k,v in self.themes.items()}
-        labelints = [[self.themes[c] for c in l] for l in labels]
-        labelbins = MultiLabelBinarizer().fit_transform(labelints)
+        texts = [s.record['text'] for s in stories]
+        labels = [s.record['themes'] if 'themes' in s.record.keys() else []
+                  for s in stories]
+        self = self._gather_themes(labels)
+        labelbins = self._binarize(labels)
 
         self.train(texts, labelbins, threshold=threshold, x_val=x_val)
         if freeze_dir:
             self.freeze(freeze_dir, data=texts, labels=labels, counts=counts)
+        return self
+
+    def _binarize(self, labels):
+        """Convert labels to multi-hot encoding."""
+        labelints = [[self.themes[c] for c in l] for l in labels]
+        labelbins = MultiLabelBinarizer().fit_transform(labelints)
+        return labelbins
+
+    def _gather_themes(self, labels):
+        """Build dicts of themes/indices from input training labels."""
+        all_labels = [c for l in labels for c in l]
+        counts = Counter(all_labels)
+        print('Distribution of themes: {}\n'.format(counts))
+        
+        self.themes = {c:n for n,c in enumerate(set(all_labels))}
+        self.themesinv = {v:k for k,v in self.themes.items()}
         return self
         
     def _extract_themes(self, probs):
