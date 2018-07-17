@@ -10,15 +10,22 @@ core_locations are included.
 
 import datetime
 import json
+import sys
 
 import news_scraper
 
 
 if __name__ == '__main__':
-    
+
+    try: 
+        daysback = int(sys.argv[1])
+    except:
+        daysback = int(input('How many days back to grab stories?' +
+                             ' Recommended 1, 2, or 3: '))
+            
     today = datetime.date.today()
     end = today + datetime.timedelta(days=1)
-    start = today - datetime.timedelta(days=3)
+    start = today - datetime.timedelta(days=daysback)
 
     stories = news_scraper.STORY_SEEDS.grab_stories(
         category='/WTL',
