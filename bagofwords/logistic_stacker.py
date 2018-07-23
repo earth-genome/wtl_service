@@ -13,26 +13,26 @@ External class: Stacker
 
 Usage:    
     To train on BinaryBoWClassifier instances nbtext and nbimage:
-    > from sklearn.linear_model import LogisticRegression()
-    > ls = BinaryStacker(LogisticRegression(), nbtext, nbimage)
-    > ls.train_from_dbs(
+    > from sklearn.linear_model import LogisticRegression
+    > lstack = BinaryStacker(LogisticRegression(), nbtext, nbimage)
+    > lstack.train_from_dbs(
           neg_db=NEG_DB, pos_db=POS_DB, 
           x_val=5, threshold=.7,
           hand_tune_params=HAND_TUNE_PARAMS,
           freeze_dir=STACKER_MODEL_DIR)
 
     To classify a DBItem story:
-    > ls.classify_story(story)
+    > lstack.classify_story(story)
 
     To restore and run on a url:
     > from sklearn.externals import joblib
     > import extract_text
     > import firebaseio
-    > ls = joblib.load('/'.join((STACKER_MODEL_DIR, 'latest_model.pkl')))
+    > lstack = joblib.load('/'.join((STACKER_MODEL_DIR, 'latest_model.pkl')))
     > record = {'url': url}
     > record.update(extract_text.get_parsed_text(url))
     > story = firebaseio.DBItem('/null', None, record)
-    > ls.classify_story(story)
+    > lstack.classify_story(story)
 
 Note: As written, this module functions only with BinaryBoWClassifier
 instances, because single value (not array) output is expected from
