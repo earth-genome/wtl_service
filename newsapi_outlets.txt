@@ -32,5 +32,4 @@ abc-news-au
 bbc-news
 cbc-news
 the-globe-and-mail
-wired
 the-guardian-uk
