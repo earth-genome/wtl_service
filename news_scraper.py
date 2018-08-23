@@ -16,6 +16,9 @@ Outputs:
     Exceptions are logged in EXCEPTION_DIR.
 """
 
+import aiohttp
+import argparse
+import asyncio
 import datetime
 import os
 import random
@@ -30,15 +33,18 @@ from story_builder import story_builder
 
 from grab_imagery import log_utilities
 from grab_imagery.landsat import thumbnail_grabber
+from thumbnails import request_thumbnails
 
 WIRE_URLS = {
     'newsapi': 'https://newsapi.org/v2/everything',
     'gdelt': 'https://gdelt-seeds.herokuapp.com/urls'
 }
-
-# NewsAPI:
 OUTLETS_FILE = 'newsapi_outlets.txt'
-FROM_DATE = datetime.date.today()
+
+THUMBNAIL_GRABBERS = {
+    'landsat': thumbnail_grabber.ThumbnailGrabber(),
+    'planet': request_thumbnails.request_thumbnails
+}
 
 STORY_SEEDS = firebaseio.DB(firebaseio.FIREBASE_URL)
 
@@ -46,68 +52,88 @@ EXCEPTIONS_DIR = os.path.join(os.path.dirname(__file__),
                               'NewsScraperExceptions_logs')
 LOGFILE = 'newswire' + datetime.date.today().isoformat() + '.log'
 
-def scrape(wires):
+class Scrape(object):
 
-    logger = log_utilities.build_logger(EXCEPTIONS_DIR, LOGFILE,
-                                        logger_name='news_scraper')
-    signal.signal(signal.SIGINT, log_utilities.signal_handler)
-    builder = story_builder.StoryBuilder()
-    img_grabber = thumbnail_grabber.ThumbnailGrabber(logger=logger)
-    records = _harvest_records(wires)
-    print('{} news stories harvested.'.format(len(records)))
+    def __init__(
+        self,
+        batch_size=25,
+        builder=story_builder.StoryBuilder(),
+        grabber=THUMBNAIL_GRABBERS['landsat'],
+        logger=log_utilities.build_logger(EXCEPTIONS_DIR, LOGFILE,
+                                          logger_name='news_scraper')):
+        self.batch_size = batch_size
+        self.builder = builder
+        self.grabber = grabber
+        self.logger = logger
+        
+                 
+    async def __call__(self, wires):
+        """Process urls from wires."""
+        signal.signal(signal.SIGINT, log_utilities.signal_handler)
 
-    for rec in records:
-        if 'title' in rec.keys():
-            provis_story = firebaseio.DBItem('/stories', None, rec)
-            if STORY_SEEDS.check_known(provis_story):
-                continue
-        url = rec.pop('url')
-        try:
-            _build_and_post(url, builder, img_grabber, logger, **rec)
-        except:
-            logger.error(url, exc_info=True)
+        async with aiohttp.ClientSession() as self.session:
+            records = _harvest_records(wires)
+            print('{} news stories harvested.'.format(len(records)))
 
-    print('complete')
-    return
+            while records:
+                batch = records[-self.batch_size:]
+                tasklist = [self._build(**r) for r in batch]
+                results = await asyncio.gather(*tasklist,
+                                               return_exceptions=True)
+                self._log_exceptions(results)
+                del records[-self.batch_size:]
+                print('Batch of {} done\n'.format(self.batch_size))
 
-def _build_and_post(url, builder, img_grabber, logger, **metadata):
-    """Build and post, ad hoc to scraping.
+        print('complete')
+        return
 
-    Arguments:
-        url type: str
-        builder: story_builder.StoryBuilder instance
-        img_grabber: instance to source images and post to cloud storage
-        logger: logging.getLogger instance
+    async def _build(self, **record):
+        """Build and post, ad hoc to scraping.
 
-    Returns: record of post to '/stories' if successful, else {}
-    """
-    story = builder.assemble_content(url, category='/stories', **metadata)
-    # TODO for GDELT: we should either get titles from GDELT server or
-    # check url (where?) before grabbing content.  Then can delete this:
-    if STORY_SEEDS.check_known(story):
-        return {}
-    
-    clf, prob = builder.run_classifier(story)
-    story.record.update({'probability': prob})
-    if clf == 1:
-        story.record.update({'themes': builder.identify_themes(story)})
-        story = builder.run_geoclustering(story)
-        try:
-            centroid = _pull_centroid(story)
-            thumbnail_urls = img_grabber.source_and_post(
-                centroid['lat'], centroid['lon'])
-            story.record.update({'thumbnails': thumbnail_urls})
-        except KeyError as e:
-            logger.error('Centroid coords: {}'.format(url), exc_info=True)
-        try: 
-            STORY_SEEDS.put('/WTL', story.idx, story.record)            
-        except Exception as e:
-            logger.error('Uploading to WTL: {}'.format(url), exc_info=True)
-        story.record.pop('core_locations')
-    story.record.pop('text')
-    story.record.pop('keywords')
-    return STORY_SEEDS.put('/stories', story.idx, story.record)
+        Returns: record of post to '/stories' if successful, else {}
+        """
+        url = record.pop('url')
+        story = self.builder.assemble_content(url, category='/stories',
+                                              **record)
+        if STORY_SEEDS.check_known(story):
+            return {}
 
+        clf, prob = self.builder.run_classifier(story)
+        story.record.update({'probability': prob})
+        if clf == 1:
+            story.record.update({
+                'themes': self.builder.identify_themes(story)
+            })
+            story = self.builder.run_geoclustering(story)
+            try:
+                centroid = _pull_centroid(story)
+                thumbnail_urls = await self.grabber(
+                    self.session, centroid['lat'], centroid['lon'])
+                story.record.update({'thumbnails': thumbnail_urls})
+            except KeyError as e:
+                self.logger.error('Centroid/thumbnails: {}'.format(url),
+                             exc_info=True)
+            try: 
+                STORY_SEEDS.put('/WTL', story.idx, story.record)            
+            except Exception as e:
+                self.logger.error('Upload to WTL: {}'.format(url),
+                                  exc_info=True)
+            story.record.pop('core_locations')
+        story.record.pop('text')
+        story.record.pop('keywords')
+        return STORY_SEEDS.put('/stories', story.idx, story.record)
+
+    def _log_exceptions(self, results):
+        """Log exceptions returned from asyncio.gather."""
+        for r in results:
+            try:
+                raise r
+            except TypeError:  # raised if r isn't raisable
+                pass
+            except:
+                print('Logging exception from gather: {}.'.format(r))
+                self.logger.error(repr(r), exc_info=True)
+                
 def _pull_centroid(story):
     """Retrieve centroid for highest-scored cluster in story."""
     clusters = story.record['clusters']
@@ -147,7 +173,7 @@ def _harvest_newsapi():
     for outlet in outlets:
         payload = {
             'sources': outlet,
-            'from': FROM_DATE.isoformat(),
+            'from': datetime.date.today().isoformat(),
             'apiKey': config.NEWS_API_KEY
         }
         try:
@@ -166,19 +192,43 @@ def _harvest_newsapi():
                 pass
             records.append(metadata)
     return records
+
         
 if __name__ == '__main__':
     known_wires = set(WIRE_URLS.keys())
-    wires = set([w.lower() for w in sys.argv[1:]])
-    if wires:
-        unknown = wires.difference(known_wires)
-        if unknown:
-            print('Newswires {} not recognized'.format(unknown))
-        wires = wires.intersection(known_wires)
-        print('Proceeding with wires: {}'.format(wires))
-    else:
-        print('Proceeding with all known wires: {}'.format(known_wires))
-        print('Or you can specify a subset of newsires from above list.')
-        print('Usage: python news_scraper.py [newswire1] [newswire2] ...')
-        wires = known_wires
-    scrape(wires)
+    parser = argparse.ArgumentParser(
+        description='Scrape newswires for satellite-relevant stories.'
+    )
+    parser.add_argument(
+        '-w', '--wires',
+        type=str,
+        nargs='*',
+        default=known_wires,
+        help='One or more newswires from {}'.format(known_wires)
+    )
+    parser.add_argument(
+        '-t', '--thumbnail_source',
+        type=str,
+        default='landsat',
+        help='Source of thumbnails for posted stories, from {}'.format(
+            set(THUMBNAIL_GRABBERS.keys()))
+    )
+    parser.add_argument(
+        '-b', '--batch_size',
+        type=int,
+        default=100,
+        help='Number of records to process together asynchronously.'
+    )
+    args = parser.parse_args()
+    wires = set([w.lower() for w in args.wires])
+    unknown = wires.difference(known_wires)
+    if unknown:
+        print('Newswires {} not recognized'.format(unknown))
+    wires = wires.intersection(known_wires)
+    print('Proceeding with wires: {}'.format(wires))
+
+    loop = asyncio.get_event_loop()
+    scrape = Scrape(
+        batch_size=args.batch_size,
+        grabber=THUMBNAIL_GRABBERS[args.thumbnail_source])
+    loop.run_until_complete(scrape(wires))
