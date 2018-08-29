@@ -56,7 +56,7 @@ class Scrape(object):
 
     def __init__(
         self,
-        batch_size=25,
+        batch_size=100,
         builder=story_builder.StoryBuilder(),
         grabber=THUMBNAIL_GRABBERS['landsat'],
         logger=log_utilities.build_logger(EXCEPTIONS_DIR, LOGFILE,

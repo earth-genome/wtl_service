@@ -17,12 +17,16 @@ import numpy as np
 
 PLANET_PARAMS = {
     'provider': 'planet',
+    'item_types': 'PSScene3Band',
     'asset_types': 'analytic',
     'write_styles': 'contrast',
     'clouds': str(5),
+    'min_intersect': str(1.0),
+    'N': str(4),
+    'skip': str(90),
     'thumbnails': 'true',
     'bucket_name': 'planet-thumbnails',
-    'scale': str(5.0)
+    'scale': str(3.0)
 }
 
 WAITTIME = 5
@@ -30,36 +34,25 @@ WAITTIME = 5
 async def request_thumbnails(
     session,
     lat, lon,
-    num_steps=4,
-    days_gap=90,
     base_url='http://earthrise-imagery.herokuapp.com/pull',
     base_payload=PLANET_PARAMS):
-    """Request a time-gapped series of image thumbnails from a web app.
+    """Request image thumbnails from a web app.
 
     Arguments:
         session: an instance of aiohttp.ClientSession()
         lat, lon: latitude and longitude
-        num_steps: number of time steps
-        days_gap: days between steps
         base_url: web app endpoint
         base_payload: parameters defining the web app request
     
     Returns: list of urls to cloud-stored thumbnails 
     """
-    common_payload = dict({'lat': str(lat), 'lon': str(lon)}, **base_payload)
-    enddates = [datetime.date.today() - datetime.timedelta(days=int(gap))
-                for gap in np.arange(num_steps)*days_gap]
-    startdates = [enddate - datetime.timedelta(days=days_gap)
-                  for enddate in enddates]
-
-    payloads = []
-    for (end, start) in zip(enddates, startdates):
-        payloads.append(
-            dict({
-                'end': str(end.isoformat()),
-                'start': str(start.isoformat())
-            },
-            **common_payload))
+    payload = dict(
+        {
+            'lat': str(lat),
+            'lon': str(lon),
+            'end': str(datetime.date.today().isoformat())
+        },
+        **base_payload)
 
     async def fetch(session, base_url, payload):
         async with session.get(base_url, params=payload) as response:
@@ -74,15 +67,12 @@ async def request_thumbnails(
         urls = [u for r in report for u in r['urls']]
         return urls
 
-    fetch_tasks = [fetch(session, base_url, payload) for payload in payloads]
-    results = await asyncio.gather(*fetch_tasks, return_exceptions=True)
-
-    thumbnail_urls = []
-    for url_list in results:
-        if type(url_list) is list:
-            thumbnail_urls += url_list
-        
-    return thumbnail_urls
+    try:
+        thumbnail_urls = await fetch(session, base_url, payload)
+        return thumbnail_urls
+    except Exception as e:
+        print('{}\nFailed to pull thumbnails: {}\n'.format(payload, repr(e)))
+        return []
 
 # Session handling wrapper. To call within an asyncio event loop.
 async def main(lat, lon):
