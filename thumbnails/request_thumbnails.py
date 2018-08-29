@@ -31,10 +31,16 @@ PLANET_PARAMS = {
 
 WAITTIME = 5
 
+# Uncomment to run on localhost
+import os
+os.environ['NO_PROXY'] = '127.0.0.1'
+# Then use in request_thumbnails: base_url='http://127.0.0.1:5000/pull'
+
 async def request_thumbnails(
     session,
     lat, lon,
-    base_url='http://earthrise-imagery.herokuapp.com/pull',
+    #base_url='http://earthrise-imagery.herokuapp.com/pull',
+    base_url='http://127.0.0.1:5000/pull',
     base_payload=PLANET_PARAMS):
     """Request image thumbnails from a web app.
 
@@ -64,15 +70,14 @@ async def request_thumbnails(
             async with session.get(pull_summary['Links']) as links_resp:
                 report = await links_resp.json(content_type=None)
 
-        urls = [u for r in report for u in r['urls']]
+        if 'Exception' in [k for r in report for k in r.keys()]:
+            raise Exception(json.dumps(report))
+        else:
+            urls = [u for r in report for u in r['urls']]
         return urls
 
-    try:
-        thumbnail_urls = await fetch(session, base_url, payload)
-        return thumbnail_urls
-    except Exception as e:
-        print('{}\nFailed to pull thumbnails: {}\n'.format(payload, repr(e)))
-        return []
+    thumbnail_urls = await fetch(session, base_url, payload)
+    return thumbnail_urls
 
 # Session handling wrapper. To call within an asyncio event loop.
 async def main(lat, lon):
