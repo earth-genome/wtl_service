@@ -32,15 +32,14 @@ PLANET_PARAMS = {
 WAITTIME = 5
 
 # Uncomment to run on localhost
-import os
-os.environ['NO_PROXY'] = '127.0.0.1'
+# import os
+# os.environ['NO_PROXY'] = '127.0.0.1'
 # Then use in request_thumbnails: base_url='http://127.0.0.1:5000/pull'
 
 async def request_thumbnails(
     session,
     lat, lon,
-    #base_url='http://earthrise-imagery.herokuapp.com/pull',
-    base_url='http://127.0.0.1:5000/pull',
+    base_url='http://earthrise-imagery.herokuapp.com/pull',
     base_payload=PLANET_PARAMS):
     """Request image thumbnails from a web app.
 
