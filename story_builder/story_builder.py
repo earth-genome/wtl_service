@@ -87,18 +87,14 @@ class StoryBuilder(object):
         """
         record = json.loads(json.dumps(metadata))
         record.update({'url': url})
-        try:
-            record.update(extract_text.get_parsed_text(url))
-        except Exception as e:
-            raise Exception('Retrieving text for {}\n'.format(url)) from e
+        record.update(extract_text.get_parsed_text(url))
+
         if self.parse_images:
             try:
                 tags = tag_image.get_tags(record['image'])
                 record.update({'image_tags': tags})
             except KeyError:
                 pass
-            except Exception as e:
-                raise Exception('Tagging image for {}\n'.format(url)) from e
         return firebaseio.DBItem(category, None, record)
 
     def run_classifier(self, story):
@@ -111,11 +107,7 @@ class StoryBuilder(object):
         Returns: a class label (0/1/None) and probability 
         """
         url = story.record['url']
-        try: 
-            classification, probability = self.classifier.classify_story(
-                story)
-        except Exception as e:
-            raise Exception('Classifying {}'.format(url)) from e
+        classification, probability = self.classifier.classify_story(story)
         result = 'Accepted' if classification == 1 else 'Declined'
         print(result + ' for feed @ prob {:.3f}: {}\n'.format(
             probability, url))

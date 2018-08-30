@@ -90,16 +90,19 @@ class Scrape(object):
     async def _build(self, **record):
         """Build and post, ad hoc to scraping.
 
-        Returns: record of post to '/stories' if successful, else {}
+        Outputs: Story uploads to '/WTL' and/or '/stories', if successful
+
+        Returns: None
         """
         url = record.pop('url')
         try:
             story = self.builder.assemble_content(url, category='/stories',
                                               **record)
             if STORY_SEEDS.check_known(story):
-                return {}
+                return
         except Exception:
-            self.logger.exception('Assemble content: {}'.format(url))
+            self.logger.exception('\nAssembling content: {}'.format(url))
+            return
 
         clf, prob = self.builder.run_classifier(story)
         story.record.update({'probability': prob})
@@ -110,26 +113,24 @@ class Scrape(object):
             story = self.builder.run_geoclustering(story)
             try:
                 centroid = _pull_centroid(story)
-            except KeyError:
-                self.logger.exception('Centroid: {}'.format(url))
-            try: 
                 thumbnail_urls = await self.grabber(
                     self.session, centroid['lat'], centroid['lon'])
                 story.record.update({'thumbnails': thumbnail_urls})
             except Exception:
-                self.logger.exception('Thumbnails: {}'.format(url))
+                self.logger.exception('\nThumbnails: {}'.format(url))
             try:
                 STORY_SEEDS.put('/WTL', story.idx, story.record)            
             except Exception:
-                self.logger.exception('Upload to WTL: {}'.format(url))
+                self.logger.exception('\nUpload to WTL: {}'.format(url))
             story.record.pop('core_locations')
+            
         story.record.pop('text')
         story.record.pop('keywords')
         try:
-            post = STORY_SEEDS.put('/stories', story.idx, story.record)
+            STORY_SEEDS.put('/stories', story.idx, story.record)
         except:
-            self.logger.exception('Upload to STORYSEEDS: {}'.format(url))
-        return post
+            self.logger.exception('\nUpload to STORYSEEDS: {}'.format(url))
+        return 
 
     def _log_exceptions(self, results):
         """Log exceptions returned from asyncio.gather.
@@ -143,7 +144,7 @@ class Scrape(object):
                 pass
             except:
                 print('Logging exception from gather: {}.'.format(r))
-                self.logger.exception(repr(r))
+                self.logger.exception('\n{}'.format(repr(r)))
                 
 def _pull_centroid(story):
     """Retrieve centroid for highest-scored cluster in story."""
