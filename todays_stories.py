@@ -51,5 +51,5 @@ if __name__ == '__main__':
         except:
             pass
 
-with open('WTLs/WTL{}.json'.format(today), 'w') as f:
+with open('../WTLs/WTL{}.json'.format(today), 'w') as f:
     json.dump(cleaned, f, indent=4)
