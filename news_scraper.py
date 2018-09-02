@@ -48,6 +48,10 @@ THUMBNAIL_GRABBERS = {
 
 STORY_SEEDS = firebaseio.DB(firebaseio.FIREBASE_URL)
 
+# Extend this (default timeout is 300) because the long async queue may
+# lead to long times between revisits to any given process
+TIMEOUT = aiohttp.ClientTimeout(total=1200)
+
 EXCEPTIONS_DIR = os.path.join(os.path.dirname(__file__),
                               'NewsScraperExceptions_logs')
 LOGFILE = 'newswire' + datetime.date.today().isoformat() + '.log'
@@ -71,7 +75,7 @@ class Scrape(object):
         """Process urls from wires."""
         signal.signal(signal.SIGINT, log_utilities.signal_handler)
 
-        async with aiohttp.ClientSession() as self.session:
+        async with aiohttp.ClientSession(timeout=TIMEOUT) as self.session:
             records = _harvest_records(wires)
             print('{} news stories harvested.'.format(len(records)))
 
@@ -119,6 +123,15 @@ class Scrape(object):
             except Exception:
                 self.logger.exception('\nThumbnails: {}'.format(url))
             try:
+                ### TODO: this try/except is a temp jimmy-rig until I can
+                # fix the theme name at the source.  to delete.
+                try:
+                    themes = story.record['themes']
+                    if 'wildlands/land rights' in themes.keys():
+                        score = themes.pop('wildlands/land rights')
+                        themes.update({'wildlands - land rights': score})
+                except KeyError:
+                    pass
                 STORY_SEEDS.put('/WTL', story.idx, story.record)            
             except Exception:
                 self.logger.exception('\nUpload to WTL: {}'.format(url))
