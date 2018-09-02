@@ -11,7 +11,7 @@ defaults:
 
 import aiohttp
 import asyncio
-import datetime
+import json
 
 import numpy as np
 
@@ -31,10 +31,10 @@ PLANET_PARAMS = {
 
 WAITTIME = 5
 
-# Uncomment to run on localhost
+## Uncomment to run on localhost
 # import os
 # os.environ['NO_PROXY'] = '127.0.0.1'
-# Then use in request_thumbnails: base_url='http://127.0.0.1:5000/pull'
+## Then use in request_thumbnails: base_url='http://127.0.0.1:5000/pull'
 
 async def request_thumbnails(
     session,
@@ -51,31 +51,23 @@ async def request_thumbnails(
     
     Returns: list of urls to cloud-stored thumbnails 
     """
-    payload = dict(
-        {
-            'lat': str(lat),
-            'lon': str(lon),
-            'end': str(datetime.date.today().isoformat())
-        },
-        **base_payload)
-
-    async def fetch(session, base_url, payload):
-        async with session.get(base_url, params=payload) as response:
-            pull_summary = await response.json(content_type=None)
+    payload = dict({'lat': str(lat), 'lon': str(lon),}, **base_payload)
+    print('Requesting thumbnails\n')
     
-        report = 'In progress.'
-        while report == 'In progress.':
-            await asyncio.sleep(WAITTIME)
-            async with session.get(pull_summary['Links']) as links_resp:
-                report = await links_resp.json(content_type=None)
+    async with session.get(base_url, params=payload) as response:
+        pull_summary = await response.json(content_type=None)
 
-        if 'Exception' in [k for r in report for k in r.keys()]:
-            raise Exception(json.dumps(report))
-        else:
-            urls = [u for r in report for u in r['urls']]
-        return urls
+    report = 'In progress.'
+    while report == 'In progress.':
+        await asyncio.sleep(WAITTIME)
+        async with session.get(pull_summary['Links']) as links_resp:
+            report = await links_resp.json(content_type=None)
 
-    thumbnail_urls = await fetch(session, base_url, payload)
+    if 'Exception' in [k for r in report for k in r.keys()]:
+        raise Exception(json.dumps(report))
+    else:
+        thumbnail_urls = [u for r in report for u in r['urls']]
+
     return thumbnail_urls
 
 # Session handling wrapper. To call within an asyncio event loop.
