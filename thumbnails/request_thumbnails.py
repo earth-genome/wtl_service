@@ -53,7 +53,7 @@ async def request_thumbnails(
     """
     payload = dict({'lat': str(lat), 'lon': str(lon),}, **base_payload)
     print('Requesting thumbnails\n')
-    
+
     async with session.get(base_url, params=payload) as response:
         pull_summary = await response.json(content_type=None)
 

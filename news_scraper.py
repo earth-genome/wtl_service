@@ -1,11 +1,14 @@
 """Process current stories from a news wire.
 
-External function:  scrape()
+Basic usage from main:
+$ python news_scraper.py
 
-Supporting functions _harvest_urls and _build_and_post are formulated
-ad hoc to GDELT.
+As options, the news wire, the source of image thumbnails, and the
+batch size of records gathered for asynchronous processing can be
+specified. For syntax, run:
+$ python news_scraper.py -h
 
-Usage from main: python gdelt_scraper.py
+External class: Scrape
 
 Outputs:
     All stories and their metadata are uploaded to Firbase (STORY_SEEDS).
@@ -13,7 +16,22 @@ Outputs:
     After classification, the best candidate stories are sent to
     WhereToLook ('/WTL') on STORY_SEEDS.  
 
-    Exceptions are logged in EXCEPTION_DIR.
+    Exceptions are logged.
+
+Note: The class attribute batch_size determines the number of records
+gathered for asynchronous processing. For each story selected for the 
+WTL database, a request for thumbnails is posted to the image service,
+at which point the story builder reliquishes control to the event
+loop. The selected story will then be at the end of the processing queue,
+and control will return only after all the records in the batch have
+been touched at least once. If the scrape is interrupted during a batch,
+all stories selected to WTL (those we want to capture) will be lost.
+
+A large batch is advantageous because stories continue to be processed while
+awaiting thumbnails for the small subset of selected stories. A small
+batch means fewer stories lost when processing is interrupted. As of writing,
+I am working with batch sizes of 100 or 200. 
+
 """
 
 import aiohttp
@@ -57,6 +75,20 @@ EXCEPTIONS_DIR = os.path.join(os.path.dirname(__file__),
 LOGFILE = 'newswire' + datetime.date.today().isoformat() + '.log'
 
 class Scrape(object):
+    """
+    Scrape news wires for stories that can be enhanced by satellite imagery.
+    
+    Attributes:
+        batch_size: Number of records to process together asynchronously.
+        builder: Class instance to extract, evaluate, and post story from
+            url.
+        grabber: Class instance to pull thumbnail images.
+        logger: Exception logger.
+        
+
+    External method:
+        __call__: Process urls from wires.
+    """
 
     def __init__(
         self,
@@ -253,7 +285,7 @@ if __name__ == '__main__':
     print('Proceeding with wires: {}'.format(wires))
 
     loop = asyncio.get_event_loop()
-    scrape = Scrape(
+    scraper = Scrape(
         batch_size=args.batch_size,
         grabber=THUMBNAIL_GRABBERS[args.thumbnail_source])
-    loop.run_until_complete(scrape(wires))
+    loop.run_until_complete(scraper(wires))
