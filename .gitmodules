@@ -1,0 +1,3 @@
+[submodule "grab_imagery"]
+	path = grab_imagery
+	url = https://github.com/earth-genome/grab_imagery

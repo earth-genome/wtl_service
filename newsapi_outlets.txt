@@ -1,6 +1,5 @@
 time
 bloomberg
-the-washington-post
 the-new-york-times
 reuters
 national-geographic
@@ -12,11 +11,9 @@ google-news
 mashable
 polygon
 techcrunch
-the-economist
 the-next-web
 fortune
 associated-press
-financial-times
 recode
 techradar
 the-huffington-post
@@ -25,7 +22,6 @@ metro
 business-insider-uk
 cnbc
 cnn
-daily-mail
 engadget
 reddit-r-all
 the-hindu
@@ -36,5 +32,4 @@ abc-news-au
 bbc-news
 cbc-news
 the-globe-and-mail
-wired
 the-guardian-uk

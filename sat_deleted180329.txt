@@ -1,0 +1,69 @@
+https://www.seeker.com/melting-glaciers-in-bolivia-could-wash-away-towns-2057039929.html # too general, not grounded in place (except one ref in 1941) (pos[9])
+
+https://www.aljazeera.com/news/2018/03/killed-raiwind-explosion-claimed-tehreek-taliban-180314174330185.html # short story; image is a map (pos[10])
+
+https://www.nytimes.com/interactive/2017/05/04/us/texas-border-migrants-dead-bodies.html # migrants in texas; too diffuse in geograph; image is skull & bible
+
+https://www.theguardian.com/world/2014/mar/13/malaysia-airlines-flight-satellite-images # malaysia airlines flight -- unlikely future use case
+
+https://news.nationalgeographic.com/2018/02/fossils-removed-bears-ears-national-monument-utah-spd/ # poorly located; image of fossil tagged cannoli
+
+http://www.businessinsider.com/china-ghost-cities-satellite-images-2017-3
+# low on text, no locations.
+
+https://www.nytimes.com/2018/02/19/world/middleeast/iran-syria-israel.html
+# regional in focus, on meta-conflict and potential war
+
+https://uk.reuters.com/article/uk-mideast-crisis-syria/air-strikes-again-hit-syrias-ghouta-u-n-considers-ceasefire-resolution-idUKKCN1G6102
+# too much ghouta; image tagged coal miner
+
+https://www.bloomberg.com/news/features/2015-07-08/satellite-images-show-economies-growing-and-shrinking-in-real-time
+# about satellite imagery
+
+http://nation.time.com/2011/05/25/george-clooneys-satellite-project-captures-sudan-violence-in-real-time/
+# somewhat about satellites; image is logo
+
+http://www.chinadaily.com.cn/travel/2016-03/14/content_23861403.htm
+# v. short text, no image
+
+https://www.nytimes.com/2018/01/23/climate/glacier-collapse-avalanche.html?partner=rss
+# not well located; satellite image of avalanche parsed as a feather boa
+
+http://money.cnn.com/2017/03/03/investing/mexico-homex-fraud-fake-home-sales/ # dollhouse image; about satellite documentation; not well located
+
+Suspect:
+
+http://www.bbc.com/news/world-asia-china-43101743 # image tagged as naval / ship rather than pagoda (though does capture smoke) (pos[2])
+
+https://timesofindia.indiatimes.com/home/science/mars-on-earth-simulation-tests-in-remote-desert-of-oman/articleshow/62839038.cms # image tags as camel, ostrich, etc, when it's two ATVS and two people in spacesuits
+
+https://www.huffingtonpost.com/entry/vallejo-cement-plant_us_5a99b95ae4b0479c0252730f # Vallejo cement factory -- image is of a protestor
+
+http://www.cbc.ca/news/canada/montreal/small-quebec-village-sued-for-trying-to-protect-its-drinking-water-wins-legal-battle-1.4555774  # focus on legal aspects; no image pulled
+
+
+---
+
+NEG:
+
+https://www.nbcnews.com/health/health-news/flumist-nasal-flu-vaccine-can-come-back-vaccine-advisers-say-n849986 # no pub date, doesn't affect xval
+
+http://www.cbc.ca/sports/hockey/nhl/nhl-player-survey-sidney-crosby-admired-appreciated-1.4566409 # no pub date, doesn't affect xval
+
+https://www.mirror.co.uk/news/uk-news/let-go-handrail-angry-commuter-11992516 # no image
+
+https://www.engadget.com/2018/02/22/altos-odyssey-ios-app-store-indie-mobile-snowman/ # image has hot-air balloons, landscape
+
+http://www.gmanetwork.com/news/news/nation/648133/more-than-12-000-cops-afp-personnel-secure-metro-manila-during-holy-week-ncrpo-chief/story/
+# too close to pos: would work as a present as opposed to future-tense story
+
+https://www.engadget.com/2018/02/22/china-xinjiang-surveillance-tech-spread/ # image is a cloudy cityscape
+
+http://time.com/5202148/game-of-thrones-jorah-mormont-brilliant-finale/
+# image has icy landscape
+
+https://mashable.com/2018/03/10/ice-diamonds/#yDZ5KEfAugqr
+# image is frozen waterfall
+
+http://www.business-standard.com/article/pti-stories/china-s-space-lab-expected-to-fall-to-earth-this-week-118032700124_1.html
+# generic image has windturbine, bridge
