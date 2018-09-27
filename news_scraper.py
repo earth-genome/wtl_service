@@ -30,7 +30,15 @@ all stories selected to WTL (those we want to capture) will be lost.
 A large batch is advantageous because stories continue to be processed while
 awaiting thumbnails for the small subset of selected stories. A small
 batch means fewer stories lost when processing is interrupted. As of writing,
-I am working with batch sizes of 100 or 200. 
+I am working with batch sizes of 100 or 200.
+
+Another issue here is the aiohttp timeout. By default it is 300s, which is
+too short becuase the long async queue may lead to long times between
+revisits to any given process. At the same time we don't want it to be
+infinite because very ocassionally a call to planet for thumbnails will hang.
+In limited testing I have arrived at 1200 seconds for batch_size=100 and
+two thumbnail worker processes. That also worked for batch_size=200 and
+four thumbnail worker processes.
 
 """
 
@@ -66,13 +74,9 @@ THUMBNAIL_GRABBERS = {
 
 STORY_SEEDS = firebaseio.DB(firebaseio.FIREBASE_URL)
 
-# Extend this (default timeout is 300) because the long async queue may
-# lead to long times between revisits to any given process
-TIMEOUT = aiohttp.ClientTimeout(total=1200)
-
 EXCEPTIONS_DIR = os.path.join(os.path.dirname(__file__),
                               'NewsScraperExceptions_logs')
-LOGFILE = 'newswire' + datetime.date.today().isoformat() + '.log'
+LOCAL_LOGFILE = 'newswire' + datetime.date.today().isoformat() + '.log'
 
 class Scrape(object):
     """
@@ -83,6 +87,7 @@ class Scrape(object):
         builder: Class instance to extract, evaluate, and post story from
             url.
         grabber: Class instance to pull thumbnail images.
+        timeout: Timeout for aiohttp requests. (See notes above.) 
         logger: Exception logger.
         
 
@@ -95,19 +100,20 @@ class Scrape(object):
         batch_size=100,
         builder=story_builder.StoryBuilder(),
         grabber=THUMBNAIL_GRABBERS['landsat'],
-        logger=log_utilities.build_logger(EXCEPTIONS_DIR, LOGFILE,
+        timeout=1200, 
+        logger=log_utilities.build_logger(EXCEPTIONS_DIR, LOCAL_LOGFILE,
                                           logger_name='news_scraper')):
         self.batch_size = batch_size
         self.builder = builder
         self.grabber = grabber
+        self.timeout = aiohttp.ClientTimeout(total=timeout)
         self.logger = logger
         
-                 
     async def __call__(self, wires):
         """Process urls from wires."""
         signal.signal(signal.SIGINT, log_utilities.signal_handler)
 
-        async with aiohttp.ClientSession(timeout=TIMEOUT) as self.session:
+        async with aiohttp.ClientSession(timeout=self.timeout) as self.session:
             records = _harvest_records(wires)
             print('{} news stories harvested.'.format(len(records)))
 
