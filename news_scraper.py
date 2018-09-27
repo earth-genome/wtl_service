@@ -58,7 +58,7 @@ import firebaseio
 from story_builder import story_builder
 
 import log_utilities
-from grab_imagery.landsat import thumbnail_grabber
+# from grab_imagery.landsat import thumbnail_grabber
 from thumbnails import request_thumbnails
 
 WIRE_URLS = {
@@ -68,7 +68,7 @@ WIRE_URLS = {
 OUTLETS_FILE = 'newsapi_outlets.txt'
 
 THUMBNAIL_GRABBERS = {
-    'landsat': thumbnail_grabber.ThumbnailGrabber(),
+#    'landsat': thumbnail_grabber.ThumbnailGrabber(),
     'planet': request_thumbnails.request_thumbnails
 }
 
@@ -99,13 +99,13 @@ class Scrape(object):
         self,
         batch_size=100,
         builder=story_builder.StoryBuilder(),
-        grabber=THUMBNAIL_GRABBERS['landsat'],
+        thumbnail_grabber=None,
         timeout=1200, 
         logger=log_utilities.build_logger(EXCEPTIONS_DIR, LOCAL_LOGFILE,
                                           logger_name='news_scraper')):
         self.batch_size = batch_size
         self.builder = builder
-        self.grabber = grabber
+        self.thumbnail_grabber = thumbnail_grabber
         self.timeout = aiohttp.ClientTimeout(total=timeout)
         self.logger = logger
         
@@ -153,13 +153,14 @@ class Scrape(object):
                 'themes': self.builder.identify_themes(story)
             })
             story = self.builder.run_geoclustering(story)
-            try:
-                centroid = _pull_centroid(story)
-                thumbnail_urls = await self.grabber(
-                    self.session, centroid['lat'], centroid['lon'])
-                story.record.update({'thumbnails': thumbnail_urls})
-            except Exception:
-                self.logger.exception('\nThumbnails: {}'.format(url))
+            if thumbnail_grabber:
+                try:
+                    centroid = _pull_centroid(story)
+                    thumbnail_urls = await self.thumbnail_grabber(
+                        self.session, centroid['lat'], centroid['lon'])
+                    story.record.update({'thumbnails': thumbnail_urls})
+                except Exception:
+                    self.logger.exception('\nThumbnails: {}'.format(url))
             try:
                 ### TODO: this try/except is a temp jimmy-rig until I can
                 # fix the theme name at the source.  to delete.
@@ -272,7 +273,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '-t', '--thumbnail_source',
         type=str,
-        default='landsat',
+        # default='landsat',
         help='Source of thumbnails for posted stories, from {}'.format(
             set(THUMBNAIL_GRABBERS.keys()))
     )
@@ -290,8 +291,13 @@ if __name__ == '__main__':
     wires = wires.intersection(known_wires)
     print('Proceeding with wires: {}'.format(wires))
 
+    try:
+        thumbnail_grabber = THUMBNAIL_GRABBERS[args.thumbnail_source]
+    except KeyError:
+        thumbnail_grabber = None
+
     loop = asyncio.get_event_loop()
     scraper = Scrape(
         batch_size=args.batch_size,
-        grabber=THUMBNAIL_GRABBERS[args.thumbnail_source])
+        thumbnail_grabber=thumbnail_grabber)
     loop.run_until_complete(scraper(wires))
