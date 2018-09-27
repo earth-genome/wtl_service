@@ -49,7 +49,7 @@ import config
 import firebaseio
 from story_builder import story_builder
 
-from grab_imagery import log_utilities
+import log_utilities
 from grab_imagery.landsat import thumbnail_grabber
 from thumbnails import request_thumbnails
 
