@@ -277,8 +277,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '-t', '--thumbnail_source',
         type=str,
-        choices=[None] + list(THUMBNAIL_GRABBERS.keys())
-        # default='landsat',
+        choices=set(THUMBNAIL_GRABBERS.keys()),
         help='Source of thumbnails for posted stories, from {}'.format(
             set(THUMBNAIL_GRABBERS.keys()))
     )
@@ -292,9 +291,10 @@ if __name__ == '__main__':
         type=int,
         help='Number of records to process together asynchronously.'
     )
-    args = vars(parser.parse_args())
-    wires = args.pop('wires')
-    
+    kwargs = {k:v for k,v in vars(parser.parse_args()).items()
+              if v is not None}
+    wires = kwargs.pop('wires')
+
     loop = asyncio.get_event_loop()
-    scraper = Scrape(**args)
+    scraper = Scrape(**kwargs)
     loop.run_until_complete(scraper(wires))
