@@ -99,14 +99,17 @@ class Scrape(object):
         self,
         batch_size=100,
         builder=story_builder.StoryBuilder(),
-        thumbnail_grabber=None,
-        timeout=1200, 
+        thumbnail_source=None,
+        thumbnail_timeout=1200, 
         logger=log_utilities.build_logger(EXCEPTIONS_DIR, LOCAL_LOGFILE,
                                           logger_name='news_scraper')):
         self.batch_size = batch_size
         self.builder = builder
-        self.thumbnail_grabber = thumbnail_grabber
-        self.timeout = aiohttp.ClientTimeout(total=timeout)
+        if thumbnail_source:
+            self.thumbnail_grabber = THUMBNAIL_GRABBERS[thumbnail_source]
+        else:
+            self.thumbnail_grabber = None
+        self.timeout = aiohttp.ClientTimeout(total=thumbnail_timeout)
         self.logger = logger
         
     async def __call__(self, wires):
@@ -267,37 +270,31 @@ if __name__ == '__main__':
         '-w', '--wires',
         type=str,
         nargs='*',
+        choices=known_wires,
         default=known_wires,
         help='One or more newswires from {}'.format(known_wires)
     )
     parser.add_argument(
         '-t', '--thumbnail_source',
         type=str,
+        choices=[None] + list(THUMBNAIL_GRABBERS.keys())
         # default='landsat',
         help='Source of thumbnails for posted stories, from {}'.format(
             set(THUMBNAIL_GRABBERS.keys()))
     )
     parser.add_argument(
+        '-tto', '--thumbnail_timeout',
+        type=int,
+        help='Timeout for thumbnail requests in seconds.'
+    )
+    parser.add_argument(
         '-b', '--batch_size',
         type=int,
-        default=100,
         help='Number of records to process together asynchronously.'
     )
-    args = parser.parse_args()
-    wires = set([w.lower() for w in args.wires])
-    unknown = wires.difference(known_wires)
-    if unknown:
-        print('Newswires {} not recognized'.format(unknown))
-    wires = wires.intersection(known_wires)
-    print('Proceeding with wires: {}'.format(wires))
-
-    try:
-        thumbnail_grabber = THUMBNAIL_GRABBERS[args.thumbnail_source]
-    except KeyError:
-        thumbnail_grabber = None
-
+    args = vars(parser.parse_args())
+    wires = args.pop('wires')
+    
     loop = asyncio.get_event_loop()
-    scraper = Scrape(
-        batch_size=args.batch_size,
-        thumbnail_grabber=thumbnail_grabber)
+    scraper = Scrape(**args)
     loop.run_until_complete(scraper(wires))
