@@ -54,12 +54,11 @@ import sys
 import requests
 
 import config
-import firebaseio
-from story_builder import story_builder
-
-import log_utilities
 # from grab_imagery.landsat import thumbnail_grabber
+from story_builder import story_builder
 from thumbnails import request_thumbnails
+from utilities import firebaseio
+from utilities import log_utilities
 
 WIRE_URLS = {
     'newsapi': 'https://newsapi.org/v2/everything',

@@ -20,10 +20,10 @@ import os
 
 from sklearn.externals import joblib
 
-import firebaseio
 from story_builder import extract_text
 from story_builder import geocluster
 from story_builder import tag_image
+from utilities import firebaseio
 
 
 CLASSIFIER = joblib.load(os.path.join(os.path.dirname(__file__),

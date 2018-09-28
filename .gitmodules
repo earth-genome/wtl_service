@@ -1,1 +1,4 @@
 
+[submodule "utilities"]
+	path = utilities
+	url = https://github.com/earth-genome/utilities

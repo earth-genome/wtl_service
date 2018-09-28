@@ -46,8 +46,8 @@ import numpy as np
 
 from sklearn.model_selection import cross_val_score
 
-import firebaseio
 from bagofwords import freezer
+from utilities import firebaseio
 
 POS_DB = firebaseio.DB(firebaseio.FIREBASE_GL_URL)
 NEG_DB = firebaseio.DB(firebaseio.FIREBASE_NEG_URL)

@@ -10,7 +10,7 @@ import re
 import watson_developer_cloud as wdc
 
 from config import WATSON_VISION_API_KEY
-from firebaseio import FB_FORBIDDEN_CHARS
+from utilities.firebaseio import FB_FORBIDDEN_CHARS
 
 AUTH = wdc.VisualRecognitionV3(
     '2016-05-20',
