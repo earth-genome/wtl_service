@@ -1,14 +1,14 @@
 """Process current stories from a news wire.
 
-Basic usage from main:
-$ python news_scraper.py
-
-As options, the news wire, the source of image thumbnails, and the
-batch size of records gathered for asynchronous processing can be
-specified. For syntax, run:
-$ python news_scraper.py -h
-
 External class: Scrape
+External method: __call__
+
+The class is to be called by an RQ worker. 
+
+The __call__ method is decorated @loop so as to be explicitly scheduled
+for asynchronous processing within a newly established event loop. To use
+within another existing event loop, this code should be edited to remove
+the @loop decorator.  
 
 Outputs:
     All stories and their metadata are uploaded to Firbase (STORY_SEEDS).
@@ -18,7 +18,12 @@ Outputs:
 
     Exceptions are logged.
 
-Note: The class attribute batch_size determines the number of records
+Basic usage from main (deprecated):
+$ python news_scraper.py
+For syntax, run:
+$ python news_scraper.py -h
+
+Notes: The class attribute batch_size determines the number of records
 gathered for asynchronous processing. For each story selected for the 
 WTL database, a request for thumbnails is posted to the image service,
 at which point the story builder reliquishes control to the event
@@ -53,13 +58,12 @@ import sys
 
 import requests
 
-import config
-import firebaseio
-from story_builder import story_builder
-
-import log_utilities
+from story_seeds import config
+from story_seeds.story_builder import story_builder
+from story_seeds.thumbnails import request_thumbnails
 # from grab_imagery.landsat import thumbnail_grabber
-from thumbnails import request_thumbnails
+from story_seeds.utilities import firebaseio
+from story_seeds.utilities import log_utilities
 
 WIRE_URLS = {
     'newsapi': 'https://newsapi.org/v2/everything',
@@ -77,6 +81,15 @@ STORY_SEEDS = firebaseio.DB(firebaseio.FIREBASE_URL)
 EXCEPTIONS_DIR = os.path.join(os.path.dirname(__file__),
                               'NewsScraperExceptions_logs')
 LOCAL_LOGFILE = 'newswire' + datetime.date.today().isoformat() + '.log'
+
+def loop(function):
+    """Scheduling wrapper for async processing."""
+    def scheduled(*args, **kwargs):
+        loop = asyncio.get_event_loop()
+        task = asyncio.ensure_future(function(*args, *kwargs))
+        output = loop.run_until_complete(task)
+        return output
+    return scheduled
 
 class Scrape(object):
     """
@@ -111,7 +124,8 @@ class Scrape(object):
             self.thumbnail_grabber = None
         self.timeout = aiohttp.ClientTimeout(total=thumbnail_timeout)
         self.logger = logger
-        
+
+    @loop
     async def __call__(self, wires):
         """Process urls from wires."""
         signal.signal(signal.SIGINT, log_utilities.signal_handler)
@@ -152,11 +166,11 @@ class Scrape(object):
         clf, prob = self.builder.run_classifier(story)
         story.record.update({'probability': prob})
         if clf == 1:
-            story.record.update({
-                'themes': self.builder.identify_themes(story)
-            })
+            #story.record.update({
+            #    'themes': self.builder.identify_themes(story)
+            #})
             story = self.builder.run_geoclustering(story)
-            if thumbnail_grabber:
+            if self.thumbnail_grabber:
                 try:
                     centroid = _pull_centroid(story)
                     thumbnail_urls = await self.thumbnail_grabber(
@@ -295,6 +309,5 @@ if __name__ == '__main__':
               if v is not None}
     wires = kwargs.pop('wires')
 
-    loop = asyncio.get_event_loop()
     scraper = Scrape(**kwargs)
-    loop.run_until_complete(scraper(wires))
+    scraper(wires)
