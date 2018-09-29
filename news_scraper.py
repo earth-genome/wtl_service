@@ -151,11 +151,11 @@ class Scrape(object):
         clf, prob = self.builder.run_classifier(story)
         story.record.update({'probability': prob})
         if clf == 1:
-            story.record.update({
-                'themes': self.builder.identify_themes(story)
-            })
+            #story.record.update({
+            #    'themes': self.builder.identify_themes(story)
+            #})
             story = self.builder.run_geoclustering(story)
-            if thumbnail_grabber:
+            if self.thumbnail_grabber:
                 try:
                     centroid = _pull_centroid(story)
                     thumbnail_urls = await self.thumbnail_grabber(

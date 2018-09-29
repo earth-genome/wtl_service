@@ -29,8 +29,9 @@ from utilities import firebaseio
 CLASSIFIER = joblib.load(os.path.join(os.path.dirname(__file__),
     '../bagofwords/Stacker_models/latest_model.pkl'))
 PARSE_IMAGES = True  # required True if CLASSIFIER processes image tags
-THEME_CLASSIFIER = joblib.load(os.path.join(os.path.dirname(__file__),
-    '../themes/MLPtext_models/latest_model.pkl'))
+#THEME_CLASSIFIER = joblib.load(os.path.join(os.path.dirname(__file__),
+#    '../themes/MLPtext_models/latest_model.pkl'))
+THEME_CLASSIFIER = None
 
 class StoryBuilder(object):
     """Parse text and/or image at url, geolocate and cluster locations,
