@@ -38,10 +38,10 @@ Usage:
 
 from sklearn.model_selection import cross_val_score
 
-import firebaseio
 from bagofwords import freezer
 from bagofwords import prep_text
 from bagofwords import prep_image
+from utilities import firebaseio
 
 POS_DB = firebaseio.DB(firebaseio.FIREBASE_GL_URL)
 NEG_DB = firebaseio.DB(firebaseio.FIREBASE_NEG_URL)

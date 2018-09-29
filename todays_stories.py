@@ -12,8 +12,9 @@ import datetime
 import json
 import sys
 
-import news_scraper
+from utilities import firebaseio
 
+STORY_SEEDS = firebaseio.DB(firebaseio.FIREBASE_URL)
 
 if __name__ == '__main__':
 
@@ -27,7 +28,7 @@ if __name__ == '__main__':
     end = today + datetime.timedelta(days=1)
     start = today - datetime.timedelta(days=daysback)
 
-    stories = news_scraper.STORY_SEEDS.grab_stories(
+    stories = STORY_SEEDS.grab_stories(
         category='/WTL',
         startDate=start.isoformat(),
         endDate=end.isoformat())

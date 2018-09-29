@@ -9,8 +9,8 @@ import sys
 
 from sklearn.externals import joblib
 
-import firebaseio
 from story_builder import story_builder
+from utilities import firebaseio
 
 CLASSIFIER = joblib.load('bagofwords/Stacker_models/latest_model.pkl')
 

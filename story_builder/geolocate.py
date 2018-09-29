@@ -17,8 +17,8 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from shapely import geometry
 
 from config import GOOGLE_GEO_API_KEY
-from firebaseio import FB_FORBIDDEN_CHARS
-from grab_imagery.geobox import geobox 
+from utilities.geobox import geobox
+from utilities.firebaseio import FB_FORBIDDEN_CHARS
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
     

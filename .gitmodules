@@ -1,3 +1,4 @@
-[submodule "grab_imagery"]
-	path = grab_imagery
-	url = https://github.com/earth-genome/grab_imagery
+
+[submodule "utilities"]
+	path = utilities
+	url = https://github.com/earth-genome/utilities

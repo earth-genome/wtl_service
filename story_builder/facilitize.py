@@ -17,7 +17,7 @@ External functions:
 import os
 import re
 
-from firebaseio import FB_FORBIDDEN_CHARS
+from utilities.firebaseio import FB_FORBIDDEN_CHARS
 
 # include these entity types:
 ENTITY_TYPES = set(['Location', 'Facility', 'GeographicFeature',

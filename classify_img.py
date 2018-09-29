@@ -4,6 +4,7 @@ Returns a probability the story associated to input url is a good candidate
 for satellite imagery, based on latest stored model.
 """
 
+import os
 import sys
 
 from sklearn.externals import joblib

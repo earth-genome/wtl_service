@@ -13,8 +13,8 @@ import os
 import sys
 
 import config
-import firebaseio
 from story_builder import story_builder
+from utilities import firebaseio
 
 # Currently available themes
 with open('themes/known_themes.txt', 'r') as f:
