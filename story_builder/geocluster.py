@@ -36,7 +36,8 @@ an (n,2) numpy array.
 Simple use of this base class might entail, on input array coords:
 > gc = GeoCluster(max_dist=150, min_size=1)
 > coord_clusters = gc.cluster(coords)
-> cluster_plot(coord_clusters, 'scatterplot.png')
+> import geoclusterplot  # outside this repo
+> geoclusterplot.cluster_plot(coord_clusters, 'scatterplot.png')
 
 The descendant class GrowGeoCluster handles locations of form
 specified above, bulkier in its machinations to handle incomplete data.
@@ -64,15 +65,12 @@ External functions:
     # Functions to compute / select by distance on the Earth's surface
         check_near
         sort_by_distance
-    # Utility to plot geoclusters
-        cluster_plot
 
 """
 import json
 import time
 
 import geopy.distance 
-import matplotlib.pyplot as plt
 import numpy as np
 from shapely import geometry
 from sklearn.cluster import DBSCAN
@@ -415,36 +413,4 @@ def sort_by_distance(locations, lat, lon):
         loc_distances.append(({name: data.copy()}, dist.kilometers))
     loc_distances.sort(key=lambda d: d[1])
     return loc_distances
-
-# Utility to plot geoclusters
-
-def cluster_plot(coord_clusters, output_filename, scaling=10):
-    """Scatterplot clusters of lat/lon coords.
-
-    Arguments:
-        clusters: numpy array of shape (n,2)
-        output_filename: text string (with image suffix, e.g. .png
-            or .jpg, or if no suffix, default is .png)
-        scaling: graph points have area proportional to cluster size,
-            scaled up by this factor
-
-    Output: Writes scatterplot to save_prefix.png.
-    """
-    fig, ax = plt.subplots()
-    cluster_sizes = [len(c) for c in coord_clusters]
-    centroids = [geometry.MultiPoint(c).centroid
-                 for c in coord_clusters]
-    centroids_x = [cen.x for cen in centroids]
-    centroids_y = [cen.y for cen in centroids]
-    cluster_scatter = ax.scatter(centroids_x,
-                                 centroids_y,
-                                 c='#99cc99',
-                                 edgecolor='None',
-                                 alpha=0.7,
-                                 s=scaling*np.array(cluster_sizes))
-    ax.set_title('Coordinate clusters')
-    ax.set_xlabel('Longitude')
-    ax.set_ylabel('Latitude')
-    plt.savefig(output_filename, bbox_inches='tight') 
-    return
 
