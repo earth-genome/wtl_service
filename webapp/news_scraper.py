@@ -3,12 +3,8 @@
 External class: Scrape
 External method: __call__
 
-The class is to be called by an RQ worker. 
-
-The __call__ method is decorated @loop so as to be explicitly scheduled
-for asynchronous processing within a newly established event loop. To use
-within another existing event loop, this code should be edited to remove
-the @loop decorator.  
+The class is to be called by an RQ worker, scheduled within an asyncio
+event loop.
 
 Outputs:
     All stories and their metadata are uploaded to Firbase (STORY_SEEDS).
@@ -57,6 +53,7 @@ import signal
 import sys
 
 import requests
+import redis
 
 from story_seeds import config
 from story_seeds.story_builder import story_builder
@@ -78,12 +75,28 @@ THUMBNAIL_GRABBERS = {
 
 STORY_SEEDS = firebaseio.DB(firebaseio.FIREBASE_URL)
 
-EXCEPTIONS_DIR = os.path.join(os.path.dirname(__file__),
-                              'NewsScraperExceptions_logs')
-LOCAL_LOGFILE = 'newswire' + datetime.date.today().isoformat() + '.log'
+# Logging when running from main:
+EXCEPTIONS_DIR = os.path.join(os.path.dirname(__file__), 'NewsScraperLogs')
+LOGFILE = 'newswire' + datetime.date.today().isoformat() + '.log'
+
+# Heroku provides the env variable REDIS_URL for Heroku redis;
+# the default redis://redis_db:6379 points to the local docker redis
+redis_url = os.getenv('REDIS_URL', 'redis://redis_db:6379')
+connection = redis.from_url(redis_url, decode_responses=True)
+
+# The asyncio event scheduling cannot be pickled and therefore cannot
+# be Redis-queued. From app.py we must enqueue a function that, as
+# part of its process, establishes the event loop.
+
+def scraper_wrapper(wires, **kwargs):
+    """Instantiate, schedule, and call the Scrape process."""
+    scraper = Scrape(**kwargs)
+    looped = loop(scraper)
+    looped(wires)
+    return
 
 def loop(function):
-    """Scheduling wrapper for async processing."""
+    """Scheduler for async processing."""
     def scheduled(*args, **kwargs):
         loop = asyncio.get_event_loop()
         task = asyncio.ensure_future(function(*args, *kwargs))
@@ -114,8 +127,8 @@ class Scrape(object):
         builder=story_builder.StoryBuilder(),
         thumbnail_source=None,
         thumbnail_timeout=1200, 
-        logger=log_utilities.build_logger(EXCEPTIONS_DIR, LOCAL_LOGFILE,
-                                          logger_name='news_scraper')):
+        logger=log_utilities.get_stream_logger(sys.stderr)):
+        
         self.batch_size = batch_size
         self.builder = builder
         if thumbnail_source:
@@ -125,7 +138,6 @@ class Scrape(object):
         self.timeout = aiohttp.ClientTimeout(total=thumbnail_timeout)
         self.logger = logger
 
-    @loop
     async def __call__(self, wires):
         """Process urls from wires."""
         signal.signal(signal.SIGINT, log_utilities.signal_handler)
@@ -308,6 +320,6 @@ if __name__ == '__main__':
     kwargs = {k:v for k,v in vars(parser.parse_args()).items()
               if v is not None}
     wires = kwargs.pop('wires')
-
-    scraper = Scrape(**kwargs)
-    scraper(wires)
+    kwargs['logger'] = log_utilities.build_logger(EXCEPTIONS_DIR, LOGFILE)
+    
+    scraper_wrapper(wires, **kwargs)

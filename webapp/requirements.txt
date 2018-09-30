@@ -8,4 +8,8 @@ nltk
 geopy
 shapely
 pyproj
-python-dateutil
+aiohttp
+gunicorn
+Flask
+redis
+rq
