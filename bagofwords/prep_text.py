@@ -24,8 +24,7 @@ from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 BAD_SYMBOLS = '[\d?!@#$%^&\*_\+]+'
 
 STOP_WORD_FILES = [
-    pkg_resources.resource_filename(__name__, 'news_stop_words.txt'),
-    pkg_resources.resource_filename(__name__, '../newsapi_outlets.txt')
+    pkg_resources.resource_filename(__name__, 'news_stop_words.txt')
 ]
 
 def strip_symbols(text, symbols=BAD_SYMBOLS):
