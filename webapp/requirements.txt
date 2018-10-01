@@ -2,7 +2,7 @@ numpy
 urllib3
 requests
 python-firebase
-watson-developer-cloud
+watson-developer-cloud==1.7.1
 scikit-learn
 nltk
 geopy
