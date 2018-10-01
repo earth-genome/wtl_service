@@ -2,9 +2,7 @@ FROM ubuntu:latest
 RUN apt-get update && apt-get install -y software-properties-common
 RUN apt-get install -y python3-pip python3-dev build-essential
 RUN pip3 install --upgrade pip
-#RUN apt-get install -y libssl-dev libffi-dev libcurl4-openssl-dev
 ENV DEBIAN_FRONTEND noninteractive
-#RUN apt-get install -y python3-tk
 
 ADD ./webapp/requirements.txt /tmp/requirements.txt
 
