@@ -153,7 +153,7 @@ class Scrape(object):
                                                return_exceptions=True)
                 self._log_exceptions(results)
                 del records[-self.batch_size:]
-                print('Batch of {} done\n'.format(self.batch_size))
+                print('Batch of {} done\n'.format(self.batch_size), flush=True)
 
         print('complete')
         return
