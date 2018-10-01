@@ -23,7 +23,7 @@ q = Queue('default', connection=worker.connection, default_timeout=86400)
 app = Flask(__name__)
 
 @app.route('/')
-def help():
+def welcome():
     welcome = ('This web app provides functionality from the following ' + 
         'endpoints, each of which takes required and optional arguments. ' +
         'Hit one of these urls to see specific argument formatting.')
@@ -53,21 +53,18 @@ def scrape():
         return json.dumps(msg)
 
     job = q.enqueue_call(
-        func=news_scraper.scraper_wrapper,
-        args=(wires,),
-        kwargs=kwargs)
+        func=news_scraper.scraper_wrapper, args=(wires,), kwargs=kwargs)
 
-    return json.dumps(_scraping_guide())
+    return json.dumps(_format_scraping_guide())
 
 @app.route('/retrieve')
 def retrieve():
     """Retrieve records from the WTL database."""
     
-    notes = ('Either daysback or start and end dates in form YYYY-MM-DD ' +
-             'are required. Daysback will override start and end dates. ' +
+    notes = ('Either daysback or start and end dates in form ' +
+             'start=YYYY-MM-DD&end=YYYY-MM-DD are required.' +
              'Expect up to hundreds of records per day requested.')
-    msg = _help_msg(
-        request.base_url, 'daysback=3&start=2018-09-27&end=2018-09-22', notes)
+    msg = _help_msg(request.base_url, 'daysback=3', notes)
 
     try:
         startDate, endDate = _parse_daysback(request.args)
@@ -192,7 +189,7 @@ def _format_scraper_args():
     }
     return scraper_args
 
-def _scraping_guide():
+def _format_scraping_guide():
     """Produce a message to return when scrape is called."""
     guide = {
         'Scraping': 'Now. Records will be continuously posted to WTL.',
