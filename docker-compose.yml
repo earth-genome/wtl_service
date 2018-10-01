@@ -2,8 +2,25 @@ version: '2'
 services:
   web:
     build: .
+    env_file: .env
+    links:
+      - redis_worker
+      - redis_db
     ports:
       - "5000:5000"
-    env_file: .env
     volumes:
       - ./webapp:/opt/webapp
+    tty: true
+  redis_worker:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+  redis_db:
+    image: redis:alpine
+    ports:
+      - "6380:6379"
+  worker:
+    image: wtl_service_web:latest
+    env_file: .env
+    command: python3 worker.py
+

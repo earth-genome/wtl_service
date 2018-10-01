@@ -1,18 +1,17 @@
 FROM ubuntu:latest
-RUN apt-get update -y
-RUN apt-get install -y python-pip python-dev build-essential
+RUN apt-get update && apt-get install -y software-properties-common
+RUN apt-get install -y python3-pip python3-dev build-essential
+RUN pip3 install --upgrade pip
+ENV DEBIAN_FRONTEND noninteractive
+
 ADD ./webapp/requirements.txt /tmp/requirements.txt
 
 # Install dependencies
-RUN pip install -qr /tmp/requirements.txt
+RUN pip install -r /tmp/requirements.txt
 
 # Add our code
 ADD ./webapp /opt/webapp/
-WORKDIR /opt/webapp	
+WORKDIR /opt/webapp
 
-# Run the app.  CMD is required to run on Heroku.  $PORT is set by Heroku.
-CMD gunicorn --bind 0.0.0.0:$PORT wsgi --timeout 6000
-
-# Use this line for local development, rather than the gunicorn in the previous line
-# CMD python app.py
-
+# To deploy locally
+CMD python3 app.py

@@ -1,85 +1,201 @@
-from flask import Flask, render_template, json, request, redirect, url_for, session, flash
-import firebase
-import random
+"""A Flask web app to source stories for the Where to Look (WTL) database.
+
+Story retrieval is handled by web app directly; story build and classification
+is pushed to a Redis queue and handled by the worker process in worker.py.
+"""
+
+import datetime
+import json
 import os
-from scraper import main
-from datetime import datetime
-from config import FIREBASE_URL
+import sys
+import urllib.parse
 
+from flask import Flask, request
+import numpy as np
+from rq import Queue
+
+import news_scraper
+from story_seeds.utilities import firebaseio
+from story_seeds.utilities import log_utilities
+import worker
+
+q = Queue('default', connection=worker.connection, default_timeout=86400)
 app = Flask(__name__)
-app.secret_key = 'super-secret-key'
-
-
-# Connect to firebase database.
-fb = firebase.FirebaseApplication(FIREBASE_URL, None)
-
-
-@app.route('/scrape')
-def scrape():
-    # Scrape news stories, bucket into raw_geo and raw_no_geo tables based on
-    # whether there were facilities that were extracted and geolocated from
-    # the story
-    main.process()
-
 
 @app.route('/')
-def home():
-    if not session.get('logged_in'):
-        return render_template('login.html')
-    else:
-        return redirect(url_for('classify'))
-
- 
-@app.route('/login', methods=['POST'])
-def do_login():
-    if request.form['password'] == 'organize' and request.form['username'] == 'resist':
-        session['logged_in'] = True
-    else:
-        flash('wrong password!')
-    return home()
-
-
-@app.route('/classify')
-def classify():
+def welcome():
+    welcome = ('This web app provides functionality from the following ' + 
+        'endpoints, each of which takes required and optional arguments. ' +
+        'Hit one of these urls to see specific argument formatting.')
+    msg = {
+        'Welcome': welcome,
+        'Scrape news wires for stories':
+            ''.join((request.url, 'scrape?')),
+        'Retrieve stories posted to the WTL database':
+            ''.join((request.url, 'retrieve?')),
+        'Retrieve a single story record from the WTL database':
+            ''.join((request.url, 'retrieve-story?')),
+    }
+    return json.dumps(msg)
+  
+@app.route('/scrape')
+def scrape():
+    """Pull images given lat, lon, and scale."""
+    msg = _help_msg(
+        request.base_url,
+        'wires=gdelt&wires=newsapi&thumbnail_source=landsat',
+        _format_scraper_args())
 
     try:
-        # Grab the first unvetted story in the geolocated table
-        params={
-            'orderBy': '"vetted"', 
-            'equalTo': 'false',
-            'limitToFirst': 1
+        wires, kwargs = _parse_scrape_params(request.args)
+    except ValueError as e:
+        msg['Exception'] = repr(e)
+        return json.dumps(msg)
+
+    job = q.enqueue_call(
+        func=news_scraper.scraper_wrapper, args=(wires,), kwargs=kwargs)
+
+    return json.dumps(_format_scraping_guide())
+
+@app.route('/retrieve')
+def retrieve():
+    """Retrieve records from the WTL database."""
+    
+    notes = ('Either daysback or start and end dates in form ' +
+             'start=YYYY-MM-DD&end=YYYY-MM-DD are required.' +
+             'Expect up to hundreds of records per day requested.')
+    msg = _help_msg(request.base_url, 'daysback=3', notes)
+
+    try:
+        startDate, endDate = _parse_daysback(request.args)
+    except ValueError:
+        try: 
+            startDate, endDate = _parse_dates(request.args)
+        except (ValueError, TypeError) as e:
+            msg['Exception'] = repr(e)
+            return json.dumps(msg)
+
+    stories = news_scraper.STORY_SEEDS.grab_stories(
+        category='/WTL', startDate=startDate, endDate=endDate)
+
+    return json.dumps([_clean(story) for story in stories])
+
+@app.route('/retrieve-story')
+def retrieve_story():
+    """Retrieve a story record from the WTL database."""
+
+    msg = _help_msg(request.base_url,
+                    'idx=Index of the story in the database', '')
+    try:
+        idx  = _parse_index(request.args)
+    except ValueError as e:
+        msg['Exception'] = repr(e)
+        return json.dumps(msg)
+
+    record = news_scraper.STORY_SEEDS.get('/WTL', idx)
+    return json.dumps({idx: record})
+
+def _clean(story):
+    """Curate story data for web presentation."""
+    try:
+        title = story.record['title']
+    except KeyError:
+        title = ''
+    rec = {
+        'Source url': story.record['url'],
+        'title': title,
+        'Full record': request.url_root + 'retrieve-story?idx={}'.format(
+            urllib.parse.quote(story.idx))
+    }
+    return rec
+    
+# Argument parsing functions
+
+def _parse_scrape_params(args):
+    """Parse url for news wires, thumbnail source, and story batch size."""
+    
+    wires = args.getlist('wires')
+    kwargs = {
+        'batch_size': args.get('batch_size', type=int),
+        'thumbnail_source': args.get('thumbnail_source', type=str),
+        'thumbnail_timeout': args.get('thumbnail_timeout', type=int)
+    }
+    
+    if not wires or not set(wires) <= set(news_scraper.WIRE_URLS.keys()):
+        raise ValueError('Supported wire are {}'.format(
+            set(news_scraper.WIRE_URLS.keys())))
+    
+    known_grabbers = set(news_scraper.THUMBNAIL_GRABBERS.keys())
+    tns = kwargs['thumbnail_source']
+    if tns and tns not in known_grabbers:
+        raise ValueError('thumbnail_source must be from {}'.format(
+            known_grabbers))
+
+    kwargs = {k:v for k,v in kwargs.items() if v is not None}
+    return wires, kwargs
+
+def _parse_daysback(args):
+    """Parse number of days from today and convert to start/end dates."""
+    daysback = args.get('daysback', type=int)
+    if not daysback:
+        raise ValueError
+    today = datetime.date.today()
+    end = today + datetime.timedelta(days=1)
+    start = today - datetime.timedelta(days=daysback)
+    return start.isoformat(), end.isoformat()
+
+def _parse_dates(args):
+    """Parse dates from url arguments."""
+    start = args.get('start', type=str)
+    end = args.get('end', type=str)
+    
+    # Check date formatting. Will raise ValueError if misformatted or
+    # TypeError if one of start/end is None.
+    start = datetime.datetime.strptime(start, '%Y-%m-%d').date()
+    end = datetime.datetime.strptime(end, '%Y-%m-%d').date()
+    
+    return start.isoformat(), end.isoformat()
+
+def _parse_index(args):
+    """Parse url arguments for story index."""
+    idx = args.get('idx', type=str)
+    if not idx:
+        raise ValueError('A story index is required.')
+    return idx
+
+# Help messaging
+    
+def _help_msg(base_url, url_args, notes):
+    msg = {
+        'Usage': '{}?{}'.format(base_url, url_args),
+        'Notes': notes
+    }
+    return msg
+
+def _format_scraper_args():
+    """Produce a dict explaining scraper args for help messaging."""
+    scraper_args = {
+        'Required arguments': {
+            'wires': 'One or more of {}'.format(
+                set(news_scraper.WIRE_URLS.keys()))
+        },
+        'Optional arguments': {
+            'thumbnail_source': 'One of {}'.format(
+                set(news_scraper.THUMBNAIL_GRABBERS.keys())),
+            'thumbnail_timeout': 'Integer number of seconds',
+            'batch_size': ('Integer number of records to gather for ' +
+                'asynchronous processing.')
         }
+    }
+    return scraper_args
 
-        res = fb.get("/", "raw_geo", params=params)
-        [idx] = res.keys()
-        [content] = res.values()
-
-        return render_template('classify.html', data=content['meta'], idx=idx)
-
-    except:
-        # TODO: make this better able to handle bad requests.  Note that if
-        # there are no unvetted stories, the fb.get request yields a 400 (bad
-        # request) error, which is indistinguishable from other firebase
-        # errors.
-        return render_template('noneleft.html')
-
-
-@app.route('/vet_story/<int:idx>')
-def bucket(idx):
-    # Geo is an argument for whether the story has been geolocated
-    geo = str(request.args.get('geo'))
-
-    # Add index and time of classification to the Tier I screening list
-    if geo == "true":
-        fb.put("/tierI", idx, {'vettime': datetime.utcnow().isoformat()})
-
-    # Update the original record in raw_geo to reflect that vetting took place
-    fb.patch("/raw_geo/" + str(idx), {"vetted": True})
-
-    # After posting and patching, return the template for classify to get a
-    # new story and do this again.
-    return redirect(url_for('classify'))
-
+def _format_scraping_guide():
+    """Produce a message to return when scrape is called."""
+    guide = {
+        'Scraping': 'Now. Records will be continuously posted to WTL.',
+        'Retrieve records': '{}'.format(request.url_root + 'retrieve')
+    }
+    return guide
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True)
+    app.run(debug=False, host='0.0.0.0')

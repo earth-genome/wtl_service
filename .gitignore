@@ -1,2 +1,3 @@
 *.pyc
 *DS_Store
+webapp/story_seeds/config.py*
