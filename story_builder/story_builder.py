@@ -111,7 +111,7 @@ class StoryBuilder(object):
         classification, probability = self.classifier.classify_story(story)
         result = 'Accepted' if classification == 1 else 'Declined'
         print(result + ' for feed @ prob {:.3f}: {}\n'.format(
-            probability, url))
+            probability, url), flush=True)
         
         return classification, probability
 
