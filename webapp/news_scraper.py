@@ -51,9 +51,9 @@ import os
 import random
 import signal
 import sys
+import time
 
 import requests
-import redis
 
 from story_seeds import config
 from story_seeds.story_builder import story_builder
@@ -61,6 +61,7 @@ from story_seeds.thumbnails import request_thumbnails
 # from grab_imagery.landsat import thumbnail_grabber
 from story_seeds.utilities import firebaseio
 from story_seeds.utilities import log_utilities
+import track_urls
 
 WIRE_URLS = {
     'newsapi': 'https://newsapi.org/v2/everything',
@@ -75,18 +76,13 @@ THUMBNAIL_GRABBERS = {
 
 STORY_SEEDS = firebaseio.DB(firebaseio.FIREBASE_URL)
 
-# Logging when running from main:
+# Logging when running locally from main:
 EXCEPTIONS_DIR = os.path.join(os.path.dirname(__file__), 'NewsScraperLogs')
 LOGFILE = 'newswire' + datetime.date.today().isoformat() + '.log'
 
-# Heroku provides the env variable REDIS_URL for Heroku redis;
-# the default redis://redis_db:6379 points to the local docker redis
-redis_url = os.getenv('REDIS_URL', 'redis://redis_db:6379')
-connection = redis.from_url(redis_url, decode_responses=True)
-
 # The asyncio event scheduling cannot be pickled and therefore cannot
 # be Redis-queued. From app.py we must enqueue a function that, as
-# part of its process, establishes the event loop.
+# part of its process, establishes the event loop:
 
 def scraper_wrapper(wires, **kwargs):
     """Instantiate, schedule, and call the Scrape process."""
@@ -110,11 +106,12 @@ class Scrape(object):
     
     Attributes:
         batch_size: Number of records to process together asynchronously.
+        grabber: Class instance to pull thumbnail images.
+        timeout: Timeout for aiohttp requests. (See notes above.)
+        logger: Exception logger.
         builder: Class instance to extract, evaluate, and post story from
             url.
-        grabber: Class instance to pull thumbnail images.
-        timeout: Timeout for aiohttp requests. (See notes above.) 
-        logger: Exception logger.
+        url_tracker: Class instance to track scraped urls.
         
 
     External method:
@@ -124,27 +121,27 @@ class Scrape(object):
     def __init__(
         self,
         batch_size=100,
-        builder=story_builder.StoryBuilder(),
         thumbnail_source=None,
-        thumbnail_timeout=1200, 
+        http_timeout=1200,
         logger=log_utilities.get_stream_logger(sys.stderr)):
         
         self.batch_size = batch_size
-        self.builder = builder
         if thumbnail_source:
             self.thumbnail_grabber = THUMBNAIL_GRABBERS[thumbnail_source]
         else:
             self.thumbnail_grabber = None
-        self.timeout = aiohttp.ClientTimeout(total=thumbnail_timeout)
+        self.timeout = aiohttp.ClientTimeout(total=http_timeout)
         self.logger = logger
+
+        self.builder = story_builder.StoryBuilder()
+        self.url_tracker = track_urls.TrackURLs()
 
     async def __call__(self, wires):
         """Process urls from wires."""
         signal.signal(signal.SIGINT, log_utilities.signal_handler)
 
         async with aiohttp.ClientSession(timeout=self.timeout) as self.session:
-            records = _harvest_records(wires)
-            print('{} news stories harvested.'.format(len(records)))
+            records = self._harvest_records(wires)
 
             while records:
                 batch = records[-self.batch_size:]
@@ -166,11 +163,10 @@ class Scrape(object):
         Returns: None
         """
         url = record.pop('url')
+        self.url_tracker.add(url, time.time())
         try:
             story = self.builder.assemble_content(url, category='/stories',
                                               **record)
-            if STORY_SEEDS.check_known(story):
-                return
         except Exception:
             self.logger.exception('\nAssembling content: {}'.format(url))
             return
@@ -213,6 +209,17 @@ class Scrape(object):
             self.logger.exception('\nUpload to STORYSEEDS: {}'.format(url))
         return 
 
+    def _harvest_records(self, wires):
+        """Retrieve urls and associated metadata."""
+        records = []
+        if 'gdelt' in wires:
+            records += _harvest_gdelt()
+        if 'newsapi' in wires:
+            records += _harvest_newsapi()
+        fresh_urls = self.url_tracker.find_fresh([r['url'] for r in records])
+        records = [r for r in records if r['url'] in fresh_urls]
+        return records
+
     def _log_exceptions(self, results):
         """Log exceptions returned from asyncio.gather.
 
@@ -238,16 +245,6 @@ def _pull_centroid(story):
     centroid = next(reversed(sorted_by_score))[0]
     return centroid
     
-def _harvest_records(wires):
-    """Retrieve urls and associated metadata."""
-    records = []
-    if 'gdelt' in wires:
-        records += _harvest_gdelt()
-    if 'newsapi' in wires:
-        records += _harvest_newsapi()
-    random.shuffle(records)
-    return records
-
 def _harvest_gdelt():
     """"Retrieve urls and metadata from the GDELT service."""
     data = requests.get(WIRE_URLS['gdelt'])
@@ -285,8 +282,7 @@ def _harvest_newsapi():
                 pass
             records.append(metadata)
     return records
-
-        
+    
 if __name__ == '__main__':
     known_wires = set(WIRE_URLS.keys())
     parser = argparse.ArgumentParser(
@@ -308,9 +304,9 @@ if __name__ == '__main__':
             set(THUMBNAIL_GRABBERS.keys()))
     )
     parser.add_argument(
-        '-tto', '--thumbnail_timeout',
+        '-to', '--http_timeout',
         type=int,
-        help='Timeout for thumbnail requests in seconds.'
+        help='Timeout for (esp. thumbnail) http requests in seconds.'
     )
     parser.add_argument(
         '-b', '--batch_size',
