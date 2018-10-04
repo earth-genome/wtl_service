@@ -28,7 +28,9 @@ from utilities import firebaseio
 
 CLASSIFIER = joblib.load(os.path.join(os.path.dirname(__file__),
     '../bagofwords/Stacker_models/latest_model.pkl'))
-PARSE_IMAGES = True  # required True if CLASSIFIER processes image tags
+PARSE_IMAGES = True  # generally set True if CLASSIFIER processes image tags;
+    # otherwise the image contribution to classfier will have prob ~50%
+    # (cf. current Stacker thresholds ~75%.) 
 #THEME_CLASSIFIER = joblib.load(os.path.join(os.path.dirname(__file__),
 #    '../themes/MLPtext_models/latest_model.pkl'))
 THEME_CLASSIFIER = None
@@ -40,7 +42,7 @@ class StoryBuilder(object):
     Attributes:
         classifier: restored instance of (e.g. naivebayes or logistic
             stacking) classifier
-        parse_images: True if classifier operates on image tags, else False
+        parse_images: True for classifier to operate on image tags, else False
 
     Methods:
         __call__: Build a story from url.
