@@ -35,7 +35,8 @@ def get_tags(img_url):
         classlist = response['images'][0]['classifiers'][0]['classes']
         tags = clean_tags(classlist)
         tags = filter_tags(tags)
-    except:
+    except Exception as e:
+        print('Tagging image: {}'.format(repr(e)))
         tags = {}
     return tags
 
