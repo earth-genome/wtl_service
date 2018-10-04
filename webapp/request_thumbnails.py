@@ -36,7 +36,7 @@ PROVIDER_PARAMS = {
     'landsat': {
         'write_styles': 'landsat_contrast',
         'bucket_name': 'landsat-thumbnails',
-        'scale': str(30.0),
+        'scale': str(20.0),
         'waittime': 1
     }
 }
@@ -86,7 +86,7 @@ class RequestThumbnails(object):
 
         report = 'In progress.'
         while report == 'In progress.':
-            await asyncio.sleep(WAITTIME)
+            await asyncio.sleep(self.waittime)
             async with session.get(pull_summary['Links']) as links_resp:
                 report = await links_resp.json(content_type=None)
 
