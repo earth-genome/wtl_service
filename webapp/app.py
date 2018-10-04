@@ -51,7 +51,7 @@ def scrape():
     try:
         wires, kwargs = _parse_scrape_params(request.args)
         print('Initiating scrape with wires {} and params {}'.format(
-            wires, kwargs))
+            wires, kwargs), flush=True)
     except ValueError as e:
         msg['Exception'] = repr(e)
         return json.dumps(msg)
