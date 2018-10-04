@@ -11,5 +11,6 @@ pyproj
 aiohttp
 gunicorn
 Flask
+flask_restful
 redis
 rq

@@ -4,7 +4,7 @@ RUN apt-get install -y python3-pip python3-dev build-essential
 RUN pip3 install --upgrade pip
 ENV DEBIAN_FRONTEND noninteractive
 
-ADD ./webapp/requirements.txt /tmp/requirements.txt
+ADD ./requirements.txt /tmp/requirements.txt
 
 # Install dependencies
 RUN pip install -r /tmp/requirements.txt

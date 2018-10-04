@@ -55,10 +55,9 @@ import time
 
 import requests
 
+import request_thumbnails
 from story_seeds import config
 from story_seeds.story_builder import story_builder
-from story_seeds.thumbnails import request_thumbnails
-# from grab_imagery.landsat import thumbnail_grabber
 from story_seeds.utilities import firebaseio
 from story_seeds.utilities import log_utilities
 import track_urls
@@ -68,11 +67,6 @@ WIRE_URLS = {
     'gdelt': 'https://gdelt-seeds.herokuapp.com/urls'
 }
 OUTLETS_FILE = 'newsapi_outlets.txt'
-
-THUMBNAIL_GRABBERS = {
-#    'landsat': thumbnail_grabber.ThumbnailGrabber(),
-    'planet': request_thumbnails.request_thumbnails
-}
 
 STORY_SEEDS = firebaseio.DB(firebaseio.FIREBASE_URL)
 
@@ -106,7 +100,7 @@ class Scrape(object):
     
     Attributes:
         batch_size: Number of records to process together asynchronously.
-        grabber: Class instance to pull thumbnail images.
+        thumbnail_grabber: Class instance to pull thumbnail images.
         timeout: Timeout for aiohttp requests. (See notes above.)
         logger: Exception logger.
         builder: Class instance to extract, evaluate, and post story from
@@ -121,19 +115,24 @@ class Scrape(object):
     def __init__(
         self,
         batch_size=100,
+        parse_images=None,
         thumbnail_source=None,
         http_timeout=1200,
         logger=log_utilities.get_stream_logger(sys.stderr)):
         
         self.batch_size = batch_size
         if thumbnail_source:
-            self.thumbnail_grabber = THUMBNAIL_GRABBERS[thumbnail_source]
+            self.thumbnail_grabber = request_thumbnails.RequestThumbnails(
+                thumbnail_source)
         else:
             self.thumbnail_grabber = None
         self.timeout = aiohttp.ClientTimeout(total=http_timeout)
         self.logger = logger
 
-        self.builder = story_builder.StoryBuilder()
+        if parse_images is None:
+            self.builder = story_builder.StoryBuilder()
+        else:
+            self.builder = story_builder.StoryBuilder(parse_images=parse_images)
         self.url_tracker = track_urls.TrackURLs()
 
     async def __call__(self, wires):
@@ -299,9 +298,9 @@ if __name__ == '__main__':
     parser.add_argument(
         '-t', '--thumbnail_source',
         type=str,
-        choices=set(THUMBNAIL_GRABBERS.keys()),
+        choices=set(request_thumbnails.PROVIDER_PARAMS.keys()),
         help='Source of thumbnails for posted stories, from {}'.format(
-            set(THUMBNAIL_GRABBERS.keys()))
+            set(request_thumbnails.PROVIDER_PARAMS.keys()))
     )
     parser.add_argument(
         '-to', '--http_timeout',

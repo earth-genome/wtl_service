@@ -11,10 +11,12 @@ import sys
 import urllib.parse
 
 from flask import Flask, request
+from flask_restful import inputs
 import numpy as np
 from rq import Queue
 
 import news_scraper
+import request_thumbnails
 from story_seeds.utilities import firebaseio
 from story_seeds.utilities import log_utilities
 import worker
@@ -48,6 +50,8 @@ def scrape():
 
     try:
         wires, kwargs = _parse_scrape_params(request.args)
+        print('Initiating scrape with wires {} and params {}'.format(
+            wires, kwargs))
     except ValueError as e:
         msg['Exception'] = repr(e)
         return json.dumps(msg)
@@ -117,15 +121,16 @@ def _parse_scrape_params(args):
     wires = args.getlist('wires')
     kwargs = {
         'batch_size': args.get('batch_size', type=int),
-        'thumbnail_source': args.get('thumbnail_source', type=str),
-        'thumbnail_timeout': args.get('thumbnail_timeout', type=int)
+        'parse_images': args.get('parse_images', type=inputs.boolean),
+        'thumbnail_source': args.get('thumbnail_source'),
+        'thumbnail_timeout': args.get('thumbnail_timeout')
     }
     
     if not wires or not set(wires) <= set(news_scraper.WIRE_URLS.keys()):
         raise ValueError('Supported wire are {}'.format(
             set(news_scraper.WIRE_URLS.keys())))
     
-    known_grabbers = set(news_scraper.THUMBNAIL_GRABBERS.keys())
+    known_grabbers = set(request_thumbnails.PROVIDER_PARAMS.keys())
     tns = kwargs['thumbnail_source']
     if tns and tns not in known_grabbers:
         raise ValueError('thumbnail_source must be from {}'.format(
@@ -146,8 +151,8 @@ def _parse_daysback(args):
 
 def _parse_dates(args):
     """Parse dates from url arguments."""
-    start = args.get('start', type=str)
-    end = args.get('end', type=str)
+    start = args.get('start')
+    end = args.get('end')
     
     # Check date formatting. Will raise ValueError if misformatted or
     # TypeError if one of start/end is None.
@@ -158,7 +163,7 @@ def _parse_dates(args):
 
 def _parse_index(args):
     """Parse url arguments for story index."""
-    idx = args.get('idx', type=str)
+    idx = args.get('idx')
     if not idx:
         raise ValueError('A story index is required.')
     return idx
@@ -181,10 +186,12 @@ def _format_scraper_args():
         },
         'Optional arguments': {
             'thumbnail_source': 'One of {}'.format(
-                set(news_scraper.THUMBNAIL_GRABBERS.keys())),
+                set(request_thumbnails.PROVIDER_PARAMS.keys())),
             'thumbnail_timeout': 'Integer number of seconds',
             'batch_size': ('Integer number of records to gather for ' +
-                'asynchronous processing.')
+                'asynchronous processing.'),
+            'parse_images': ('True/False whether to include images from ' +
+                             'news stories in their classification.') 
         }
     }
     return scraper_args
