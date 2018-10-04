@@ -65,7 +65,7 @@ class RequestThumbnails(object):
                  app_url='http://earthrise-imagery.herokuapp.com/pull'):
                  
         self.provider = provider
-        self.base_payload = dict(**THUMBNAIL_PARAMS)
+        self.base_payload = dict(provider=provider, **THUMBNAIL_PARAMS)
         self.base_payload.update(PROVIDER_PARAMS[provider])
         self.waittime = self.base_payload.pop('waittime')
         self.app_url = app_url

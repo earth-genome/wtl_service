@@ -31,7 +31,8 @@ all stories selected to WTL (those we want to capture) will be lost.
 A large batch is advantageous because stories continue to be processed while
 awaiting thumbnails for the small subset of selected stories. A small
 batch means fewer stories lost when processing is interrupted. As of writing,
-I am working with batch sizes of 100 or 200.
+I am working with batch sizes of 100 or 200 for planet thumbnails; 20 is
+sufficient for landsat.
 
 Another issue here is the aiohttp timeout. By default it is 300s, which is
 too short becuase the long async queue may lead to long times between
@@ -257,7 +258,7 @@ def _harvest_newsapi():
     with open(OUTLETS_FILE,'r') as f:
         outlets = [line.strip() for line in f]
     random.shuffle(outlets)
-    
+
     records = []
     for outlet in outlets:
         payload = {
