@@ -18,7 +18,7 @@ from config import WATSON_USER, WATSON_PASS
 from story_builder import facilitize
 
 AUTH = wdc.NaturalLanguageUnderstandingV1(
-        version='2017-02-27',
+        version='2018-03-16',
         username=WATSON_USER,
         password=WATSON_PASS
 )

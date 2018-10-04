@@ -20,8 +20,7 @@ import re
 from utilities.firebaseio import FB_FORBIDDEN_CHARS
 
 # include these entity types:
-ENTITY_TYPES = set(['Location', 'Facility', 'GeographicFeature',
-                'NaturalEvent'])
+ENTITY_TYPES = set(['Location', 'Facility', 'GeographicFeature'])
 
 # but exclude these subtypes:
 EXCLUDED_SUBTYPES = set([
