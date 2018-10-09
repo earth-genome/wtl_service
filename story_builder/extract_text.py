@@ -17,7 +17,7 @@ import watson_developer_cloud.natural_language_understanding_v1 as nlu
 from config import WATSON_USER, WATSON_PASS
 from story_builder import facilitize
 
-AUTH = wdc.NaturalLanguageUnderstandingV1(
+SERVICE = wdc.NaturalLanguageUnderstandingV1(
         version='2018-03-16',
         username=WATSON_USER,
         password=WATSON_PASS
@@ -27,13 +27,11 @@ META_TYPES = ['title', 'publication_date', 'image']
 
 def get_text(url):
     """Retrieve text and metadata (only) from url."""
-    x = AUTH.analyze(
+    detailed_response = SERVICE.analyze(
         url=url,
-        features=nlu.Features(
-            metadata=nlu.MetadataOptions() 
-        ),
-        return_analyzed_text=True
-    )
+        features=nlu.Features(metadata=nlu.MetadataOptions()),
+        return_analyzed_text=True)
+    x = detailed_response.get_result()
 
     metadata = {k:v for k,v in x['metadata'].items() if k in META_TYPES}
     text = ' '.join(x['analyzed_text'].split())
@@ -47,17 +45,16 @@ def get_parsed_text(url):
 
     Returns:  dict containing text, metadata, entities, keywords.
     """
-    x = AUTH.analyze(
+    detailed_response = SERVICE.analyze(
         url=url,
         features=nlu.Features(
             metadata=nlu.MetadataOptions(),
             entities=nlu.EntitiesOptions(), 
-			keywords=nlu.KeywordsOptions()
-        ),
-        return_analyzed_text=True
-    )
+			keywords=nlu.KeywordsOptions()),
+        return_analyzed_text=True)
+    x = detailed_response.get_result()
 
-    record = {k:v for k,v in x['metadata'].items() if k in META_TYPES}
+    record = {k:v for k,v in x['metadata'].items() if k in METATYPES}
     record.update({'text': ' '.join(x['analyzed_text'].split())})
     try:
         locations = facilitize.reprocess(x['entities'])
