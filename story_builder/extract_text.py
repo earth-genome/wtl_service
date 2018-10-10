@@ -54,7 +54,7 @@ def get_parsed_text(url):
         return_analyzed_text=True)
     x = detailed_response.get_result()
 
-    record = {k:v for k,v in x['metadata'].items() if k in METATYPES}
+    record = {k:v for k,v in x['metadata'].items() if k in META_TYPES}
     record.update({'text': ' '.join(x['analyzed_text'].split())})
     try:
         locations = facilitize.reprocess(x['entities'])
