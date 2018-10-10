@@ -37,7 +37,7 @@ PROVIDER_PARAMS = {
         'write_styles': 'landsat_contrast',
         'bucket_name': 'landsat-thumbnails',
         'scale': str(20.0),
-        'waittime': 1
+        'waittime': 5
     }
 }
  
