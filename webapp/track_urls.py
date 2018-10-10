@@ -42,7 +42,7 @@ class TrackURLs(object):
         """Determine which among input urls are not yet in the database."""
         existing = self.conn.zrange(self.set, 0, self.conn.zcard(self.set))
         fresh = set(urls).difference(existing)
-        print('{} news stories harvested.'.format(len(fresh)))
+        print('{} news stories harvested.'.format(len(fresh)), flush=True)
         return fresh
         
     def add(self, url, timestamp):
@@ -53,5 +53,5 @@ class TrackURLs(object):
         """Remove elements older than timestamp."""
         num_deleted = self.conn.zremrangebyscore(self.set, 0, timestamp)
         print('Redis: Purged {} urls stale by {} days'.format(
-            num_deleted, self.staleafter))
+            num_deleted, self.staleafter), flush=True)
         return num_deleted
