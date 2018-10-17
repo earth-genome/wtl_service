@@ -59,11 +59,11 @@ def get_parsed_text(url):
     try:
         locations = facilitize.reprocess(x['entities'])
     except KeyError:
-        locations = None
+        locations = {}
     try:
         keywords = facilitize.clean_keywords(x['keywords'])
     except KeyError:
-        keywords = None
+        keywords = {}
     record.update({'locations': locations, 'keywords': keywords})
     return record
 
