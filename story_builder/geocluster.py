@@ -178,7 +178,7 @@ class GrowGeoCluster(GeoCluster):
         try: 
             coords = coords_from_locations(locations)
         except ValueError as e:
-            raise ValueError('No seed coordinates found.') from e
+            raise ValueError('No seed coordinates found.') 
         coord_clusters = super().cluster(coords)
         clusters = [locations_from_coords(coord_cluster, locations)
                     for coord_cluster in coord_clusters]

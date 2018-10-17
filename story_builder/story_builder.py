@@ -92,12 +92,9 @@ class StoryBuilder(object):
         record.update({'url': url})
         record.update(extract_text.get_parsed_text(url))
 
-        if self.parse_images:
-            try:
-                tags = tag_image.get_tags(record['image'])
-                record.update({'image_tags': tags})
-            except KeyError:
-                pass
+        if self.parse_images and record.get('image'):
+            record.update({'image_tags': tag_image.get_tags(record['image'])})
+            
         return firebaseio.DBItem(category, None, record)
 
     def run_classifier(self, story):
@@ -136,20 +133,20 @@ class StoryBuilder(object):
 
         Argument story:  A firebasio.DBItem story
 
-        Returns: a new firebaseio.DBItem story
+        Returns: An updated firebaseio.DBItem story
         """
-        url = story.record['url']
-        story = firebaseio.DBItem(story.category,
-                                  story.idx,
-                                  json.loads(json.dumps(story.record)))
-
+        if not story.record.get('locations'):
+            return story
+        
+        ggc = geocluster.GrowGeoCluster()
         try:
-            ggc = geocluster.GrowGeoCluster()
             core_locations, clusters = ggc(story.record['locations'])
         except Exception as e:
-            print('Clustering for article {}\n{}\n'.format(url, repr(e)))
+            print('Clustering for {}\n{}\n'.format(story.record['url'],
+                                                   repr(e)))
             core_locations, clusters = {}, []
-        story.record.update({'core_locations': core_locations})
-        story.record.update({'clusters': clusters})
-    
+        story.record.update({
+            'core_locations': core_locations,
+            'clusters': clusters
+        })
         return story
