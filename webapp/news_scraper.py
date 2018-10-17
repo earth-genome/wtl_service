@@ -172,10 +172,10 @@ class Scrape(object):
         story.record.update({'probability': probability})
         if classification == 1:
             try:
-                themes = self._identify_themes(story.record['text'])
+                themes = await self._identify_themes(story.record['text'])
                 story.record.update({'themes': themes})
             except Exception as e:
-                self.logger.warning('\nThemes: {}\n{}'.format(e, url))
+                self.logger.warning('Themes: {}\n{}'.format(e, url))
                     
             story = self.builder.run_geoclustering(story)
             if self.thumbnail_grabber:
@@ -185,8 +185,8 @@ class Scrape(object):
                         self.session, centroid['lat'], centroid['lon'])
                     story.record.update({'thumbnails': thumbnail_urls})
                 except KeyError as e:
-                    self.logger.warning('\n{}:\n{}'.format(e, url))
-            STORY_SEEDS.put('/WTL', story.idx, story.record)            
+                    self.logger.warning('{}:\n{}'.format(e, url))
+            STORY_SEEDS.put('/WTL', story.idx, story.record)
             story.record.pop('core_locations', None)
             
         story.record.pop('text', None)

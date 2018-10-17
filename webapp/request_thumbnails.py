@@ -79,7 +79,6 @@ class RequestThumbnails(object):
 
         Returns: list of urls to cloud-stored thumbnails 
         """
-        print('Requesting thumbnails\n')
         payload = dict(lat=str(lat), lon=str(lon), **self.base_payload)
         async with session.get(self.app_url, params=payload) as response:
             pull_summary = await response.json(content_type=None)
