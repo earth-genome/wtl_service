@@ -174,8 +174,8 @@ class Scrape(object):
             try:
                 themes = self._identify_themes(story.record['text'])
                 story.record.update({'themes': themes})
-            except:
-                self.logger.exception('\nThemes: {}'.format(url))
+            except Exception as e:
+                self.logger.warning('\nThemes: {}\n{}'.format(e, url))
                     
             story = self.builder.run_geoclustering(story)
             if self.thumbnail_grabber:
@@ -184,8 +184,8 @@ class Scrape(object):
                     thumbnail_urls = await self.thumbnail_grabber(
                         self.session, centroid['lat'], centroid['lon'])
                     story.record.update({'thumbnails': thumbnail_urls})
-                except:
-                    self.logger.exception('\nThumbnails: {}'.format(url))
+                except KeyError as e:
+                    self.logger.warning('\n{}:\n{}'.format(e, url))
             STORY_SEEDS.put('/WTL', story.idx, story.record)            
             story.record.pop('core_locations', None)
             
@@ -224,8 +224,7 @@ class Scrape(object):
             except TypeError:  # raised if r isn't raisable
                 pass
             except:
-                print('Logging exception from gather: {}.'.format(r))
-                self.logger.exception('\n{}'.format(repr(r)))
+                self.logger.error('Logging exception from gather: {}.'.format(r))
                 
 def _pull_centroid(story):
     """Retrieve centroid for highest-scored cluster in story."""
