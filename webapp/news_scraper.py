@@ -170,6 +170,7 @@ class Scrape(object):
 
         classification, probability = self.builder.run_classifier(story)
         story.record.update({'probability': probability})
+        
         if classification == 1:
             try:
                 themes = await self._identify_themes(story.record['text'])
@@ -192,6 +193,7 @@ class Scrape(object):
         story.record.pop('text', None)
         story.record.pop('keywords', None)
         STORY_SEEDS.put('/stories', story.idx, story.record)
+        
         return 
                              
     def _harvest_records(self, wires):
@@ -209,8 +211,8 @@ class Scrape(object):
         """Query an app-based themes classifier."""
         async with self.session.post(self.themes_url,
                                      data={'text':text},
-                                     raise_for_status=True) as r:
-            themes = await r.json()
+                                     raise_for_status=True) as resp:
+            themes = await resp.json()
         return themes
 
     def _log_exceptions(self, results):
