@@ -13,8 +13,6 @@ classify_story() that operates on an instance of the firebaseio.DBItem class.
 It is a BinaryStacker or BinaryBoWClassifier from the bagofwords modules.  
 
 """
-
-
 import json
 import os
 
@@ -25,15 +23,11 @@ from story_builder import geocluster
 from story_builder import tag_image
 from utilities import firebaseio
 
-
 CLASSIFIER = joblib.load(os.path.join(os.path.dirname(__file__),
     '../bagofwords/Stacker_models/latest_model.pkl'))
 PARSE_IMAGES = True  # generally set True if CLASSIFIER processes image tags;
     # otherwise the image contribution to classfier will have prob ~50%
     # (cf. current Stacker thresholds ~75%.) 
-#THEME_CLASSIFIER = joblib.load(os.path.join(os.path.dirname(__file__),
-#    '../themes/MLPtext_models/latest_model.pkl'))
-THEME_CLASSIFIER = None
 
 class StoryBuilder(object):
     """Parse text and/or image at url, geolocate and cluster locations,
@@ -50,11 +44,9 @@ class StoryBuilder(object):
         run_classifier: Classify story.
         run_geoclustering: Run geoclustering for story.
     """
-    def __init__(self, classifier=CLASSIFIER, parse_images=PARSE_IMAGES,
-                 theme_classifier=THEME_CLASSIFIER):
+    def __init__(self, classifier=CLASSIFIER, parse_images=PARSE_IMAGES):
         self.classifier = classifier
         self.parse_images = parse_images
-        self.theme_classifier = theme_classifier
 
     def __call__(self, url, category='/null', **metadata):
         """Build a story from url.
@@ -113,20 +105,6 @@ class StoryBuilder(object):
             probability, url), flush=True)
         
         return classification, probability
-
-    def identify_themes(self, story):
-        """Apply the theme classifier to the story.
-
-        Argument story: A DBItem story
-
-        Returns: List of tuples of form (theme, probability)
-        """
-        try:
-            themes = self.theme_classifier.predict_story_themes(story)
-        except Exception as e:
-            print('Identifying themes for {}\n{}\n'.format(url, repr(e)))
-            themes = []
-        return themes
         
     def run_geoclustering(self, story):
         """Run geoclustering routines for story.
@@ -136,10 +114,10 @@ class StoryBuilder(object):
         Returns: An updated firebaseio.DBItem story
         """
         ggc = geocluster.GrowGeoCluster()
+        input_places = json.loads(json.dumps(story.record['locations']))
         try:
-            core_locations, clusters = ggc(story.record['locations'])
-        except Exception as e:
-            print('Clustering: {}\n{}\n'.format(story.record['url'], repr(e)))
+            core_locations, clusters = ggc(input_places)
+        except ValueError:
             core_locations, clusters = {}, []
         story.record.update({
             'core_locations': core_locations,

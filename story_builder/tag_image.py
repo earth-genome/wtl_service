@@ -34,7 +34,7 @@ def get_tags(img_url):
         tags = clean_tags(classlist)
         tags = filter_tags(tags)
     except Exception as e:
-        print('Tagging image: {}'.format(repr(e)))
+        print('Tagging image: {}'.format(e))
         tags = {}
     return tags
 
