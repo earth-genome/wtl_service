@@ -5,12 +5,11 @@ is pushed to a Redis queue and handled by the worker process in worker.py.
 """
 
 import datetime
-import json
 import os
 import sys
 import urllib.parse
 
-from flask import Flask, request
+from flask import Flask, jsonify, request
 from flask_restful import inputs
 import numpy as np
 from rq import Queue
@@ -38,7 +37,7 @@ def welcome():
         'Retrieve a single story record from the WTL database':
             ''.join((request.url, 'retrieve-story?')),
     }
-    return json.dumps(msg)
+    return jsoninfy(msg)
   
 @app.route('/scrape')
 def scrape():
@@ -54,12 +53,12 @@ def scrape():
             wires, kwargs), flush=True)
     except ValueError as e:
         msg['Exception'] = repr(e)
-        return json.dumps(msg)
+        return jsonify(msg)
 
     job = q.enqueue_call(
         func=news_scraper.scraper_wrapper, args=(wires,), kwargs=kwargs)
 
-    return json.dumps(_format_scraping_guide())
+    return jsonify(_format_scraping_guide())
 
 @app.route('/retrieve')
 def retrieve():
@@ -77,12 +76,12 @@ def retrieve():
             startDate, endDate = _parse_dates(request.args)
         except (ValueError, TypeError) as e:
             msg['Exception'] = repr(e)
-            return json.dumps(msg)
+            return jsonify(msg)
 
     stories = news_scraper.STORY_SEEDS.grab_stories(
         category='/WTL', startDate=startDate, endDate=endDate)
 
-    return json.dumps([_clean(story) for story in stories])
+    return jsonify([_clean(story) for story in stories])
 
 @app.route('/retrieve-story')
 def retrieve_story():
@@ -94,10 +93,10 @@ def retrieve_story():
         idx  = _parse_index(request.args)
     except ValueError as e:
         msg['Exception'] = repr(e)
-        return json.dumps(msg)
+        return jsonify(msg)
 
     record = news_scraper.STORY_SEEDS.get('/WTL', idx)
-    return json.dumps({idx: record})
+    return jsonify({idx: record})
 
 def _clean(story):
     """Curate story data for web presentation."""
