@@ -135,15 +135,11 @@ class StoryBuilder(object):
 
         Returns: An updated firebaseio.DBItem story
         """
-        if not story.record.get('locations'):
-            return story
-        
         ggc = geocluster.GrowGeoCluster()
         try:
             core_locations, clusters = ggc(story.record['locations'])
         except Exception as e:
-            print('Clustering for {}\n{}\n'.format(story.record['url'],
-                                                   repr(e)))
+            print('Clustering: {}\n{}\n'.format(story.record['url'], repr(e)))
             core_locations, clusters = {}, []
         story.record.update({
             'core_locations': core_locations,
