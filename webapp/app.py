@@ -12,6 +12,7 @@ import urllib.parse
 from flask import Flask, jsonify, request
 from flask_restful import inputs
 import numpy as np
+import requests
 from rq import Queue
 
 import news_scraper
@@ -22,6 +23,8 @@ import worker
 
 q = Queue('default', connection=worker.connection, default_timeout=86400)
 app = Flask(__name__)
+
+KNOWN_THEMES_URL = news_scraper.THEMES_URL + '/known_themes'
 
 @app.route('/')
 def welcome():
@@ -65,23 +68,27 @@ def retrieve():
     """Retrieve records from the WTL database."""
     
     notes = ('Either daysback or start and end dates in form ' +
-             'start=YYYY-MM-DD&end=YYYY-MM-DD are required.' +
-             'Expect up to hundreds of records per day requested.')
-    msg = _help_msg(request.base_url, 'daysback=3', notes)
+             'start=YYYY-MM-DD&end=YYYY-MM-DD are required. ' +
+             'Expect up to hundreds of records per day requested. ' +
+             'Themes are optional, read either/or. (Default is all records).')
+    msg = _help_msg(
+        request.base_url, 'daysback=3&themes=water&themes=conflict', notes)
+    msg.update({'Known themes': KNOWN_THEMES_URL})
 
     try:
-        startDate, endDate = _parse_daysback(request.args)
-    except ValueError:
-        try: 
-            startDate, endDate = _parse_dates(request.args)
-        except (ValueError, TypeError) as e:
-            msg['Exception'] = repr(e)
-            return jsonify(msg)
-
+        startDate, endDate, themes = _parse_retrieve_params(request.args)
+    except (ValueError, TypeError) as e:
+        msg['Exception'] = repr(e)
+        return jsonify(msg)
+    
     stories = news_scraper.STORY_SEEDS.grab_stories(
         category='/WTL', startDate=startDate, endDate=endDate)
 
-    return jsonify([_clean(story) for story in stories])
+    if themes:
+        stories = [s for s in stories
+                   if set(themes).intersection(s.record.get('themes', {}))]
+
+    return jsonify([_clean(s) for s in stories])
 
 @app.route('/retrieve-story')
 def retrieve_story():
@@ -100,13 +107,12 @@ def retrieve_story():
 
 def _clean(story):
     """Curate story data for web presentation."""
-    try:
-        title = story.record['title']
-    except KeyError:
-        title = ''
+    title = story.record.get('title', '')
+    themes = story.record.get('themes', {})
     rec = {
         'Source url': story.record['url'],
         'title': title,
+        'themes': themes,
         'Full record': request.url_root + 'retrieve-story?idx={}'.format(
             urllib.parse.quote(story.idx))
     }
@@ -115,7 +121,7 @@ def _clean(story):
 # Argument parsing functions
 
 def _parse_scrape_params(args):
-    """Parse url for news wires, thumbnail source, and story batch size."""
+    """Parse url for wires, thumbnail source and timeout, story batch size."""
     
     wires = args.getlist('wires')
     kwargs = {
@@ -138,6 +144,23 @@ def _parse_scrape_params(args):
     kwargs = {k:v for k,v in kwargs.items() if v is not None}
     return wires, kwargs
 
+def _parse_retrieve_params(args):
+    """Parse url for days, dates, and/or themes."""
+    try:
+        start, end = _parse_daysback(args)
+    except ValueError:
+        try: 
+            start, end = _parse_dates(args)
+        except (ValueError, TypeError):
+            raise
+
+    known_themes = requests.get(KNOWN_THEMES_URL).json()
+    themes = args.getlist('themes')
+    if not set(themes) <= set(known_themes):
+        raise ValueError('One or more requested themes not recognized.')
+
+    return start, end, themes
+    
 def _parse_daysback(args):
     """Parse number of days from today and convert to start/end dates."""
     daysback = args.get('daysback', type=int)
@@ -159,7 +182,7 @@ def _parse_dates(args):
     end = datetime.datetime.strptime(end, '%Y-%m-%d').date()
     
     return start.isoformat(), end.isoformat()
-
+        
 def _parse_index(args):
     """Parse url arguments for story index."""
     idx = args.get('idx')
