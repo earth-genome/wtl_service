@@ -71,6 +71,8 @@ OUTLETS_FILE = 'newsapi_outlets.txt'
 
 STORY_SEEDS = firebaseio.DB(firebaseio.FIREBASE_URL)
 
+THEMES_URL = 'https://www.floydlabs.com/serve/earthrise/projects/themes'
+
 # Logging when running locally from main:
 EXCEPTIONS_DIR = os.path.join(os.path.dirname(__file__), 'NewsScraperLogs')
 LOGFILE = 'newswire' + datetime.date.today().isoformat() + '.log'
@@ -102,11 +104,12 @@ class Scrape(object):
     Attributes:
         batch_size: Number of records to process together asynchronously.
         thumbnail_grabber: Class instance to pull thumbnail images.
+        themes_url: Web app endpoint for themes classifier.
         timeout: Timeout for aiohttp requests. (See notes above.)
+        url_tracker: Class instance to track scraped urls.
         logger: Exception logger.
         builder: Class instance to extract, evaluate, and post story from
             url.
-        url_tracker: Class instance to track scraped urls.
         
 
     External method:
@@ -116,10 +119,12 @@ class Scrape(object):
     def __init__(
         self,
         batch_size=100,
-        parse_images=None,
         thumbnail_source=None,
+        themes_url=THEMES_URL,
         http_timeout=1200,
-        logger=log_utilities.get_stream_logger(sys.stderr)):
+        url_tracker=track_urls.TrackURLs(),
+        logger=log_utilities.get_stream_logger(sys.stderr),
+        **kwargs):
         
         self.batch_size = batch_size
         if thumbnail_source:
@@ -127,14 +132,11 @@ class Scrape(object):
                 thumbnail_source)
         else:
             self.thumbnail_grabber = None
+        self.themes_url = themes_url
         self.timeout = aiohttp.ClientTimeout(total=http_timeout)
+        self.url_tracker = url_tracker
         self.logger = logger
-
-        if parse_images is None:
-            self.builder = story_builder.StoryBuilder()
-        else:
-            self.builder = story_builder.StoryBuilder(parse_images=parse_images)
-        self.url_tracker = track_urls.TrackURLs()
+        self.builder = story_builder.StoryBuilder(**kwargs)
 
     async def __call__(self, wires):
         """Process urls from wires."""
@@ -164,19 +166,17 @@ class Scrape(object):
         """
         url = record.pop('url')
         self.url_tracker.add(url, time.time())
-        try:
-            story = self.builder.assemble_content(url, category='/stories',
-                                              **record)
-        except Exception:
-            self.logger.exception('\nAssembling content: {}'.format(url))
-            return
+        story = self.builder.assemble_content(url, category='/stories', **record)
 
-        clf, prob = self.builder.run_classifier(story)
-        story.record.update({'probability': prob})
-        if clf == 1:
-            #story.record.update({
-            #    'themes': self.builder.identify_themes(story)
-            #})
+        classification, probability = self.builder.run_classifier(story)
+        story.record.update({'probability': probability})
+        if classification == 1:
+            try:
+                themes = self._identify_themes(story.record['text'])
+                story.record.update({'themes': themes})
+            except:
+                self.logger.exception('\nThemes: {}'.format(url))
+                    
             story = self.builder.run_geoclustering(story)
             if self.thumbnail_grabber:
                 try:
@@ -184,31 +184,16 @@ class Scrape(object):
                     thumbnail_urls = await self.thumbnail_grabber(
                         self.session, centroid['lat'], centroid['lon'])
                     story.record.update({'thumbnails': thumbnail_urls})
-                except Exception:
+                except:
                     self.logger.exception('\nThumbnails: {}'.format(url))
-            try:
-                ### TODO: this try/except is a temp jimmy-rig until I can
-                # fix the theme name at the source.  to delete.
-                try:
-                    themes = story.record['themes']
-                    if 'wildlands/land rights' in themes.keys():
-                        score = themes.pop('wildlands/land rights')
-                        themes.update({'wildlands - land rights': score})
-                except KeyError:
-                    pass
-                STORY_SEEDS.put('/WTL', story.idx, story.record)            
-            except Exception:
-                self.logger.exception('\nUpload to WTL: {}'.format(url))
-            story.record.pop('core_locations')
+            STORY_SEEDS.put('/WTL', story.idx, story.record)            
+            story.record.pop('core_locations', None)
             
-        story.record.pop('text')
-        story.record.pop('keywords')
-        try:
-            STORY_SEEDS.put('/stories', story.idx, story.record)
-        except:
-            self.logger.exception('\nUpload to STORYSEEDS: {}'.format(url))
+        story.record.pop('text', None)
+        story.record.pop('keywords', None)
+        STORY_SEEDS.put('/stories', story.idx, story.record)
         return 
-
+                             
     def _harvest_records(self, wires):
         """Retrieve urls and associated metadata."""
         records = []
@@ -219,6 +204,14 @@ class Scrape(object):
         fresh_urls = self.url_tracker.find_fresh([r['url'] for r in records])
         records = [r for r in records if r['url'] in fresh_urls]
         return records
+
+    async def _identify_themes(self, text):
+        """Query an app-based themes classifier."""
+        async with self.session.post(self.themes_url,
+                                     data={'text':text},
+                                     raise_for_status=True) as r:
+            themes = await r.json()
+        return themes
 
     def _log_exceptions(self, results):
         """Log exceptions returned from asyncio.gather.
@@ -236,7 +229,7 @@ class Scrape(object):
                 
 def _pull_centroid(story):
     """Retrieve centroid for highest-scored cluster in story."""
-    clusters = story.record['clusters']
+    clusters = story.record.get('clusters')
     if not clusters:
         raise KeyError('No geoclusters found.')
     sorted_by_score = sorted(
