@@ -55,6 +55,7 @@ import sys
 import time
 
 import requests
+from watson_developer_cloud import WatsonApiException
 
 import request_thumbnails
 from story_seeds import config
@@ -166,7 +167,11 @@ class Scrape(object):
         """
         url = record.pop('url')
         self.url_tracker.add(url, time.time())
-        story = self.builder.assemble_content(url, category='/stories', **record)
+        try:
+            story = self.builder.assemble_content(url, category='/stories',
+                                                  **record)
+        except WatsonApiException as e:
+            self.logger.warning('Assembling content: {}\n{}'.format(e, url))
 
         classification, probability = self.builder.run_classifier(story)
         story.record.update({'probability': probability})
@@ -175,7 +180,7 @@ class Scrape(object):
             try:
                 themes = await self._identify_themes(story.record['text'])
                 story.record.update({'themes': themes})
-            except Exception as e:
+            except aiohttp.ClientError as e:
                 self.logger.warning('Themes: {}\n{}'.format(e, url))
                     
             story = self.builder.run_geoclustering(story)
@@ -185,8 +190,8 @@ class Scrape(object):
                     thumbnail_urls = await self.thumbnail_grabber(
                         self.session, centroid['lat'], centroid['lon'])
                     story.record.update({'thumbnails': thumbnail_urls})
-                except KeyError as e:
-                    self.logger.warning('{}:\n{}'.format(e, url))
+                except (KeyError, aiohttp.ClientError) as e:
+                    self.logger.warning('Thumbnails: {}:\n{}'.format(e, url))
             STORY_SEEDS.put('/WTL', story.idx, story.record)
             story.record.pop('core_locations', None)
             

@@ -80,20 +80,19 @@ class RequestThumbnails(object):
         Returns: list of urls to cloud-stored thumbnails 
         """
         payload = dict(lat=str(lat), lon=str(lon), **self.base_payload)
-        async with session.get(self.app_url, params=payload) as response:
-            pull_summary = await response.json(content_type=None)
+        async with session.get(self.app_url,
+                               params=payload,
+                               raise_for_status=True) as response:
+            pull_summary = await response.json()
 
         report = 'In progress.'
         while report == 'In progress.':
+            async with session.get(pull_summary['Links'],
+                                   raise_for_status=True) as links_resp:
+                report = await links_resp.json()
             await asyncio.sleep(self.waittime)
-            async with session.get(pull_summary['Links']) as links_resp:
-                report = await links_resp.json(content_type=None)
-
-        if 'Exception' in [k for r in report for k in r.keys()]:
-            raise Exception(json.dumps(report))
-        else:
-            thumbnail_urls = [u for r in report for u in r['urls']]
-
+            
+        thumbnail_urls = [u for r in report for u in r['urls']]
         return thumbnail_urls
 
 # Session handling wrapper. To call within an asyncio event loop.
