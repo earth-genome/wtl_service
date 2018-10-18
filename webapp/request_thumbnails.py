@@ -83,13 +83,13 @@ class RequestThumbnails(object):
         async with session.get(self.app_url,
                                params=payload,
                                raise_for_status=True) as response:
-            pull_summary = await response.json()
+            pull_summary = await response.json(content_type=None)
 
         report = 'In progress.'
         while report == 'In progress.':
             async with session.get(pull_summary['Links'],
                                    raise_for_status=True) as links_resp:
-                report = await links_resp.json()
+                report = await links_resp.json(content_type=None)
             await asyncio.sleep(self.waittime)
             
         thumbnail_urls = [u for r in report for u in r['urls']]
