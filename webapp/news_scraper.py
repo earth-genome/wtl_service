@@ -226,7 +226,7 @@ class Scrape(object):
             except TypeError:  # raised if r isn't raisable
                 pass
             except:
-                self.logger.error('Logging exception from gather: {}.'.format(r))
+                self.logger.exception('Logging exception from gather.')
                 
 def _pull_centroid(story):
     """Retrieve centroid for highest-scored cluster in story."""
