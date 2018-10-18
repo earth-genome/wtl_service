@@ -261,7 +261,11 @@ def geocode(places, geocoder):
     """
     located, unlocated = {}, {}
     for name, data in places.items():
-        geolocs = geocoder(name)
+        try: 
+            geolocs = geocoder(name)
+        except Exception as e:
+            print('Geocoding {}: {}'.format(name, repr(e)))
+            geolocs = []
         if not geolocs:
             unlocated.update({
                 name: {
