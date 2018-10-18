@@ -171,7 +171,8 @@ class Scrape(object):
             story = self.builder.assemble_content(url, category='/stories',
                                                   **record)
         except WatsonApiException as e:
-            self.logger.warning('Assembling content: {}\n{}'.format(e, url))
+            self.logger.warning('Assembling content: {}:\n{}'.format(e, url))
+            return
 
         classification, probability = self.builder.run_classifier(story)
         story.record.update({'probability': probability})
@@ -181,7 +182,7 @@ class Scrape(object):
                 themes = await self._identify_themes(story.record['text'])
                 story.record.update({'themes': themes})
             except aiohttp.ClientError as e:
-                self.logger.warning('Themes: {}\n{}'.format(e, url))
+                self.logger.warning('Themes: {}:\n{}'.format(e, url))
                     
             story = self.builder.run_geoclustering(story)
             if self.thumbnail_grabber:
