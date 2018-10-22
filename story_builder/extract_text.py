@@ -68,7 +68,7 @@ def get_parsed_text(url):
     return record
 
 # For an experiment on water-based stories:
-def get_sentiments(url):
+def get_sentiment(url):
     """Retrieve document sentiment from NLU."""
     detailed_response = SERVICE.analyze(
         url=url,
@@ -78,4 +78,4 @@ def get_sentiments(url):
     x = detailed_response.get_result()
     
     sentiment = x['sentiment']['document']
-    return sentiment
+    return {sentiment['label']: sentiment['score']}
