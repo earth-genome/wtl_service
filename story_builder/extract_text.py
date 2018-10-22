@@ -49,21 +49,33 @@ def get_parsed_text(url):
         url=url,
         features=nlu.Features(
             metadata=nlu.MetadataOptions(),
-            entities=nlu.EntitiesOptions(), 
-			keywords=nlu.KeywordsOptions()),
+			#keywords=nlu.KeywordsOptions(),
+            entities=nlu.EntitiesOptions()),
         return_analyzed_text=True)
     x = detailed_response.get_result()
 
     text = ' '.join(x['analyzed_text'].split())
+    #raw_keywords = x.get('keywords', [])
     raw_entities = x.get('entities', [])
-    raw_keywords = x.get('keywords', [])
     metadata = x.get('metadata', {})
     
     record = {
         'text': text,
         'locations': facilitize.reprocess(raw_entities),
-        'keywords': facilitize.clean_keywords(raw_keywords),
+        #'keywords': facilitize.clean_keywords(raw_keywords),
         **{k:v for k,v in metadata.items() if k in META_TYPES}
     }
     return record
 
+# For an experiment on water-based stories:
+def get_sentiments(url):
+    """Retrieve document sentiment from NLU."""
+    detailed_response = SERVICE.analyze(
+        url=url,
+        features=nlu.Features(
+            sentiment=nlu.SentimentOptions()),
+        return_analyzed_text=False)
+    x = detailed_response.get_result()
+    
+    sentiment = x['sentiment']['document']
+    return sentiment
