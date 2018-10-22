@@ -183,6 +183,16 @@ class Scrape(object):
                 story.record.update({'themes': themes})
             except aiohttp.ClientError as e:
                 self.logger.warning('Themes: {}:\n{}'.format(e, url))
+
+            # Experiment on sentiment:
+            if 'water' in story.record.get('themes', {}):
+                try:
+                    sentiment = story_builder.extract_text.get_sentiment(url)
+                    story.record.update({'sentiment': sentiment})
+                except WatsonApiException as e:
+                    self.logger.warning('Sentiment: {}:\n{}'.format(e, url))
+            else:
+                print('Themes {}'.format(story.record.get('themes')), flush=True)
                     
             story = self.builder.run_geoclustering(story)
             if self.thumbnail_grabber:
@@ -193,6 +203,7 @@ class Scrape(object):
                     story.record.update({'thumbnails': thumbnail_urls})
                 except (KeyError, aiohttp.ClientError) as e:
                     self.logger.warning('Thumbnails: {}:\n{}'.format(e, url))
+                    
             STORY_SEEDS.put('/WTL', story.idx, story.record)
             story.record.pop('core_locations', None)
             

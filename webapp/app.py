@@ -116,6 +116,10 @@ def _clean(story):
         'Full record': request.url_root + 'retrieve-story?idx={}'.format(
             urllib.parse.quote(story.idx))
     }
+
+    # Experiment on sentiment:
+    if 'water' in themes:
+        rec.update({'sentiment': story.record.get('sentiment', {})})
     return rec
     
 # Argument parsing functions
