@@ -191,8 +191,6 @@ class Scrape(object):
                     story.record.update({'sentiment': sentiment})
                 except WatsonApiException as e:
                     self.logger.warning('Sentiment: {}:\n{}'.format(e, url))
-            else:
-                print('Themes {}'.format(story.record.get('themes')), flush=True)
                     
             story = self.builder.run_geoclustering(story)
             if self.thumbnail_grabber:
