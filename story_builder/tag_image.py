@@ -28,8 +28,8 @@ def get_tags(img_url):
     try:
         result = SERVICE.classify(url=img_url).get_result()
         classlist = result['images'][0]['classifiers'][0]['classes']
-    except (wdc.WatsonApiException, KeyError) as e:
-        print('Tagging image: {}'.format(e))
+    except (wdc.WatsonApiException, IndexError, KeyError) as e:
+        print('Tagging image: {}'.format(repr(e)))
         classlist = []
         
     return clean_tags(classlist)
