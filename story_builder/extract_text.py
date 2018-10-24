@@ -1,21 +1,20 @@
 """Uses Watson Natural Language Understanding (NLU) to extract text,
 metadata, and higher-order features from input url.
 
-Features are defined in parse_text(), currently:
-    metadata, entities, keywords
-
 External functions:
     get_text:  Returns text and metadata only from url
-    get_parsed_text:  Returns text and features from url, reprocessed
-        with routines in facilitize.py
+    get_parsed_text:  Returns text and features from url
 
 """
 
+import os
+
+import re
 import watson_developer_cloud as wdc
 import watson_developer_cloud.natural_language_understanding_v1 as nlu
 
 from config import WATSON_USER, WATSON_PASS
-from story_builder import facilitize
+from utilities.firebaseio import FB_FORBIDDEN_CHARS
 
 SERVICE = wdc.NaturalLanguageUnderstandingV1(
         version='2018-03-16',
@@ -25,6 +24,12 @@ SERVICE = wdc.NaturalLanguageUnderstandingV1(
 
 META_TYPES = ['title', 'publication_date', 'image']
 
+# include these entity types:
+ENTITY_TYPES = ['Location', 'Facility', 'GeographicFeature']
+
+# but exclude these subtypes:
+EXCLUDED_SUBTYPES = ['Continent', 'Region']
+
 def get_text(url):
     """Retrieve text and metadata (only) from url."""
     detailed_response = SERVICE.analyze(
@@ -33,37 +38,30 @@ def get_text(url):
         return_analyzed_text=True)
     x = detailed_response.get_result()
 
-    metadata = {k:v for k,v in x.get('metadata', {}).items() if k in META_TYPES}
     text = ' '.join(x['analyzed_text'].split())
+    metadata = {k:v for k,v in x.get('metadata', {}).items() if k in META_TYPES}
 
     return text, metadata
 
 def get_parsed_text(url):
     """Retrieve text and select NLU features from url.
 
-    Text, metadata, and entities are reprocessed before being returned.
+    Features are reprocessed before being returned.
 
-    Returns:  dict containing text, metadata, entities, keywords.
+    Returns: Dict 
     """
     detailed_response = SERVICE.analyze(
         url=url,
         features=nlu.Features(
             metadata=nlu.MetadataOptions(),
-			#keywords=nlu.KeywordsOptions(),
             entities=nlu.EntitiesOptions()),
         return_analyzed_text=True)
     x = detailed_response.get_result()
-
-    text = ' '.join(x['analyzed_text'].split())
-    #raw_keywords = x.get('keywords', [])
-    raw_entities = x.get('entities', [])
-    metadata = x.get('metadata', {})
     
     record = {
-        'text': text,
-        'locations': facilitize.reprocess(raw_entities),
-        #'keywords': facilitize.clean_keywords(raw_keywords),
-        **{k:v for k,v in metadata.items() if k in META_TYPES}
+        'text': ' '.join(x['analyzed_text'].split()),
+        'locations': _reprocess_entities(x.get('entities', [])),
+        **{k:v for k,v in x.get('metadata', {}).items() if k in META_TYPES}
     }
     return record
 
@@ -79,3 +77,52 @@ def get_sentiment(url):
     
     sentiment = x['sentiment']['document']
     return {sentiment['label']: sentiment['score']}
+
+
+# Routines to reprocess returned data:
+
+def _reprocess_entities(entities):
+    """Filter entities and simplify data structure."""
+    filtered = _filter_entities(entities)
+    cleaned = [_clean_entity(e) for e in filtered]
+    return cleaned
+
+def _filter_entities(entities):
+    """Filter entities against custom include/exclude sets."""
+    entities = [e for e in entities if e['type'] in ENTITY_TYPES]
+    entities = [e for e in entities if not _check_excluded(e)]
+    return entities
+
+def _check_excluded(entity):
+    """Check subtypes against excluded set. Returns True if exlcuded."""
+    try: 
+        subtypes = set(entity['disambiguation']['subtype'])
+    except KeyError:
+        return False
+    return bool(subtypes.intersection(EXCLUDED_SUBTYPES))
+
+def _clean_entity(entity):
+    """Extract relevant data from Watson entity."""
+    try:
+        dbpedia = entity['disambiguation']['dbpedia_resource']
+    except KeyError:
+        dbpedia = ''
+    try:
+        name = entity['disambiguation']['name']
+    except KeyError:
+        name = entity['text']
+    name = re.sub(FB_FORBIDDEN_CHARS, '', name)
+    data = {
+        'relevance': entity['relevance'],
+        'dbpedia': dbpedia,
+    }
+    return {name: data}
+
+# Legacy routine:
+def _clean_keywords(keywords):
+    """Check forbidden characters and simplify NLU data structure."""
+    cleaned = {
+        re.sub(FB_FORBIDDEN_CHARS, '', kw['text']): kw['relevance']
+        for kw in keywords
+    }
+    return cleaned
