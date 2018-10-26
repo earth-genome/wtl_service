@@ -57,7 +57,7 @@ def get_parsed_text(url):
             entities=nlu.EntitiesOptions()),
         return_analyzed_text=True)
     x = detailed_response.get_result()
-    
+
     record = {
         'text': ' '.join(x['analyzed_text'].split()),
         'locations': _reprocess_entities(x.get('entities', [])),
@@ -79,13 +79,18 @@ def get_sentiment(url):
     return {sentiment['label']: sentiment['score']}
 
 
-# Routines to reprocess returned data:
+# Routines to reprocess Watson output:
 
 def _reprocess_entities(entities):
-    """Filter entities and simplify data structure."""
+    """Filter entities and simplify data structure.
+
+    Argument entities: list of Watson dicts
+    
+    Returns: dict with entity names as keys
+    """
     filtered = _filter_entities(entities)
-    cleaned = [_clean_entity(e) for e in filtered]
-    return cleaned
+    extracted = dict([_extract_entity(e) for e in filtered])
+    return extracted
 
 def _filter_entities(entities):
     """Filter entities against custom include/exclude sets."""
@@ -101,8 +106,13 @@ def _check_excluded(entity):
         return False
     return bool(subtypes.intersection(EXCLUDED_SUBTYPES))
 
-def _clean_entity(entity):
-    """Extract relevant data from Watson entity."""
+def _extract_entity(entity):
+    """Extract relevant data from Watson output.
+
+    Argument entity: Watson dict
+
+    Returns: entity name and data
+    """
     try:
         dbpedia = entity['disambiguation']['dbpedia_resource']
     except KeyError:
@@ -111,12 +121,13 @@ def _clean_entity(entity):
         name = entity['disambiguation']['name']
     except KeyError:
         name = entity['text']
-    name = re.sub(FB_FORBIDDEN_CHARS, '', name)
+    
     data = {
         'relevance': entity['relevance'],
         'dbpedia': dbpedia,
     }
-    return {name: data}
+    name = re.sub(FB_FORBIDDEN_CHARS, '', name)
+    return name, data
 
 # Legacy routine:
 def _clean_keywords(keywords):
