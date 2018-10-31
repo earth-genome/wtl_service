@@ -40,7 +40,7 @@ def welcome():
         'Retrieve a single story record from the WTL database':
             ''.join((request.url, 'retrieve-story?')),
     }
-    return jsoninfy(msg)
+    return jsonify(msg)
   
 @app.route('/scrape')
 def scrape():
@@ -66,23 +66,18 @@ def scrape():
 @app.route('/retrieve')
 def retrieve():
     """Retrieve records from the WTL database."""
-    
-    notes = ('Either daysback or start and end dates in form ' +
-             'start=YYYY-MM-DD&end=YYYY-MM-DD are required. ' +
-             'Expect up to hundreds of records per day requested. ' +
-             'Themes are optional, read either/or. (Default is all records).')
     msg = _help_msg(
-        request.base_url, 'daysback=3&themes=water&themes=conflict', notes)
-    msg.update({'Known themes': KNOWN_THEMES_URL})
+        request.base_url,
+        'daysback=3&filterby=scrape_date&themes=water&themes=conflict',
+        _format_retrieve_args())
 
     try:
-        startDate, endDate, themes = _parse_retrieve_params(request.args)
+        themes, kwargs = _parse_retrieve_params(request.args)
     except (ValueError, TypeError) as e:
         msg['Exception'] = repr(e)
         return jsonify(msg)
     
-    stories = news_scraper.STORY_SEEDS.grab_stories(
-        category='/WTL', startDate=startDate, endDate=endDate)
+    stories = news_scraper.STORY_SEEDS.grab_stories(category='/WTL', **kwargs)
 
     if themes:
         stories = [s for s in stories
@@ -157,22 +152,34 @@ def _parse_retrieve_params(args):
             start, end = _parse_dates(args)
         except (ValueError, TypeError):
             raise
+    kwargs = {
+        'startDate': start,
+        'endDate': end
+    }
 
+    filterBy = args.get('filterby')
+    if filterBy:
+        if filterBy in firebaseio.ALLOWED_FILTERS:
+            kwargs.update({'filterBy': filterBy})
+        else:
+            raise ValueError('Argument filterby must be from {}'.format(
+                firebaseio.ALLOWED_FILTERS))
+    
     known_themes = requests.get(KNOWN_THEMES_URL).json()
     themes = args.getlist('themes')
     if not set(themes) <= set(known_themes):
         raise ValueError('One or more requested themes not recognized.')
 
-    return start, end, themes
+    return themes, kwargs
     
 def _parse_daysback(args):
     """Parse number of days from today and convert to start/end dates."""
     daysback = args.get('daysback', type=int)
     if not daysback:
         raise ValueError
-    today = datetime.date.today()
-    end = today + datetime.timedelta(days=1)
-    start = today - datetime.timedelta(days=daysback)
+    now = datetime.datetime.now()
+    end = now + datetime.timedelta(days=1)
+    start = now - datetime.timedelta(days=daysback)
     return start.isoformat(), end.isoformat()
 
 def _parse_dates(args):
@@ -219,6 +226,26 @@ def _format_scraper_args():
             'parse_images': ('True/False whether to include images from ' +
                              'news stories in their classification.') 
         }
+    }
+    return scraper_args
+
+def _format_retrieve_args():
+    """Produce a dict explaining retrieve args for help messaging."""
+    filters = firebaseio.ALLOWED_FILTERS
+    scraper_args = {
+        'Required argument': {
+            'daysback': ('Number of days worth of records to retrieve. ' +
+                         'Expect hundreds of records per day requested.')
+        },
+        'Required arguments (alternate form)': {
+            'start': 'Begin date in form YYYY-MM-DD',
+            'end': 'End date in form YYYY-MM-DD'
+        },
+        'Optional arguments': {
+            'themes': 'One or more from the list of known themes.',
+            'filterby': 'One of {}. Defaults to {}'.format(filters, filters[0])
+        },
+        'Known themes': KNOWN_THEMES_URL
     }
     return scraper_args
 
