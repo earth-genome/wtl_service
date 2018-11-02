@@ -114,17 +114,13 @@ def _extract_entity(entity):
     Returns: entity name and data
     """
     try:
-        dbpedia = entity['disambiguation']['dbpedia_resource']
-    except KeyError:
-        dbpedia = ''
-    try:
         name = entity['disambiguation']['name']
     except KeyError:
         name = entity['text']
     
     data = {
         'relevance': entity['relevance'],
-        'dbpedia': dbpedia,
+        'text': entity['text']
     }
     name = re.sub(FB_FORBIDDEN_CHARS, '', name)
     return name, data
