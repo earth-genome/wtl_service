@@ -8,6 +8,7 @@ ADD ./requirements.txt /tmp/requirements.txt
 
 # Install dependencies
 RUN pip install -r /tmp/requirements.txt
+RUN python3 -c 'import nltk; nltk.download("punkt")'
 
 # Add our code
 ADD ./webapp /opt/webapp/
