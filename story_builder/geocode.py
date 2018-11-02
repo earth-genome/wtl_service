@@ -5,11 +5,10 @@ External functions:
     osm_geocode(text)
     dbpedia_geocode(dpbedia_url)
     
-Notes: 
+Note: 
 
 Google geocoding is terse. On a sample of 273 Watson-extracted entity
-names, for all but six one or zero geolocations were returned. On
-those six, the first coding sufficed as a representative of the group.
+names, for all but six one or zero geolocations were returned.
 
 OSM geocoding is verbose, often returning dozens of responses for incomplete
 addresses.
@@ -18,7 +17,7 @@ addresses.
 
 import re
 
-from geopy import geocoders
+import geopy
 import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from shapely import geometry
@@ -40,60 +39,57 @@ def google_geocode(text, N_records=1):
 		'key': GOOGLE_GEO_API_KEY
     }
     data = requests.get(base, params=payload, verify=False).json()
-    
+
     if data['status'] == 'OK':
-        recs = data['results'][:N_records]
-        cleaned = []
-        for r in recs:
-            geom = r['geometry']
-            try: 
-                bounds = geobox.google_to_shapely_box(geom['viewport']).bounds
-            except KeyError:
-                bounds = ()
-            geoloc = {
-                'geocoder': 'google',
-                'address': r.get('formatted_address', ''),
-                'lat': geom['location']['lat'],
-                'lon': geom['location']['lng'],
-                'boundingbox': bounds
-            }
-            cleaned.append(geoloc)
-        return cleaned
+        recs = [_clean_google(raw) for raw in data['results'][:N_records]]
+        return recs
     elif data['status'] == 'ZERO_RESULTS':
         return []
     elif data['status'] == 'INVALID_REQUEST':
         return []
     else:
         raise Exception('Geocode error: %s' % data['status'])
-    return
 
+def _clean_google(raw):
+    """Format a raw google record."""
+    geom = raw['geometry']
+    try: 
+        bounds = geobox.google_to_shapely_box(geom['viewport']).bounds
+    except KeyError:
+        bounds = ()
+    geoloc = {
+        'geocoder': 'google',
+        'address': raw.get('formatted_address', ''),
+        'lat': geom['location']['lat'],
+        'lon': geom['location']['lng'],
+        'boundingbox': bounds
+    }
+    return geoloc
 
 def osm_geocode(place_name, N_records=20):
     """Search osm records for place_name.
 
     Returns: list of dicts 
     """
-    nom = geocoders.Nominatim(user_agent='Earthrise.media')
-    recs = nom.geocode(place_name,
-                       exactly_one=False,
-                       addressdetails=False,
+    nom = geopy.geocoders.Nominatim(user_agent='Earthrise.media')
+    recs = nom.geocode(place_name, exactly_one=False, addressdetails=False,
                        limit=N_records)
     if recs is None:
         return []
-    else:
-        recs = [r.raw for r in recs]
-    cleaned = []
-    for r in recs:
-        bounds = geobox.osm_to_shapely_box(r['boundingbox']).bounds
-        geoloc = {
-            'geocoder': 'osm',
-            'address': r['display_name'],
-            'lat': float(r['lat']),
-            'lon': float(r['lon']),
-            'boundingbox': bounds
-        }
-        cleaned.append(geoloc)
+    
+    cleaned = [_clean_osm(r.raw) for r in recs]
     return cleaned
+
+def _clean_osm(raw):
+    """Format a raw osm record."""
+    geoloc = {
+        'geocoder': 'osm',
+        'address': raw['display_name'],
+        'lat': float(raw['lat']),
+        'lon': float(raw['lon']),
+        'boundingbox': geobox.osm_to_shapely_box(raw['boundingbox']).bounds
+    }
+    return geoloc
 
 # Deprecated:
 def dbpedia_geocode(url):
