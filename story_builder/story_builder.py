@@ -1,7 +1,6 @@
 """Retrieve content, classify, and geolocate entities for a story.
 
-Class StoryBuilder: Parse text and/or image at url, geolocate and cluster
-    locations, and classify story.
+External class: StoryBuilder
 
 Usage, with default CLASSSIFIER:
 > metadata = {'date_published': '2018-03-28', ...} #optional records for story
@@ -10,16 +9,16 @@ Usage, with default CLASSSIFIER:
 
 The CLASSIFIER variable loads a pickled classifier, which has method
 classify_story() that operates on an instance of the firebaseio.DBItem class.
-It is a BinaryStacker or BinaryBoWClassifier from the bagofwords modules.  
 
 """
+import datetime
 import json
 import os
 
 from sklearn.externals import joblib
 
 from story_builder import extract_text
-from story_builder import geocluster
+from story_builder import geolocate
 from story_builder import tag_image
 from utilities import firebaseio
 
@@ -30,23 +29,26 @@ PARSE_IMAGES = True  # generally set True if CLASSIFIER processes image tags;
     # (cf. current Stacker thresholds ~75%.) 
 
 class StoryBuilder(object):
-    """Parse text and/or image at url, geolocate and cluster locations,
-        and classify story.
+    """Parse text and/or image at url, classify story, and geolocate places
+        mentioned.
 
     Attributes:
         classifier: restored instance of (e.g. naivebayes or logistic
             stacking) classifier
         parse_images: True for classifier to operate on image tags, else False
+        geolocator: instance of geolocate.Geolocate() class
 
     Methods:
         __call__: Build a story from url.
         assemble_content: Assemble parsed url content into a basic story.
         run_classifier: Classify story.
-        run_geoclustering: Run geoclustering for story.
+        run_geolocation: Geolocate places mentioned in story.
     """
-    def __init__(self, classifier=CLASSIFIER, parse_images=PARSE_IMAGES):
+    def __init__(self, classifier=CLASSIFIER, parse_images=PARSE_IMAGES,
+                 geolocator=geolocate.Geolocate()):
         self.classifier = classifier
         self.parse_images = parse_images
+        self.geolocator = geolocator
 
     def __call__(self, url, category='/null', **metadata):
         """Build a story from url.
@@ -67,7 +69,7 @@ class StoryBuilder(object):
             story.record.update({'probability': probability})
             if classification == 1:
                 story.record.update({'themes': self.identify_themes(story)})
-        story = self.run_geoclustering(story)
+        story = self.run_geolocation(story)
         return story, classification, json.dumps({story.idx: story.record})
 
     def assemble_content(self, url, category='/null', **metadata):
@@ -82,6 +84,9 @@ class StoryBuilder(object):
         """
         record = json.loads(json.dumps(metadata))
         record.update({'url': url})
+        record.update({
+            'scrape_date': datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+        })
         record.update(extract_text.get_parsed_text(url))
 
         if self.parse_images and record.get('image'):
@@ -106,21 +111,22 @@ class StoryBuilder(object):
         
         return classification, probability
         
-    def run_geoclustering(self, story):
-        """Run geoclustering routines for story.
+    def run_geolocation(self, story):
+        """Geolocate places mentioned in story.
 
         Argument story:  A firebasio.DBItem story
 
         Returns: An updated firebaseio.DBItem story
         """
-        ggc = geocluster.GrowGeoCluster()
         input_places = json.loads(json.dumps(story.record['locations']))
-        try:
-            core_locations, clusters = ggc(input_places)
-        except ValueError:
-            core_locations, clusters = {}, []
-        story.record.update({
-            'core_locations': core_locations,
-            'clusters': clusters
-        })
+        for name, data in input_places.items():
+            data.update({
+                'mentions':
+                    geolocate.find_mentions(data['text'], story.record['text'])
+            })
+        try: 
+            story.record['locations'] = self.geolocator(input_places)
+        except ValueError as e:
+            print('Geolocation: {}'.format(repr(e)))
         return story
+

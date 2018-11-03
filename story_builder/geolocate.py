@@ -44,9 +44,12 @@ Usage from
 import functools
 
 import nltk
+import numpy as np
+from shapely import geometry
 
 from story_builder import geocode
 from story_builder import geocluster
+from utilities.geobox import geobox
 
 def find_mentions(place, text, limit=6):
     """Extract sentences where place is mentioned in text.
@@ -71,16 +74,16 @@ class Geolocate(object):
 
     External methods: 
         __call__: Geocode, cluster, and score input places.
-        iterative_geocode: Find geo-coordinates with terse and verbose 
+        source_geocodings: Find geo-coordinates with terse and verbose 
             geocoders in sequence.
         find_mentions: Find setences where place is mentioned in a text.
             
     """
     def __init__(self, 
                  terse_geocoder=functools.partial(
-                     geocode.google_geocode, N_records=1),
+                     geocode.google_geocode, N_records=5),
                  verbose_geocoder=functools.partial(
-                     geocode.osm_geocode, N_records=20),
+                     geocode.osm_geocode, N_records=5),
                  cluster_tool=geocluster.GrowGeoCluster(),
                  classifier=None):
         self.terse_geocoder = terse_geocoder
@@ -90,48 +93,58 @@ class Geolocate(object):
 
     def __call__(self, places):
         """Geocode, cluster, and score input places."""
-        locations, candidated = self.iterative_geocode(places)
-        
-        seeds = self.cluster_tool.seed(locations)
-        grown = self.cluster_tool.grow(seeds, candidated)
+        candidates = self.source_geocodings(places)
+        if not candidates:
+            raise ValueError('No candidate coordinates found.')
+        clusters = self.cluster_tool(candidates)
 
-        good_locations = {}
-        for cluster in grown:
+        for cluster in clusters:
             for name, data in cluster.items():
-                data.update({'cluster': list(cluster.keys())})
-                # TODO: add classifier
-                data.update({'score': None})
-                good_locations.update({name: data})
+                data.update({
+                    'cluster': list(cluster.keys()),
+                    **places[name]})
+                data.update({'score': self._score(data)}) 
 
-        return good_locations
+        locations = {k:v for cluster in clusters for k,v in cluster.items()}
+        print({k:v['address'] for k,v in locations.items()})
+        return locations
         
-    def iterative_geocode(self, places):
-        """Find geo-coordinates with terse and verbose geocoders in sequence.
+    def source_geocodings(self, places):
+        """Find geo-coordinates with terse and verbose geocoders.
 
-        Returns: dicts of places uniquely located and those with multiple 
-            candidates
-       """
-        locations, _, unlocated = self._bulk_geocode(
-            places, geocoder=self.terse_geocoder)
-        new_locations, candidated, _ = self._bulk_geocode(
-            unlocated, geocoder=self.verbose_geocoder)
-        locations.update(**new_locations)
-        return locations, candidated
-
-    def _bulk_geocode(self, places, geocoder):
-        """Find geo-coordinates for input places."""
-        located, candidated, unlocated = {}, {}, {}
+        Returns: dicts of places with candidate geocodings
+        """
+        candidates = {}
         for name, data in places.items():
-            try: 
-                geolocs = geocoder(name)
+            try:
+                geolocs = self.terse_geocoder(name)
             except Exception as e:
                 print('Geocoding {}: {}'.format(name, repr(e)), flush=True)
                 geolocs = []
-            if len(geolocs) == 0:
-                unlocated.update({name: data})
-            elif len(geolocs) == 1:
-                located.update({name: dict(geolocs[0], **data)})
-            else:
-                candidated.update({name: dict({'candidates': geolocs}, **data)})
+            try:
+                geolocs += self.verbose_geocoder(name)
+            except Exception as e:
+                print('Geocoding {}: {}'.format(name, repr(e)), flush=True)
+            if geolocs:
+                candidates.update({name: geolocs})
+        return candidates
 
-        return located, candidated, unlocated
+
+    # Temporary ad-hoc scoring, to be replaced by a classifier.
+    def _score(self, data):
+        sizing = self._size_score(data['boundingbox'])
+        clustering = np.sqrt(len(data['cluster']))
+        return data['relevance'] * (sizing + clustering)
+
+    def _size_score(self, bounds):
+        sides = geobox.get_side_distances(geometry.box(*bounds))
+        size = np.mean(sides)
+        if size < 2:
+            return 3
+        elif size < 8:
+            return 2
+        elif size < 30:
+            return 1
+        else:
+            return 0
+        

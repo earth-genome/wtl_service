@@ -33,6 +33,7 @@ External classes:
 
 """
 import json
+import random
 
 import geopy.distance 
 import numpy as np
@@ -76,53 +77,111 @@ class GeoCluster(object):
 
 class GrowGeoCluster(GeoCluster):
     """Class to cluster named locations.
+
+    Descendant attributes, set within grow() during optimization: 
+            clusters: list of location dicts
+            cluster_lens: list of lengths of location dicts
+            gain: gain of current cluster configuration
+            name: location under trial
+            idx: cluster list index for location under trial
         
-    Descendant Methods:
-        seed: Geolocate and cluster initial locations.
-        grow: Add places with candidate geolocations to clusters.
+    Descendant methods:
+        seed: Cluster initial locations.
+        grow: Optimize cluster size by trying candidate geolocations.
+        __call__: Determine best geolocations from candidates.
     """
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+    def __call__(self, candidates):
+        """Determine best geolocations from candidates."""
+        init_locations = {name:locs[0] for name,locs in candidates.items()}
+        seeds = self.seed(init_locations)
+        # Debugging prints
+        print(candidates)
+        print([list(s.keys()) for s in seeds])
+        return self.grow(seeds, candidates)
+        
     def seed(self, locations):
         """Cluster locations. Returns a list of subdicts of locations."""
-        try: 
-            coords = coords_from_locations(locations)
-        except ValueError as e:
-            raise ValueError('No seed coordinates found.') 
-        coord_clusters = super().cluster(coords)
+        coord_clusters = super().cluster(coords_from_locations(locations))
         seeds = [locations_from_coords(cc, locations) for cc in coord_clusters]
         return seeds
 
-    def grow(self, clusters, candidated):
-        """Add places with candidate geolocations to clusters.
+    def grow(self, clusters, candidates):
+        """Optimize cluster size by trying candidate geolocations.
+        
+        This is a heuristic optimizer that assumes locations in news stories
+        tend to cluster, and correctly geocoded locations will yield larger
+        clusters.
 
-        The routine adds to a cluster the candidate locations which are
-        sufficiently close to an existing cluster. Since geolocations in 
-        candidated places are ranked, the first viable cluster placement is 
-        accepted and considered thenceforth as the resolved geolocation for 
-        that place.
+        Moves are accepted if the candidate location is sufficiently close 
+        to an existing cluster and it increases mean squared cluster size. 
 
         Arguments:
             clusters: list of dicts of locations
-            candidated: dict with lists of geolocation 'candidates' in values
+            candidates: dict with lists of geolocations for values
         
-        Returns: updated list of dicts of locations
+        Returns: updated clusters
         """
-        clusters = json.loads(json.dumps(clusters))
-        for name, data in candidated.items():
-            candidates = data.pop('candidates')
-            for geoloc in candidates:
-                cluster_idx = self._match_to_cluster(geoloc, clusters)
-                if cluster_idx is not None:
-                    clusters[cluster_idx].update({name: dict(data, **geoloc)})
-                    break
-            else:
-                clusters.append({name: dict(data, **candidates[0])})
-        return clusters
+        self.clusters = json.loads(json.dumps(clusters))
+        while True:
+            random.shuffle(self.clusters)
+            self._set_gain()
+            gain0 = self.gain
+            
+            for name, data in candidates.items():
+                self.name = name
+                self.idx = self._get_idx(name)
+                for geoloc in data:
+                    self._try_move(geoloc)
+                    
+            if self.gain == gain0:
+                break
+            
+        return self.clusters
 
-    def _match_to_cluster(self, geolocation, clusters):
+    def _set_gain(self):
+        """Set cluster_lens and gain after modifying clusters."""
+        self.cluster_lens = [len(c) for c in self.clusters]
+        # Debugging print
+        print(self.cluster_lens)
+        self.gain = self._measure_gain(self.cluster_lens)
+    
+    def _measure_gain(self, lens):
+        """Compute gain function."""
+        return sum([l**2 for l in lens])
+
+    def _get_idx(self, name):
+        """Extract list index for position of name in self.clusters."""
+        idx = [n for n,c in enumerate(self.clusters) if name in c]
+        return idx[0]
+
+    def _trial_lens(self, trial_idx):
+        """Compute clusters lengths as they would be if move were accepted."""
+        trial_lens = self.cluster_lens.copy()
+        trial_lens[trial_idx] += 1
+        trial_lens[self.idx] -= 1
+        return trial_lens
+
+    def _update(self, geoloc, trial_idx):
+        """Accept move. Adjust state attributes accordingly."""
+        self.clusters[self.idx].pop(self.name)
+        self.clusters[trial_idx].update({self.name: geoloc})
+        self.idx = trial_idx
+        self._set_gain()
+                                 
+    def _try_move(self, geoloc):
+        """Evaluate move conditions and update state if move is accepted."""
+        trial_idx = self._match_to_cluster(geoloc)
+        if trial_idx is not None:
+            trial_lens = self._trial_lens(trial_idx)
+            if self._measure_gain(trial_lens) > self.gain:
+                self._update(geoloc, trial_idx)
+        return
+
+    def _match_to_cluster(self, geolocation):
         """Attempt to match geolocation to a proximal cluster.
 
         A geolocation is considered to match to a cluster if it either 
@@ -136,8 +195,8 @@ class GrowGeoCluster(GeoCluster):
 
         Returns: List index of matched cluster, if available, or None
         """
-        for n, cluster in enumerate(clusters):
-            if len(cluster) > 0:
+        for n, cluster in enumerate(self.clusters):
+            if n != self.idx and len(cluster) > 0:
                 if (self._check_intersects(geolocation, cluster) or
                     self._check_near(geolocation, cluster)):
                     return n
