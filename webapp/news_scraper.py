@@ -161,7 +161,7 @@ class Scrape(object):
     async def _build(self, **record):
         """Build and post, ad hoc to scraping.
 
-        Outputs: Story uploads to '/WTL' and/or '/stories', if successful
+        Outputs: Accepted stories upload to '/WTL'
 
         Returns: None
         """
@@ -195,20 +195,16 @@ class Scrape(object):
             story = self.builder.run_geoclustering(story)
             if self.thumbnail_grabber:
                 try:
-                    centroid = _pull_centroid(story)
                     thumbnail_urls = await self.thumbnail_grabber(
-                        self.session, centroid['lat'], centroid['lon'])
+                        self.session,
+                        story.record['top_location']['lat'],
+                        story.record['top_location']['lon'])
                     story.record.update({'thumbnails': thumbnail_urls})
                 except (KeyError, aiohttp.ClientError) as e:
                     self.logger.warning('Thumbnails: {}:\n{}'.format(e, url))
                     
             STORY_SEEDS.put('/WTL', story.idx, story.record)
-            story.record.pop('core_locations', None)
             
-        story.record.pop('text', None)
-        story.record.pop('keywords', None)
-        STORY_SEEDS.put('/stories', story.idx, story.record)
-        
         return 
                              
     def _harvest_records(self, wires):
@@ -242,17 +238,6 @@ class Scrape(object):
                 pass
             except:
                 self.logger.exception('Logging exception from gather.')
-                
-def _pull_centroid(story):
-    """Retrieve centroid for highest-scored cluster in story."""
-    clusters = story.record.get('clusters')
-    if not clusters:
-        raise KeyError('No geoclusters found.')
-    sorted_by_score = sorted(
-                [(c['centroid'], c['score']) for c in clusters],
-                key=lambda s: s[1])
-    centroid = next(reversed(sorted_by_score))[0]
-    return centroid
     
 def _harvest_gdelt():
     """"Retrieve urls and metadata from the GDELT service."""
