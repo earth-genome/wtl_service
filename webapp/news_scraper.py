@@ -111,6 +111,7 @@ class Scrape(object):
         logger: Exception logger.
         builder: Class instance to extract, evaluate, and post story from
             url.
+        session: An aiohttp.ClientSession created within __call__
         
 
     External method:
@@ -178,6 +179,17 @@ class Scrape(object):
         story.record.update({'probability': probability})
         
         if classification == 1:
+            story = self.builder.run_geoclustering(story)
+            if self.thumbnail_grabber:
+                try:
+                    thumbnail_urls = await self.thumbnail_grabber(
+                        self.session,
+                        story.record['top_location']['lat'],
+                        story.record['top_location']['lon'])
+                    story.record.update({'thumbnails': thumbnail_urls})
+                except (KeyError, aiohttp.ClientError) as e:
+                    self.logger.warning('Thumbnails: {}:\n{}'.format(e, url))
+
             try:
                 themes = await self._identify_themes(story.record['text'])
                 story.record.update({'themes': themes})
@@ -192,19 +204,7 @@ class Scrape(object):
                 except WatsonApiException as e:
                     self.logger.warning('Sentiment: {}:\n{}'.format(e, url))
                     
-            story = self.builder.run_geoclustering(story)
-            if self.thumbnail_grabber:
-                try:
-                    thumbnail_urls = await self.thumbnail_grabber(
-                        self.session,
-                        story.record['top_location']['lat'],
-                        story.record['top_location']['lon'])
-                    story.record.update({'thumbnails': thumbnail_urls})
-                except (KeyError, aiohttp.ClientError) as e:
-                    self.logger.warning('Thumbnails: {}:\n{}'.format(e, url))
-                    
             STORY_SEEDS.put('/WTL', story.idx, story.record)
-            
         return 
                              
     def _harvest_records(self, wires):
