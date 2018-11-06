@@ -1,4 +1,5 @@
-"""Routines to cluster geographic locations.  
+"""Routines to cluster geographic locations and select from candidate
+geocodings based on clustering.  
 
 See geolocate.py for notes on input location data and formatting.  
 
@@ -16,15 +17,9 @@ The descendant class GrowGeoCluster handles locations dicts of form
 specified in geolocate.py, bulkier in its machinations to handle 
 tentative lat/lon assignments.
 
-The logic of growing a cluster with OpenStreetMap (OSM) data after
-seeding with Google Places API data is that the latter seems relatively
-terse in its responses, while OSM is so verbose as to be almost useless
-without some prior sense of the relevant region in which to search.
-
 Usage:
 > ggc = GrowGeoCluster()
-> seeds = ggc.seed(locations)
-> clusters = ggc.grow(seeds, candidated_locations)
+> clusters = ggc.(locations)
 
 External classes:
     GeoCluster:  Cluster lat/lon coordinates
@@ -99,8 +94,8 @@ class GrowGeoCluster(GeoCluster):
         init_locations = {name:locs[0] for name,locs in candidates.items()}
         seeds = self.seed(init_locations)
         # Debugging prints
-        print(candidates)
-        print([list(s.keys()) for s in seeds])
+        for item in candidates.items():
+            print('{}\n'.format(item))
         return self.grow(seeds, candidates)
         
     def seed(self, locations):
@@ -112,9 +107,8 @@ class GrowGeoCluster(GeoCluster):
     def grow(self, clusters, candidates):
         """Optimize cluster size by trying candidate geolocations.
         
-        This is a heuristic optimizer that assumes locations in news stories
-        tend to cluster, and correctly geocoded locations will yield larger
-        clusters.
+        This heuristic optimizer assumes locations in news stories tend to
+        cluster, and correctly geocoded locations will yield larger clusters.
 
         Moves are accepted if the candidate location is sufficiently close 
         to an existing cluster and it increases mean squared cluster size. 
@@ -140,7 +134,7 @@ class GrowGeoCluster(GeoCluster):
             if self.gain == gain0:
                 break
             
-        return self.clusters
+        return [cluster for cluster in self.clusters if cluster]
 
     def _set_gain(self):
         """Set cluster_lens and gain after modifying clusters."""
@@ -150,7 +144,7 @@ class GrowGeoCluster(GeoCluster):
         self.gain = self._measure_gain(self.cluster_lens)
     
     def _measure_gain(self, lens):
-        """Compute gain function."""
+        """Compute mean squared length (times irrelevant normaliz. factor)."""
         return sum([l**2 for l in lens])
 
     def _get_idx(self, name):

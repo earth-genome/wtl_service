@@ -5,7 +5,7 @@ External class: StoryBuilder
 Usage, with default CLASSSIFIER:
 > metadata = {'date_published': '2018-03-28', ...} #optional records for story
 > builder = StoryBuilder()
-> builder(url, **metadata)
+> story = builder(url, **metadata)
 
 The CLASSIFIER variable loads a pickled classifier, which has method
 classify_story() that operates on an instance of the firebaseio.DBItem class.
@@ -121,8 +121,33 @@ class StoryBuilder(object):
                 'mentions':
                     geolocate.find_mentions(data['text'], story.record['text'])
             })
-        try: 
-            story.record.update(self.geolocator(input_places))
+        try:
+            locations = self.geolocator(input_places)
+            story.record.update({'locations': locations})
         except ValueError as e:
             print('Geolocation: {}'.format(repr(e)))
+            story.record.update({'locations': input_places})
+
+        try:
+            story.record.update({
+                'top_location': _get_top(story.record['locations'])
+            })
+        except KeyError:
+            pass
         return story
+
+def _get_top(locations):
+    """Return a cleaned version of the top scored location."""
+    try:
+        ranked = sorted(locations.items(), key=lambda item:item[1]['score'])
+    except KeyError:
+        return {}
+    name, data = ranked.pop()
+    cleaned = {
+        'name': name,
+        'lat': data['lat'],
+        'lon': data['lon'],
+        'boundingbox': data['boundingbox'],
+        'score': data['score']
+    }
+    return cleaned

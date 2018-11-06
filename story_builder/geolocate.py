@@ -74,9 +74,8 @@ class Geolocate(object):
 
     External methods: 
         __call__: Geocode, cluster, and score input places.
-        source_geocodings: Find geo-coordinates with terse and verbose 
+        assemble_geocodings: Find geo-coordinates with terse and verbose 
             geocoders in sequence.
-        find_mentions: Find setences where place is mentioned in a text.
             
     """
     def __init__(self, 
@@ -92,8 +91,11 @@ class Geolocate(object):
         self.classifier = classifier
 
     def __call__(self, places):
-        """Geocode, cluster, and score input places."""
-        candidates = self.source_geocodings(places)
+        """Geocode, cluster, and score input places.
+
+        Returns: dict of locations
+        """
+        candidates = self.assemble_geocodings(places)
         if not candidates:
             raise ValueError('No candidate coordinates found.')
         clusters = self.cluster_tool(candidates)
@@ -102,14 +104,19 @@ class Geolocate(object):
             for name, data in cluster.items():
                 data.update({
                     'cluster': list(cluster.keys()),
-                    **places[name]})
-                data.update({'score': self._score(data)}) 
+                    'cluster_ratio': (len(cluster), len(candidates)),
+                    **places[name]
+                })
+                if self.classifier:
+                    # Temporary ad hoc scoring:
+                    data.update({'score': self._score(data)})
+                    # data.update({'score': self.classifier(data)})
 
         locations = {k:v for cluster in clusters for k,v in cluster.items()}
-        print({k:v['address'] for k,v in locations.items()})
+        
         return locations
         
-    def source_geocodings(self, places):
+    def assemble_geocodings(self, places):
         """Find geo-coordinates with terse and verbose geocoders.
 
         Returns: dicts of places with candidate geocodings
@@ -129,7 +136,6 @@ class Geolocate(object):
                 candidates.update({name: geolocs})
         return candidates
 
-
     # Temporary ad-hoc scoring, to be replaced by a classifier.
     def _score(self, data):
         sizing = self._size_score(data['boundingbox'])
@@ -145,6 +151,8 @@ class Geolocate(object):
             return 2
         elif size < 30:
             return 1
-        else:
+        elif size < 100:
             return 0
-        
+        else:
+            return -.99
+
