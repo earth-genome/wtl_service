@@ -58,19 +58,16 @@ class StoryBuilder(object):
             category: database top-level key
             metadata: options parameters to store in story record
 
-        Returns: a firebaseio.DBItem story, its class label (0/1/None), and
-            a json dump of the story name and record
+        Returns: a firebaseio.DBItem story
         """
         story = self.assemble_content(url, category, **metadata)
-        if self.classifier is None:
-            classification = None
-        else:
+        if self.classifier:
             classification, probability = self.run_classifier(story)
             story.record.update({'probability': probability})
             if classification == 1:
                 story.record.update({'themes': self.identify_themes(story)})
         story = self.run_geolocation(story)
-        return story, classification, json.dumps({story.idx: story.record})
+        return story
 
     def assemble_content(self, url, category='/null', **metadata):
         """Assemble parsed url content into a basic story.
@@ -125,8 +122,7 @@ class StoryBuilder(object):
                     geolocate.find_mentions(data['text'], story.record['text'])
             })
         try: 
-            story.record['locations'] = self.geolocator(input_places)
+            story.record.update(self.geolocator(input_places))
         except ValueError as e:
             print('Geolocation: {}'.format(repr(e)))
         return story
-

@@ -19,7 +19,7 @@ if __name__ == '__main__':
         print('Usage: python story_from_url.py http://story.nytimes.com')
         sys.exit()
     builder = StoryBuilder(parse_images=True)
-    story, clf, feed = builder(url=url)
+    story = builder(url=url)
     savename = story.idx[:30]+'.json'
     with open(savename, 'w') as f:
-        json.dump(json.loads(feed), f, indent=4)
+        json.dump({story.idx: story.record}, f, indent=4)

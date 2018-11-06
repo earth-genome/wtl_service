@@ -31,7 +31,7 @@ def good_story(url, themes, database, db_category, logfile):
     """Build and upload story created from url to firebase database."""
     builder = story_builder.StoryBuilder(classifier=None, parse_images=True)
     try:
-        story = builder(category=db_category, url=url)[0]
+        story = builder(category=db_category, url=url)
     except Exception as e:
         print('While creating story: {}'.format(repr(e)))
         print('Failed to create story for url {}\n'.format(url))
