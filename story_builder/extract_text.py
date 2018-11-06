@@ -28,7 +28,7 @@ META_TYPES = ['title', 'publication_date', 'image']
 ENTITY_TYPES = ['Location', 'Facility', 'GeographicFeature']
 
 # but exclude these subtypes:
-EXCLUDED_SUBTYPES = ['Continent', 'Region']
+EXCLUDED_SUBTYPES = ['Continent', 'Country', 'Region']
 
 def get_text(url):
     """Retrieve text and metadata (only) from url."""
@@ -113,16 +113,11 @@ def _extract_entity(entity):
 
     Returns: entity name and data
     """
-    try:
-        name = entity['disambiguation']['name']
-    except KeyError:
-        name = entity['text']
-    
     data = {
         'relevance': entity['relevance'],
         'text': entity['text']
     }
-    name = re.sub(FB_FORBIDDEN_CHARS, '', name)
+    name = re.sub(FB_FORBIDDEN_CHARS, '', entity['text'])
     return name, data
 
 # Legacy routine:
