@@ -13,9 +13,16 @@ names, for all but six one or zero geolocations were returned.
 OSM geocoding is verbose, often returning dozens of responses for incomplete
 addresses.
 
+Nominatim terms of service require (in BOLD FACE) a maximum of one query 
+per second, and the service will (sometimes?) throw a GeocoderTimedOut 
+exception if the terms are violated. A query takes around a second on average.
+The delay=.5 in osm_geocode should suffice to comply and doesn't affect
+the order of magnitude runtime.
+
 """
 
 import re
+import time
 
 import geopy
 import requests
@@ -66,12 +73,13 @@ def _clean_google(raw):
     }
     return geoloc
 
-def osm_geocode(place_name, N_records=20):
+def osm_geocode(place_name, N_records=20, delay=.5):
     """Search osm records for place_name.
 
     Returns: list of dicts 
-    """
+    """ 
     nom = geopy.geocoders.Nominatim(user_agent='Earthrise.media')
+    time.sleep(delay)
     recs = nom.geocode(place_name, exactly_one=False, addressdetails=False,
                        limit=N_records)
     if recs is None:
