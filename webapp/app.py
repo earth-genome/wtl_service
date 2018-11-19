@@ -5,6 +5,7 @@ is pushed to a Redis queue and handled by the worker process in worker.py.
 """
 
 import datetime
+import json
 import os
 import sys
 import urllib.parse
@@ -164,12 +165,17 @@ def _parse_retrieve_params(args):
         else:
             raise ValueError('Argument filterby must be from {}'.format(
                 firebaseio.ALLOWED_FILTERS))
-    
-    known_themes = requests.get(KNOWN_THEMES_URL).json()
-    themes = args.getlist('themes')
-    if not set(themes) <= set(known_themes):
-        raise ValueError('One or more requested themes not recognized.')
 
+    themes = args.getlist('themes')
+    if themes:
+        try:
+            known_themes = requests.get(KNOWN_THEMES_URL).json()
+            if not set(themes) <= set(known_themes):
+                raise ValueError('One or more themes not recognized.')
+        except json.decoder.JSONDecodeError as e:
+            # This won't break anything, but prevents checking user input.
+            print('Parsing retrieve params. Floydhub: {}'.format(repr(e)))
+        
     return themes, kwargs
     
 def _parse_daysback(args):
