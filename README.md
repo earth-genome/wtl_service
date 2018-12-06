@@ -5,6 +5,8 @@ A containerized web app to source stories for the Where To Look database.
 
 The story_seeds repo is a submodule. It creates and classifies the story records.
 
+Out-of-repo file .env containing API keys for IBM Watson, Floydhub, NewsAPI, and Google Places.
+
 ### Developing
 
 The image service is based a containerized Flask web app, deployed on
