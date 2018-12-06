@@ -12,7 +12,6 @@ import json
 import os
 import sys
 
-import config
 from story_builder import story_builder
 from utilities import firebaseio
 

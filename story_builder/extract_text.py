@@ -13,13 +13,12 @@ import re
 import watson_developer_cloud as wdc
 import watson_developer_cloud.natural_language_understanding_v1 as nlu
 
-from config import WATSON_USER, WATSON_PASS
 from utilities.firebaseio import FB_FORBIDDEN_CHARS
 
 SERVICE = wdc.NaturalLanguageUnderstandingV1(
         version='2018-03-16',
-        username=WATSON_USER,
-        password=WATSON_PASS
+        username=os.environ['WATSON_USER'],
+        password=os.environ['WATSON_PASS']
 )
 
 META_TYPES = ['title', 'publication_date', 'image']

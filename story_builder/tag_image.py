@@ -6,15 +6,15 @@ External function: get_tags
 
 import json
 import re
+import os
 
 import watson_developer_cloud as wdc
 
-from config import WATSON_VISION_API_KEY
 from utilities.firebaseio import FB_FORBIDDEN_CHARS
 
 SERVICE = wdc.VisualRecognitionV3(
     '2018-03-19',
-    iam_apikey=WATSON_VISION_API_KEY)
+    iam_apikey=os.environ['WATSON_VISION_API_KEY'])
 
 EXCLUDED_TAG_WORDS = ['color']
 

@@ -22,6 +22,7 @@ the order of magnitude runtime.
 """
 
 import re
+import os
 import time
 
 import geopy
@@ -29,7 +30,6 @@ import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from shapely import geometry
 
-from config import GOOGLE_GEO_API_KEY
 from utilities.geobox import geobox
 from utilities.firebaseio import FB_FORBIDDEN_CHARS
 
@@ -43,7 +43,7 @@ def google_geocode(text, N_records=1):
     base = 'https://maps.googleapis.com/maps/api/place/textsearch/json'
     payload = {
 		'query': text,
-		'key': GOOGLE_GEO_API_KEY
+		'key': os.environ['GOOGLE_GEO_API_KEY']
     }
     data = requests.get(base, params=payload, verify=False).json()
 
