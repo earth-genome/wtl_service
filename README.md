@@ -2,4 +2,4 @@
 
 This project identifies stories that can be materially enhanced by satellite imagery.  
 
-Requires API keys and environment variables for IBM Watson and Google Places.
+Requires API keys via environment variables for IBM Watson and Google Places.
