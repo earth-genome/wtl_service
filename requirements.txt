@@ -14,3 +14,5 @@ Flask
 flask_restful
 redis
 rq
+floyd-cli==0.11.12
+click==6.7

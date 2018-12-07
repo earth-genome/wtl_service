@@ -7,7 +7,6 @@ is pushed to a Redis queue and handled by the worker process in worker.py.
 import datetime
 import json
 import os
-import sys
 import urllib.parse
 
 from flask import Flask, jsonify, request
@@ -16,6 +15,7 @@ import numpy as np
 import requests
 from rq import Queue
 
+import floyd_login
 import news_scraper
 import request_thumbnails
 from story_seeds.utilities import firebaseio
@@ -40,6 +40,8 @@ def welcome():
             ''.join((request.url, 'retrieve?')),
         'Retrieve a single story record from the WTL database':
             ''.join((request.url, 'retrieve-story?')),
+        'Restart serving the Floydhub learned models':
+            ''.join((request.url, 'restart-floyd?'))
     }
     return jsonify(msg)
   
@@ -89,7 +91,6 @@ def retrieve():
 @app.route('/retrieve-story')
 def retrieve_story():
     """Retrieve a story record from the WTL database."""
-
     msg = _help_msg(request.base_url,
                     'idx=Index of the story in the database', '')
     try:
@@ -100,7 +101,7 @@ def retrieve_story():
 
     record = news_scraper.STORY_SEEDS.get('/WTL', idx)
     return jsonify({idx: record})
-
+    
 def _clean(story):
     """Curate story data for web presentation."""
     title = story.record.get('title', '')
@@ -117,6 +118,46 @@ def _clean(story):
     if 'water' in themes:
         rec.update({'sentiment': story.record.get('sentiment', {})})
     return rec
+
+@app.route('/restart-floyd')
+def restart_floyd():
+    """Restart the Floydhub job serving our learned models."""
+    msg = _help_msg(request.base_url, 'job=22', '')
+    try:
+        job_name = _parse_job(request.args)
+    except ValueError as e:
+        msg['Exception'] = repr(e)
+        return jsonify(msg)
+    try:
+        floyd_login.login()
+        client = floyd_login.get_client()
+        experiments = client.get_all()
+    except FloydException as e:
+        msg['Exception'] = repr(e)
+        return jsonify(msg)
+
+    _halt_serving(client, experiments)
+    to_serve = next((e for e in experiments if job_name in e.name), None)
+    try: 
+        status = client.restart(to_serve.id)
+    except (FloydException, AttributeError) as e:
+        msg['Exception'] = repr(e)
+        return jsonify(msg)
+    
+    return jsonify(status)
+
+def _halt_serving(client, experiments):
+    """Halt the current serving job on Floydhub.
+
+    We expect to serve at most one job at a time. If for some reason
+        more than one job is serving, this will halt the most recently
+        created serving job.
+    """
+    for e in experiments:
+        if e.mode == 'serving':   
+            if not e.is_finished:
+                client.stop(e.id)  
+                return
     
 # Argument parsing functions
 
@@ -206,6 +247,17 @@ def _parse_index(args):
     if not idx:
         raise ValueError('A story index is required.')
     return idx
+
+def _parse_job(args):
+    """Parse url arguments for a Floydhub project name and job number."""
+    job = request.args.get('job')
+    if not job:
+        raise ValueError('A job number is required.')
+    with open('.floydexpt') as f:
+        expt = json.load(f)
+    project = expt['name']
+    job_name = os.path.join(project, job)
+    return job_name
 
 # Help messaging
     
