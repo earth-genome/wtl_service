@@ -58,7 +58,6 @@ import requests
 from watson_developer_cloud import WatsonApiException
 
 import request_thumbnails
-from story_seeds import config
 from story_seeds.story_builder import story_builder
 from story_seeds.utilities import firebaseio
 from story_seeds.utilities import log_utilities
@@ -179,17 +178,18 @@ class Scrape(object):
         story.record.update({'probability': probability})
         
         if classification == 1:
-            story = self.builder.run_geoclustering(story)
+            #story = self.builder.run_geoclustering(story)
+            story = self.builder.run_geolocation(story)
             if self.thumbnail_grabber:
                 try:
+                    #centroid = _pull_centroid(story)
                     thumbnail_urls = await self.thumbnail_grabber(
-                        self.session,
+                        self.session, #centroid['lat'], centroid['lon'])
                         story.record['top_location']['lat'],
-                        story.record['top_location']['lon'])
+                        lstory.record['top_location']['lon'])
                     story.record.update({'thumbnails': thumbnail_urls})
                 except (KeyError, aiohttp.ClientError) as e:
                     self.logger.warning('Thumbnails: {}:\n{}'.format(e, url))
-
             try:
                 themes = await self._identify_themes(story.record['text'])
                 story.record.update({'themes': themes})
@@ -238,7 +238,19 @@ class Scrape(object):
                 pass
             except:
                 self.logger.exception('Logging exception from gather.')
-    
+"""
+def _pull_centroid(story):
+    Retrieve centroid for highest-scored cluster in story.
+    clusters = story.record.get('clusters')
+    if not clusters:
+        raise KeyError('No geoclusters found.')
+    sorted_by_score = sorted(
+                [(c['centroid'], c['score']) for c in clusters],
+                key=lambda s: s[1])
+    centroid = next(reversed(sorted_by_score))[0]
+    return centroid
+"""
+
 def _harvest_gdelt():
     """"Retrieve urls and metadata from the GDELT service."""
     data = requests.get(WIRE_URLS['gdelt'])
@@ -258,7 +270,7 @@ def _harvest_newsapi():
         payload = {
             'sources': outlet,
             'from': datetime.date.today().isoformat(),
-            'apiKey': config.NEWS_API_KEY
+            'apiKey': os.environ['NEWS_API_KEY']
         }
         try:
             data = requests.get(WIRE_URLS['newsapi'], params=payload)

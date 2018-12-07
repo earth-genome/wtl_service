@@ -1,4 +1,5 @@
 *.pyc
 *DS_Store
 config.py
-webapp/story_seeds/config.py*
+*/config.py*
+.env
