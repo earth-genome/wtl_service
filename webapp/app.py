@@ -27,6 +27,8 @@ app = Flask(__name__)
 
 KNOWN_THEMES_URL = news_scraper.THEMES_URL + '/known_themes'
 
+FLOYD_INIT_FILE = '.floydexpt'
+
 @app.route('/')
 def welcome():
     welcome = ('This web app provides functionality from the following ' + 
@@ -137,10 +139,10 @@ def restart_floyd():
         return jsonify(msg)
 
     _halt_serving(client, experiments)
-    to_serve = next((e for e in experiments if job_name in e.name), None)
-    try: 
+    try:
+        to_serve = next(e for e in experiments if job_name in e.name)
         status = client.restart(to_serve.id)
-    except (FloydException, AttributeError) as e:
+    except (FloydException, StopIteration) as e:
         msg['Exception'] = repr(e)
         return jsonify(msg)
     
@@ -249,14 +251,14 @@ def _parse_index(args):
     return idx
 
 def _parse_job(args):
-    """Parse url arguments for a Floydhub project name and job number."""
-    job = request.args.get('job')
+    """Parse url arguments for a Floydhub job number."""
+    job = request.args.get('job', type=int)
     if not job:
-        raise ValueError('A job number is required.')
-    with open('.floydexpt') as f:
+        raise ValueError('An integer job number is required.')
+    with open(FLOYD_INIT_FILE) as f:
         expt = json.load(f)
     project = expt['name']
-    job_name = os.path.join(project, job)
+    job_name = os.path.join(project, str(job))
     return job_name
 
 # Help messaging
