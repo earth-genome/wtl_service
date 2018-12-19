@@ -12,6 +12,7 @@ RUN python3 -c 'import nltk; nltk.download("punkt")'
 
 # Add our code
 ADD ./webapp /opt/webapp/
+ADD ./bin /bin
 WORKDIR /opt/webapp
 
 # To deploy locally
