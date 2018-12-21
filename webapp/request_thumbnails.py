@@ -26,7 +26,7 @@ PROVIDER_PARAMS = {
     'planet': {
         'item_types': 'PSScene3Band',
         'asset_types': 'analytic',
-        'write_styles': 'contrast',
+        'write_styles': 'base',
         'clouds': str(5),
         'min_intersect': str(1.0),
         'bucket_name': 'planet-thumbnails',
@@ -34,7 +34,7 @@ PROVIDER_PARAMS = {
         'waittime': 5
     },
     'landsat': {
-        'write_styles': 'landsat_contrast',
+        'write_styles': 'landsat',
         'bucket_name': 'landsat-thumbnails',
         'scale': str(20.0),
         'waittime': 3
