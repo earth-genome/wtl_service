@@ -64,8 +64,6 @@ class StoryBuilder(object):
         if self.classifier:
             classification, probability = self.run_classifier(story)
             story.record.update({'probability': probability})
-            if classification == 1:
-                story.record.update({'themes': self.identify_themes(story)})
         story = self.run_geolocation(story)
         return story
 
