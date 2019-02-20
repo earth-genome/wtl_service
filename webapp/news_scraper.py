@@ -181,10 +181,9 @@ class Scrape(object):
             story = self.builder.run_geolocation(story)
             if self.thumbnail_grabber:
                 try:
+                    core_loc = story.record['core_location']
                     thumbnail_urls = await self.thumbnail_grabber(
-                        self.session,
-                        story.record['top_location']['lat'],
-                        lstory.record['top_location']['lon'])
+                        self.session, core_loc['lat'], core_loc['lon'])
                     story.record.update({'thumbnails': thumbnail_urls})
                 except (KeyError, aiohttp.ClientError) as e:
                     self.logger.warning('Thumbnails: {}:\n{}'.format(e, url))
