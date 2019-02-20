@@ -68,27 +68,23 @@ class Geolocate(object):
     """Class to geolocate and score locations.
 
     Attributes:
-        terse_geocoder, verbose_geocoder: functions from geocode module
+        geocoders: list of functions from geocode module
         cluster_tool: instance of GrowGeoCluster class
         classifier: TODO
 
     External methods: 
         __call__: Geocode, cluster, and score input places.
-        assemble_geocodings: Find geo-coordinates with terse and verbose 
-            geocoders in sequence.
-            
+        assemble_geocodings: Find geo-coordinates with geocoders in sequence.
     """
-    def __init__(self, 
-                 terse_geocoder=functools.partial(
-                     geocode.google_geocode, N_records=5),
-                 verbose_geocoder=functools.partial(
-                     geocode.osm_geocode, N_records=5),
+    def __init__(self,
+                 geocoders=[geocode.CageCode()],
                  cluster_tool=geocluster.GrowGeoCluster(),
                  classifier=None):
-        self.terse_geocoder = terse_geocoder
-        self.verbose_geocoder = verbose_geocoder
+        self.geocoders = geocoders
         self.cluster_tool = cluster_tool
-        self.classifier = classifier
+        # Temporary ad hoc scoring
+        self.classifier = self._score
+        #self.classifier = classifier
 
     def __call__(self, places):
         """Geocode, cluster, and score input places.
@@ -108,37 +104,35 @@ class Geolocate(object):
                     **places[name]
                 })
                 if self.classifier:
-                    # Temporary ad hoc scoring:
-                    data.update({'score': self._score(data)})
-                    # data.update({'score': self.classifier(data)})
+                    data.update({'score': self.classifier(data)})
 
         locations = {k:v for cluster in clusters for k,v in cluster.items()}
-        
+
         return locations
         
     def assemble_geocodings(self, places):
-        """Find geo-coordinates with terse and verbose geocoders.
+        """Find geo-coordinates with (possibly multiple) geocoders.
 
         Returns: dicts of places with candidate geocodings
         """
         candidates = {}
         for name, data in places.items():
-            try:
-                geolocs = self.terse_geocoder(name)
-            except Exception as e:
-                print('Geocoding {}: {}'.format(name, repr(e)), flush=True)
-                geolocs = []
-            try:
-                geolocs += self.verbose_geocoder(name)
-            except Exception as e:
-                print('Geocoding {}: {}'.format(name, repr(e)), flush=True)
+            geolocs = []
+            for geocoder in self.geocoders:
+                try:
+                    geolocs += geocoder(name)
+                except Exception as e:
+                    print('Geocoding {}: {}'.format(name, repr(e)), flush=True)
             if geolocs:
                 candidates.update({name: geolocs})
         return candidates
 
     # Temporary ad-hoc scoring, to be replaced by a classifier.
     def _score(self, data):
-        sizing = self._size_score(data['boundingbox'])
+        try:
+            sizing = self._size_score(data.get('boundingbox'))
+        except TypeError:
+            sizing = 0
         clustering = np.sqrt(len(data['cluster']))
         return data['relevance'] * (sizing + clustering)
 

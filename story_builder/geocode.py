@@ -1,17 +1,24 @@
 """Routines to determine geographic coordinates relevant to input text.
 
+External class:
+    CageCode. Minimal usage: CageCode()(place_name)
+
 External functions:
     google_geocode(text)
     osm_geocode(text)
     dbpedia_geocode(dpbedia_url)
     
-Note: 
+Notes: 
+
+As of 2/19/19, only CageCode is deployed in geolocate.py and hence in 
+wtl_serice. At some point this code might be cleaned up by deleting the 
+other geocoders.
 
 Google geocoding is terse. On a sample of 273 Watson-extracted entity
 names, for all but six one or zero geolocations were returned.
 
-OSM geocoding is verbose, often returning dozens of responses for incomplete
-addresses.
+OSM geocoding (OpenCage, Nominatim) is verbose, often returning dozens
+of responses for incomplete addresses.
 
 Nominatim terms of service require (in BOLD FACE) a maximum of one query 
 per second, and the service will (sometimes?) throw a GeocoderTimedOut 
@@ -31,10 +38,58 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from shapely import geometry
 
 from utilities.geobox import geobox
-from utilities.firebaseio import FB_FORBIDDEN_CHARS
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-    
+
+class CageCode(object):
+    """Find lat/lon codings for place names via OpenCage (based on OSM).
+
+    Attributes:
+        base_url: OpenCage API url base.
+        base_payload: API key and max number of records.
+
+    External method:
+        __call__: Geocode input place_name.
+    """
+    def __init__(self,
+                 base_url='https://api.opencagedata.com/geocode/v1/json',
+                 N_records=10):
+        self.base_url = base_url
+        self.base_payload = {
+            'key': os.environ['OPENCAGE_API_KEY'],
+            'limit': N_records
+        }
+
+    def __call__(self, place_name):
+        """Geocode place_name. Returns a list of dicts of likely codings."""
+        payload = dict({'q': place_name}, **self.base_payload)
+        response = requests.get(self.base_url, params=payload)
+        response.raise_for_status()
+        records = response.json()['results']
+        return [self._clean(r) for r in records]
+
+    def _clean(self, record):
+        """Format a raw OpenCage record."""
+        try: 
+            bbox = geobox.viewport_to_shapely_box(record['bounds'])
+            bounds = bbox.bounds
+        except KeyError:
+            bounds = ()
+
+        try:
+            osm_url = record['annotations']['OSM']['url']
+        except KeyError:
+            osm_url = ''
+        
+        geoloc = {
+            'address': record['formatted'],
+            'lat': record['geometry']['lat'],
+            'lon': record['geometry']['lng'],
+            'boundingbox': bounds,
+            'osm_url': osm_url
+        }
+        return geoloc
+
 def google_geocode(text, N_records=1):
     """Find lat/lon coordinates for input text.
 
@@ -61,7 +116,7 @@ def _clean_google(raw):
     """Format a raw google record."""
     geom = raw['geometry']
     try: 
-        bounds = geobox.google_to_shapely_box(geom['viewport']).bounds
+        bounds = geobox.viewport_to_shapely_box(geom['viewport']).bounds
     except KeyError:
         bounds = ()
     geoloc = {
@@ -99,7 +154,6 @@ def _clean_osm(raw):
     }
     return geoloc
 
-# Deprecated:
 def dbpedia_geocode(url):
     """Extract lat/lon from dbpedia url.
 

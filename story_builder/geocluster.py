@@ -93,9 +93,6 @@ class GrowGeoCluster(GeoCluster):
         """Determine best geolocations from candidates."""
         init_locations = {name:locs[0] for name,locs in candidates.items()}
         seeds = self.seed(init_locations)
-        # Debugging prints
-        for item in candidates.items():
-            print('{}\n'.format(item))
         return self.grow(seeds, candidates)
         
     def seed(self, locations):
@@ -139,8 +136,6 @@ class GrowGeoCluster(GeoCluster):
     def _set_gain(self):
         """Set cluster_lens and gain after modifying clusters."""
         self.cluster_lens = [len(c) for c in self.clusters]
-        # Debugging print
-        print(self.cluster_lens)
         self.gain = self._measure_gain(self.cluster_lens)
     
     def _measure_gain(self, lens):
@@ -199,13 +194,13 @@ class GrowGeoCluster(GeoCluster):
     def _check_intersects(self, geolocation, cluster):
         """Check whether geolocation intersects any location in cluster."""
         try: 
-            source = geometry.box(*geolocation['boundingbox'])
-        except KeyError:
+            source = geometry.box(*geolocation.get('boundingbox'))
+        except TypeError:
             source = geometry.Point(geolocation['lon'], geolocation['lat'])
         for data in cluster.values():
             try:
-                target = geometry.box(*data['boundingbox'])
-            except KeyError:
+                target = geometry.box(*data.get('boundingbox'))
+            except TypeError:
                 target = geometry.Point(data['lon'], data['lat'])
             if source.intersection(target).bounds:
                 return True
