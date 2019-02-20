@@ -7,17 +7,12 @@ The class is to be called by an RQ worker, scheduled within an asyncio
 event loop.
 
 Outputs:
-    All stories and their metadata are uploaded to Firbase (STORY_SEEDS).
+    All stories and their metadata are uploaded to Firebase (STORY_SEEDS).
 
     After classification, the best candidate stories are sent to
     WhereToLook ('/WTL') on STORY_SEEDS.  
 
     Exceptions are logged.
-
-Basic usage from main (deprecated):
-$ python news_scraper.py
-For syntax, run:
-$ python news_scraper.py -h
 
 Notes: The class attribute batch_size determines the number of records
 gathered for asynchronous processing. For each story selected for the 
@@ -45,29 +40,21 @@ four thumbnail worker processes.
 """
 
 import aiohttp
-import argparse
 import asyncio
 import datetime
 import os
-import random
 import signal
 import sys
 import time
 
-import requests
 from watson_developer_cloud import WatsonApiException
 
+import harvest_urls
 import request_thumbnails
 from story_seeds.story_builder import story_builder
 from story_seeds.utilities import firebaseio
 from story_seeds.utilities import log_utilities
 import track_urls
-
-WIRE_URLS = {
-    'newsapi': 'https://newsapi.org/v2/everything',
-    'gdelt': 'https://gdelt-seeds.herokuapp.com/urls'
-}
-OUTLETS_FILE = 'newsapi_outlets.txt'
 
 STORY_SEEDS = firebaseio.DB(firebaseio.FIREBASE_URL)
 
@@ -144,7 +131,7 @@ class Scrape(object):
         signal.signal(signal.SIGINT, log_utilities.signal_handler)
 
         async with aiohttp.ClientSession(timeout=self.timeout) as self.session:
-            records = self._harvest_records(wires)
+            records = self._gather_records(wires)
 
             while records:
                 batch = records[-self.batch_size:]
@@ -181,9 +168,9 @@ class Scrape(object):
             story = self.builder.run_geolocation(story)
             if self.thumbnail_grabber:
                 try:
-                    core_loc = story.record['core_location']
+                    loc = story.record['core_location']
                     thumbnail_urls = await self.thumbnail_grabber(
-                        self.session, core_loc['lat'], core_loc['lon'])
+                        self.session, loc['lat'], loc['lon'])
                     story.record.update({'thumbnails': thumbnail_urls})
                 except (KeyError, aiohttp.ClientError) as e:
                     self.logger.warning('Thumbnails: {}:\n{}'.format(e, url))
@@ -204,13 +191,20 @@ class Scrape(object):
             STORY_SEEDS.put('/WTL', story.idx, story.record)
         return 
                              
-    def _harvest_records(self, wires):
+    def _gather_records(self, wires):
         """Retrieve urls and associated metadata."""
         records = []
         if 'gdelt' in wires:
-            records += _harvest_gdelt()
+            try:
+                records += harvest_urls.gdelt()
+            except Exception as e:
+                self.logger.warning('GDelt: {}:\n{}'.format(e))
         if 'newsapi' in wires:
-            records += _harvest_newsapi()
+            try:
+                records += harvest_urls.newsapi()
+            except Exception as e:
+                self.logger.warning('NewsAPI: {}:\n{}'.format(e))
+                
         fresh_urls = self.url_tracker.find_fresh([r['url'] for r in records])
         records = [r for r in records if r['url'] in fresh_urls]
         return records
@@ -235,78 +229,3 @@ class Scrape(object):
                 pass
             except:
                 self.logger.exception('Logging exception from gather.')
-
-def _harvest_gdelt():
-    """"Retrieve urls and metadata from the GDELT service."""
-    data = requests.get(WIRE_URLS['gdelt'])
-    results = [{'url': r['SOURCEURL'], 'GLOBALEVENTID': r['GLOBALEVENTID']}
-               for r in data.json()['results']]
-    random.shuffle(results)
-    return results
-
-def _harvest_newsapi():
-    """"Retrieve urls and metadata from the NewsAPI service."""
-    with open(OUTLETS_FILE,'r') as f:
-        outlets = [line.strip() for line in f]
-    random.shuffle(outlets)
-
-    records = []
-    for outlet in outlets:
-        payload = {
-            'sources': outlet,
-            'from': datetime.date.today().isoformat(),
-            'apiKey': os.environ['NEWS_API_KEY']
-        }
-        try:
-            data = requests.get(WIRE_URLS['newsapi'], params=payload)
-            articles = data.json()['articles']
-        except Exception:
-            continue
-        for article in articles:
-            metadata = {k:v for k,v in article.items() if k in
-                        ('url', 'title', 'description')}
-            try:
-                metadata.update({
-                    'publication_date': article['publishedAt']
-                })
-            except KeyError:
-                pass
-            records.append(metadata)
-    return records
-    
-if __name__ == '__main__':
-    known_wires = set(WIRE_URLS.keys())
-    parser = argparse.ArgumentParser(
-        description='Scrape newswires for satellite-relevant stories.'
-    )
-    parser.add_argument(
-        '-w', '--wires',
-        type=str,
-        nargs='*',
-        choices=known_wires,
-        default=known_wires,
-        help='One or more newswires from {}'.format(known_wires)
-    )
-    parser.add_argument(
-        '-t', '--thumbnail_source',
-        type=str,
-        choices=set(request_thumbnails.PROVIDER_PARAMS.keys()),
-        help='Source of thumbnails for posted stories, from {}'.format(
-            set(request_thumbnails.PROVIDER_PARAMS.keys()))
-    )
-    parser.add_argument(
-        '-to', '--http_timeout',
-        type=int,
-        help='Timeout for (esp. thumbnail) http requests in seconds.'
-    )
-    parser.add_argument(
-        '-b', '--batch_size',
-        type=int,
-        help='Number of records to process together asynchronously.'
-    )
-    kwargs = {k:v for k,v in vars(parser.parse_args()).items()
-              if v is not None}
-    wires = kwargs.pop('wires')
-    kwargs['logger'] = log_utilities.build_logger(EXCEPTIONS_DIR, LOGFILE)
-    
-    scraper_wrapper(wires, **kwargs)

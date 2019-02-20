@@ -3,3 +3,4 @@
 config.py
 */config.py*
 .env
+webapp/.google_config.json
