@@ -178,13 +178,11 @@ class Scrape(object):
         story.record.update({'probability': probability})
         
         if classification == 1:
-            #story = self.builder.run_geoclustering(story)
             story = self.builder.run_geolocation(story)
             if self.thumbnail_grabber:
                 try:
-                    #centroid = _pull_centroid(story)
                     thumbnail_urls = await self.thumbnail_grabber(
-                        self.session, #centroid['lat'], centroid['lon'])
+                        self.session,
                         story.record['top_location']['lat'],
                         lstory.record['top_location']['lon'])
                     story.record.update({'thumbnails': thumbnail_urls})
@@ -238,18 +236,6 @@ class Scrape(object):
                 pass
             except:
                 self.logger.exception('Logging exception from gather.')
-"""
-def _pull_centroid(story):
-    Retrieve centroid for highest-scored cluster in story.
-    clusters = story.record.get('clusters')
-    if not clusters:
-        raise KeyError('No geoclusters found.')
-    sorted_by_score = sorted(
-                [(c['centroid'], c['score']) for c in clusters],
-                key=lambda s: s[1])
-    centroid = next(reversed(sorted_by_score))[0]
-    return centroid
-"""
 
 def _harvest_gdelt():
     """"Retrieve urls and metadata from the GDELT service."""
