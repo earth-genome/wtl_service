@@ -128,7 +128,7 @@ class StoryBuilder(object):
 
         try:
             story.record.update({
-                'top_location': _get_top(story.record['locations'])
+                'core_location': _get_top(story.record['locations'])
             })
         except KeyError:
             pass
