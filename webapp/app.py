@@ -14,12 +14,15 @@ from flask_restful import inputs
 import numpy as np
 import requests
 from rq import Queue
+import shapely
 
 import floyd_login
+import harvest_urls
 import news_scraper
 import request_thumbnails
 from story_seeds.utilities import firebaseio
 from story_seeds.utilities import log_utilities
+from story_seeds.utilities.geobox import us_counties
 import worker
 
 q = Queue('default', connection=worker.connection, default_timeout=86400)
@@ -27,7 +30,13 @@ app = Flask(__name__)
 
 KNOWN_THEMES_URL = news_scraper.THEMES_URL + '/known_themes'
 
+US_CSV = os.path.join(os.path.dirname(__file__), 'us_county_geojson.csv')
+EVP_STATES = [
+    'AZ', 'CO', 'FL', 'GA', 'MA', 'ME', 'NC', 'NH', 'NM', 'NV', 'PA', 'TX', 'VA'
+]
+
 FLOYD_INIT_FILE = '.floydexpt'
+
 
 @app.route('/')
 def welcome():
@@ -35,18 +44,20 @@ def welcome():
         'endpoints, each of which takes required and optional arguments. ' +
         'Hit one of these urls to see specific argument formatting.')
     msg = {
-        'Welcome': welcome,
+        'Advertisement': welcome,
         'Scrape news wires for stories':
             ''.join((request.url, 'scrape?')),
         'Retrieve stories posted to the WTL database':
             ''.join((request.url, 'retrieve?')),
         'Retrieve a single story record from the WTL database':
             ''.join((request.url, 'retrieve-story?')),
+        'Get a geojson for US states or counties.':
+            ''.join((request.url, 'us-geojsons?')),
         'Restart serving the Floydhub learned models':
             ''.join((request.url, 'restart-floyd?'))
     }
     return jsonify(msg)
-  
+
 @app.route('/scrape')
 def scrape():
     """Pull images given lat, lon, and scale."""
@@ -73,21 +84,39 @@ def retrieve():
     """Retrieve records from the WTL database."""
     msg = _help_msg(
         request.base_url,
-        'daysback=3&filterby=scrape_date&themes=water&themes=conflict',
+        ('daysback=3&filterby=scrape_date&themes=water&themes=conflict'
+         '&states=CA&counties=Yolo&counties=Napa'),
         _format_retrieve_args())
 
     try:
         themes, kwargs = _parse_retrieve_params(request.args)
+        footprint = _get_counties(request.args)
     except (ValueError, TypeError) as e:
         msg['Exception'] = repr(e)
         return jsonify(msg)
-    
+
     stories = news_scraper.STORY_SEEDS.grab_stories(category='/WTL', **kwargs)
 
     if themes:
         stories = [s for s in stories
                    if set(themes).intersection(s.record.get('themes', {}))]
 
+    if footprint:
+        filtered = []
+        for s in stories:
+            try:
+                loc = s.record['core_location']
+            except KeyError:
+                try:
+                    # For pre-Feb. 2019 story formatting:
+                    loc = s.record['clusters'][0]['centroid']
+                except:
+                    continue
+            lonlat = shapely.geometry.Point(loc['lon'], loc['lat'])
+            if footprint.intersection(lonlat):
+                filtered.append(s)
+        stories = filtered.copy()
+        
     return jsonify([_clean(s) for s in stories])
 
 @app.route('/retrieve-story')
@@ -108,10 +137,16 @@ def _clean(story):
     """Curate story data for web presentation."""
     title = story.record.get('title', '')
     themes = story.record.get('themes', {})
+    try:
+        loc = story.record['core_location']
+        latlon = [loc['lat'], loc['lon']]
+    except KeyError:
+        latlon = []
     rec = {
         'Source url': story.record['url'],
         'title': title,
         'themes': themes,
+        'latlon': latlon,
         'Full record': request.url_root + 'retrieve-story?idx={}'.format(
             urllib.parse.quote(story.idx))
     }
@@ -121,6 +156,21 @@ def _clean(story):
         rec.update({'sentiment': story.record.get('sentiment', {})})
     return rec
 
+@app.route('/us-geojsons')
+def us_geojsons():
+    msg = _help_msg(request.base_url,
+                    'states=CA&counties=Yolo&counties=Napa',
+                    _format_counties_args())
+    try:
+        footprint = _get_counties(request.args)
+        if not footprint:
+            raise ValueError('At least one state is required.')
+    except (ValueError, TypeError) as e:
+        msg['Exception'] = repr(e)
+        return jsonify(msg)
+
+    return jsonify(shapely.geometry.mapping(footprint))
+    
 @app.route('/restart-floyd')
 def restart_floyd():
     """Restart the Floydhub job serving our learned models."""
@@ -174,9 +224,9 @@ def _parse_scrape_params(args):
         'thumbnail_timeout': args.get('thumbnail_timeout')
     }
     
-    if not wires or not set(wires) <= set(news_scraper.WIRE_URLS.keys()):
+    if not wires or not set(wires) <= set(harvest_urls.WIRE_URLS.keys()):
         raise ValueError('Supported wire are {}'.format(
-            set(news_scraper.WIRE_URLS.keys())))
+            set(harvest_urls.WIRE_URLS.keys())))
     
     known_grabbers = set(request_thumbnails.PROVIDER_PARAMS.keys())
     tns = kwargs['thumbnail_source']
@@ -194,7 +244,7 @@ def _parse_retrieve_params(args):
     except ValueError:
         try: 
             start, end = _parse_dates(args)
-        except (ValueError, TypeError):
+        except ValueError:
             raise
     kwargs = {
         'startDate': start,
@@ -218,7 +268,7 @@ def _parse_retrieve_params(args):
         except json.decoder.JSONDecodeError as e:
             # This won't break anything, but prevents checking user input.
             print('Parsing retrieve params. Floydhub: {}'.format(repr(e)))
-        
+    
     return themes, kwargs
     
 def _parse_daysback(args):
@@ -238,11 +288,36 @@ def _parse_dates(args):
     
     # Check date formatting. Will raise ValueError if misformatted or
     # TypeError if one of start/end is None.
-    start = datetime.datetime.strptime(start, '%Y-%m-%d').date()
-    end = datetime.datetime.strptime(end, '%Y-%m-%d').date()
+    try: 
+        start = datetime.datetime.strptime(start, '%Y-%m-%d').date()
+        end = datetime.datetime.strptime(end, '%Y-%m-%d').date()
+    except TypeError:
+        raise ValueError('Either daysback or both start and end are required.')
     
     return start.isoformat(), end.isoformat()
-        
+
+def _get_counties(args):
+    """Parse url args for states and counties. 
+
+    Returns: A shapely geometric object 
+    """
+    states = args.getlist('states')
+    states = [s.upper() for s in states]
+    counties = args.getlist('counties')
+    if not states and not counties:
+        return
+
+    cb = us_counties.CountyBoundaries(csv=US_CSV)
+    if 'EVP' in states:
+        footprint = cb.combine_states(EVP_STATES)
+    elif states and not counties:
+        footprint = cb.combine_states(states)
+    elif counties and len(states) != 1:
+        raise ValueError('A single state must be specified with counties.')
+    else:
+        footprint = cb.combine_counties(counties, next(iter(states)))
+    return footprint
+
 def _parse_index(args):
     """Parse url arguments for story index."""
     idx = args.get('idx')
@@ -266,16 +341,16 @@ def _parse_job(args):
 def _help_msg(base_url, url_args, notes):
     msg = {
         'Usage': '{}?{}'.format(base_url, url_args),
-        'Notes': notes
+        'notes': notes
     }
     return msg
 
 def _format_scraper_args():
     """Produce a dict explaining scraper args for help messaging."""
     scraper_args = {
-        'Required arguments': {
+        'Argument': {
             'wires': 'One or more of {}'.format(
-                set(news_scraper.WIRE_URLS.keys()))
+                set(harvest_urls.WIRE_URLS.keys()))
         },
         'Optional arguments': {
             'thumbnail_source': 'One of {}'.format(
@@ -293,11 +368,11 @@ def _format_retrieve_args():
     """Produce a dict explaining retrieve args for help messaging."""
     filters = firebaseio.ALLOWED_FILTERS
     scraper_args = {
-        'Required argument': {
+        'Argument': {
             'daysback': ('Number of days worth of records to retrieve. ' +
                          'Expect hundreds of records per day requested.')
         },
-        'Required arguments (alternate form)': {
+        'Arguments (alternate form)': {
             'start': 'Begin date in form YYYY-MM-DD',
             'end': 'End date in form YYYY-MM-DD'
         },
@@ -305,9 +380,27 @@ def _format_retrieve_args():
             'themes': 'One or more from the list of known themes.',
             'filterby': 'One of {}. Defaults to {}'.format(filters, filters[0])
         },
-        'Known themes': KNOWN_THEMES_URL
+        'known themes': KNOWN_THEMES_URL
     }
+    scraper_args.update({
+        'states and counties': request.url_root + 'us-geojsons'
+    })
     return scraper_args
+
+def _format_counties_args():
+    """Produce a dict explaining counties args for help messaging."""
+    cb = us_counties.CountyBoundaries(csv=US_CSV)
+    counties_args = {
+        'Argument': {
+            'states': 'One or more U.S. state postal codes, or EVP'
+        },
+        'Optional argument': {
+            'counties': 'One or more U.S. county names. Requires also a state.'
+        },
+        'US states': cb.get_statenames(),
+        'US states with counties': cb.get_countynames()
+    }
+    return counties_args
 
 def _format_scraping_guide():
     """Produce a message to return when scrape is called."""

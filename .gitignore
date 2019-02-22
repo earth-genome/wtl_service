@@ -4,3 +4,4 @@ config.py
 */config.py*
 .env
 webapp/.google_config.json
+webapp/us_county_geojson.csv
