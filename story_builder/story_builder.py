@@ -137,15 +137,12 @@ class StoryBuilder(object):
 def _get_top(locations):
     """Return a cleaned version of the top scored location."""
     try:
-        ranked = sorted(locations.items(), key=lambda item:item[1]['score'])
-    except KeyError:
+        ranked = sorted(locations.items(), key=lambda item:item[1]['score'],
+                        reverse=True)
+        name, data = next(iter(ranked))
+    except (KeyError, StopIteration):
         return {}
-    name, data = ranked.pop()
-    cleaned = {
-        'name': name,
-        'lat': data['lat'],
-        'lon': data['lon'],
-        'boundingbox': data['boundingbox'],
-        'score': data['score']
-    }
+    
+    cleaned = {k:v for k,v in data.items() if k in
+        ['boundingbox', 'lat', 'lon', 'mentions', 'osm_url', 'score', 'text']}
     return cleaned
