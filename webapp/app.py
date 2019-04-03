@@ -31,9 +31,8 @@ app = Flask(__name__)
 KNOWN_THEMES_URL = news_scraper.THEMES_URL + '/known_themes'
 
 US_CSV = os.path.join(os.path.dirname(__file__), 'us_county_geojson.csv')
-EVP_STATES = [
-    'AZ', 'CO', 'FL', 'GA', 'MA', 'ME', 'NC', 'NH', 'NM', 'NV', 'PA', 'TX', 'VA'
-]
+US_GEOJSON = os.path.join(os.path.dirname(__file__), 'us.geojson')
+EVP_GEOJSON = os.path.join(os.path.dirname(__file__), 'us_evpstates.geojson')
 
 FLOYD_INIT_FILE = '.floydexpt'
 
@@ -308,8 +307,12 @@ def _get_counties(args):
         return
 
     cb = us_counties.CountyBoundaries(csv=US_CSV)
-    if 'EVP' in states:
-        footprint = cb.combine_states(EVP_STATES)
+    if 'ALL' in states:
+        with open(US_GEOJSON) as f:
+            footprint = shapely.geometry.asShape(json.load(f))
+    elif 'EVP' in states:
+         with open(EVP_GEOJSON) as f:
+            footprint = shapely.geometry.asShape(json.load(f))
     elif states and not counties:
         footprint = cb.combine_states(states)
     elif counties and len(states) != 1:
@@ -392,7 +395,7 @@ def _format_counties_args():
     cb = us_counties.CountyBoundaries(csv=US_CSV)
     counties_args = {
         'Argument': {
-            'states': 'One or more U.S. state postal codes, or EVP'
+            'states': 'One or more U.S. state postal codes, or EVP, or ALL'
         },
         'Optional argument': {
             'counties': 'One or more U.S. county names. Requires also a state.'
