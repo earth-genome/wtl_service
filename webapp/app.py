@@ -183,7 +183,7 @@ def restart_floyd():
         floyd_login.login()
         client = floyd_login.get_client()
         experiments = client.get_all()
-    except FloydException as e:
+    except floyd_login.FloydException as e:
         msg['Exception'] = repr(e)
         return jsonify(msg)
 
@@ -191,7 +191,7 @@ def restart_floyd():
     try:
         to_serve = next(e for e in experiments if job_name in e.name)
         status = client.restart(to_serve.id)
-    except (FloydException, StopIteration) as e:
+    except (floyd_login.FloydException, StopIteration) as e:
         msg['Exception'] = repr(e)
         return jsonify(msg)
     

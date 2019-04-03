@@ -4,6 +4,7 @@ import os
 
 from floyd.client.auth import AuthClient
 from floyd.client.experiment import ExperimentClient
+from floyd.exceptions import FloydException
 from floyd.manager.auth_config import AuthConfigManager
 from floyd.model.access_token import AccessToken
 from floyd.model.credentials import Credentials
