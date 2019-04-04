@@ -31,11 +31,12 @@ app = Flask(__name__)
 KNOWN_THEMES_URL = news_scraper.THEMES_URL + '/known_themes'
 
 US_CSV = os.path.join(os.path.dirname(__file__), 'us_county_geojson.csv')
-US_GEOJSON = os.path.join(os.path.dirname(__file__), 'us.geojson')
-EVP_GEOJSON = os.path.join(os.path.dirname(__file__), 'us_evpstates.geojson')
+US_GEOJSON = os.path.join(os.path.dirname(__file__), 'us_allstates.json')
+EVP_GEOJSON = os.path.join(os.path.dirname(__file__), 'us_evpstates.json')
+
+BOUNDARY_TOL = .2
 
 FLOYD_INIT_FILE = '.floydexpt'
-
 
 @app.route('/')
 def welcome():
@@ -95,12 +96,13 @@ def retrieve():
         return jsonify(msg)
 
     stories = news_scraper.STORY_SEEDS.grab_stories(category='/WTL', **kwargs)
-
+    
     if themes:
         stories = [s for s in stories
                    if set(themes).intersection(s.record.get('themes', {}))]
-
+            
     if footprint:
+        footprint = footprint.simplify(BOUNDARY_TOL, preserve_topology=False)
         filtered = []
         for s in stories:
             try:
@@ -112,10 +114,10 @@ def retrieve():
                 except:
                     continue
             lonlat = shapely.geometry.Point(loc['lon'], loc['lat'])
-            if footprint.intersection(lonlat):
+            if lonlat.within(footprint):
                 filtered.append(s)
         stories = filtered.copy()
-        
+
     return jsonify([_clean(s) for s in stories])
 
 @app.route('/retrieve-story')
@@ -306,7 +308,6 @@ def _get_counties(args):
     if not states and not counties:
         return
 
-    cb = us_counties.CountyBoundaries(csv=US_CSV)
     if 'ALL' in states:
         with open(US_GEOJSON) as f:
             footprint = shapely.geometry.asShape(json.load(f))
@@ -314,10 +315,12 @@ def _get_counties(args):
          with open(EVP_GEOJSON) as f:
             footprint = shapely.geometry.asShape(json.load(f))
     elif states and not counties:
+        cb = us_counties.CountyBoundaries(csv=US_CSV)
         footprint = cb.combine_states(states)
     elif counties and len(states) != 1:
         raise ValueError('A single state must be specified with counties.')
     else:
+        cb = us_counties.CountyBoundaries(csv=US_CSV)
         footprint = cb.combine_counties(counties, next(iter(states)))
     return footprint
 

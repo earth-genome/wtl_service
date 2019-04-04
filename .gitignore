@@ -5,5 +5,5 @@ config.py
 .env
 webapp/.google_config.json
 webapp/us_county_geojson.csv
-webapp/us.geojson
-webapp/us_evpstates.geojson
+webapp/us_allstates.json
+webapp/us_evpstates.json
