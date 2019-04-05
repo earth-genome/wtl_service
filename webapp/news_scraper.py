@@ -223,9 +223,5 @@ class Scrape(object):
         These are *unexpected* exceptions, not otherwise handled in _build.
         """
         for r in results:
-            try:
-                raise r
-            except TypeError:  # raised if r isn't raisable
-                pass
-            except:
-                self.logger.exception('Logging exception from gather.')
+            if isinstance(r, Exception):
+                self.logger.error('Exception from gather: {}'.format(repr(r)))
