@@ -30,27 +30,15 @@ if __name__ == '__main__':
 
     stories = STORY_SEEDS.grab_stories(
         category='/WTL',
-        startDate=start.isoformat(),
-        endDate=end.isoformat())
+        orderBy='scrape_date',
+        startAt=start.isoformat(),
+        endAt=end.isoformat())
 
     cleaned = []
     for s in stories:
-        try:
-            d = {'title': s.record['title']}
-            d.update({'url': s.record['url']})
-            if 'themes' in s.record.keys():
-                d.update({'themes': s.record['themes']})
-            else:
-                d.update({'themes': {}})
-            d.update({
-                'locations': {
-                    k:(v['lat'], v['lon']) for k,v
-                    in s.record['core_locations'].items()
-                }
-            })
-            cleaned.append(d)
-        except:
-            pass
-
+        c = {k:s.record.get(k) for k in
+                 ['title', 'url', 'themes', 'core_location']}
+        cleaned.append(c)
+            
 with open('../WTLs/WTL{}.json'.format(today), 'w') as f:
     json.dump(cleaned, f, indent=4)
