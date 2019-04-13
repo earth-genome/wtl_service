@@ -14,7 +14,7 @@ import sys
 
 from utilities import firebaseio
 
-STORY_SEEDS = firebaseio.DB(firebaseio.FIREBASE_URL)
+STORY_SEEDS = firebaseio.DB(**firebaseio.FIREBASES['story-seeds'])
 
 if __name__ == '__main__':
 

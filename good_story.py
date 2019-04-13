@@ -98,10 +98,11 @@ if __name__ == '__main__':
         
     args = parser.parse_args()
     if args.negative_case:
-        database = firebaseio.DB(firebaseio.FIREBASE_NEG_URL)
+        database = firebaseio.DB(
+            **firebaseio.FIREBASES['negative-training_cases'])
         logfile = LOG_TEST_NEG if args.test else LOG_NEG
     else:
-        database = firebaseio.DB(firebaseio.FIREBASE_GL_URL)
+        database = firebaseio.DB(**firebaseio.FIREBASES['good-locations'])
         logfile = LOG_TEST_POS if args.test else LOG_POS
     db_category = '/test' if args.test else '/stories'
     themes = args.themes if args.themes else []
