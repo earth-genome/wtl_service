@@ -20,8 +20,8 @@ import floyd_login
 import harvest_urls
 import news_scraper
 import request_thumbnails
-from story_seeds.utilities import firebaseio
 from story_seeds.utilities import log_utilities
+from story_seeds.utilities.firebaseio import ALLOWED_ORDERINGS
 from story_seeds.utilities.geobox import us_counties
 import worker
 
@@ -95,7 +95,7 @@ def retrieve():
         msg['Exception'] = repr(e)
         return jsonify(msg)
 
-    stories = news_scraper.STORY_SEEDS.grab_stories(category='/WTL', **kwargs)
+    stories = news_scraper.STORY_SEEDS.grab_stories('/WTL', **kwargs)
     
     if themes:
         stories = [s for s in stories
@@ -248,17 +248,15 @@ def _parse_retrieve_params(args):
         except ValueError:
             raise
     kwargs = {
-        'startDate': start,
-        'endDate': end
+        'startAt': start,
+        'endAt': end
     }
 
-    filterBy = args.get('filterby')
-    if filterBy:
-        if filterBy in firebaseio.ALLOWED_FILTERS:
-            kwargs.update({'filterBy': filterBy})
-        else:
-            raise ValueError('Argument filterby must be from {}'.format(
-                firebaseio.ALLOWED_FILTERS))
+    filterby = args.get('filterby', default=next(iter(ALLOWED_ORDERINGS)))
+    if filterby not in ALLOWED_ORDERINGS:
+        raise ValueError('Supported filterby options are {}'.format(
+            ALLOWED_ORDERINGS))
+    kwargs.update({'orderBy': filterby})
 
     themes = args.getlist('themes')
     if themes:
@@ -372,7 +370,7 @@ def _format_scraper_args():
 
 def _format_retrieve_args():
     """Produce a dict explaining retrieve args for help messaging."""
-    filters = firebaseio.ALLOWED_FILTERS
+    filters = ALLOWED_ORDERINGS
     scraper_args = {
         'Argument': {
             'daysback': ('Number of days worth of records to retrieve. ' +
@@ -384,7 +382,8 @@ def _format_retrieve_args():
         },
         'Optional arguments': {
             'themes': 'One or more from the list of known themes.',
-            'filterby': 'One of {}. Defaults to {}'.format(filters, filters[0])
+            'filterby': 'One of {}. Defaults to {}'.format(
+                filters, next(iter(filters)))
         },
         'known themes': KNOWN_THEMES_URL
     }

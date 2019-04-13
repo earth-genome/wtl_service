@@ -56,7 +56,7 @@ from story_seeds.utilities import firebaseio
 from story_seeds.utilities import log_utilities
 import track_urls
 
-STORY_SEEDS = firebaseio.DB(firebaseio.FIREBASE_URL)
+STORY_SEEDS = firebaseio.DB('story-seeds')
 
 THEMES_URL = 'https://www.floydlabs.com/serve/earthrise/projects/themes'
 
@@ -155,7 +155,7 @@ class Scrape(object):
         url = record.pop('url')
         self.url_tracker.add(url, time.time())
         try:
-            story = self.builder.assemble_content(url, category='/stories',
+            story = self.builder.assemble_content(url, category='/WTL',
                                                   **record)
         except WatsonApiException as e:
             self.logger.warning('Assembling content: {}:\n{}'.format(e, url))
@@ -188,7 +188,7 @@ class Scrape(object):
                 except WatsonApiException as e:
                     self.logger.warning('Sentiment: {}:\n{}'.format(e, url))
                     
-            STORY_SEEDS.put('/WTL', story.idx, story.record)
+            STORY_SEEDS.put_item(story)
         return 
                              
     def _gather_records(self, wires):
