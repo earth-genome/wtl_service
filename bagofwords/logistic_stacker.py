@@ -12,14 +12,15 @@ methods.
 External class: Stacker
 
 Usage:    
-    To train on BinaryBoWClassifier instances nbtext and nbimage:
+    To train on BinaryBoWClassifier instances nbtext and nbimage using
+    stories from our default databases:
     > from sklearn.linear_model import LogisticRegression
     > lstack = BinaryStacker(LogisticRegression(), nbtext, nbimage)
     > lstack.train_from_dbs(
-          neg_db=NEG_DB, pos_db=POS_DB, 
-          x_val=5, threshold=.7,
+          threshold=.7,
           hand_tune_params=HAND_TUNE_PARAMS,
-          freeze_dir=STACKER_MODEL_DIR)
+          freeze_dir='/path/to/model/dir')
+    (See train_from_dbs() below for default database parameters.)
 
     To classify a DBItem story:
     > lstack.classify_story(story)
@@ -28,7 +29,7 @@ Usage:
     > from sklearn.externals import joblib
     > import extract_text
     > import firebaseio
-    > lstack = joblib.load('/'.join((STACKER_MODEL_DIR, 'latest_model.pkl')))
+    > lstack = joblib.load('/'.join(('/path/to/model/dir', 'latest_model.pkl')))
     > record = {'url': url}
     > record.update(extract_text.get_parsed_text(url))
     > story = firebaseio.DBItem('/null', None, record)
@@ -48,9 +49,6 @@ from sklearn.model_selection import cross_val_score
 
 from bagofwords import freezer
 from utilities import firebaseio
-
-POS_DB = firebaseio.DB(firebaseio.FIREBASE_GL_URL)
-NEG_DB = firebaseio.DB(firebaseio.FIREBASE_NEG_URL)
 
 # Until image traning database sufficiently samples possible tag words,
 # we will hand tune relative text / image weights:
@@ -110,12 +108,12 @@ class Stacker(object):
         membership = (probs >= self.threshold).astype(int)
         return list(zip(membership, probs))
 
-    def predict_db(self, database):
+    def predict_db(self, database, category):
         """Return probabilities for data in a Firebase database.
 
         Returns: dict of text names and probabilities
         """
-        stories = database.grab_stories()
+        stories = database.grab_stories(category)
         probs = self.__call__(stories)
         predictions = {story.idx:prob for story,prob in zip(stories, probs)}
         return predictions
@@ -144,23 +142,27 @@ class Stacker(object):
         freezer.freeze_model(self, model_data, freeze_dir)
         return
 
-    def train_from_dbs(self,
-                       neg_db=NEG_DB, pos_db=POS_DB,
-                       threshold=.5,
-                       x_val=5,
-                       hand_tune_params=None, 
-                       freeze_dir=None):
+    def train_from_dbs(
+        self,
+        neg_db=firebaseio.DB(**firebaseio.FIREBASES['negative-training-cases']),
+        pos_db=firebaseio.DB(**firebaseio.FIREBASES['good-locations']),
+        category='/stories',
+        threshold=.5,
+        x_val=5,
+        hand_tune_params=None, 
+        freeze_dir=None):
         """Train from our Firebase databases.
 
         Arguments:
             neg_db, pos_db: firebaseio.DB instances
+            category: top-level database key
             threshold: probabilty threshold 
             x_val: integer k indicating k-fold cross-validation, or None
             hand_tune_params: array of relative weights for input_classifiers
             freeze_dir: If given, the model will be pickled to this directory
         """
-        neg = neg_db.grab_stories()
-        pos = pos_db.grab_stories()
+        neg = neg_db.grab_stories(category)
+        pos = pos_db.grab_stories(category)
         stories =  neg + pos
         labels = ([0 for _ in range(len(neg))] + [1 for _ in range(len(pos))])
         self.train(stories, labels, threshold=threshold, x_val=x_val)
@@ -192,8 +194,8 @@ class BinaryStacker(Stacker):
     def predict_story(self, story):
         return super().predict_story(story)[1]
 
-    def predict_db(self, database):
-        predictions = super().predict_db(database)
+    def predict_db(self, database, category):
+        predictions = super().predict_db(database, category)
         return {idx:probs[1] for idx, probs in predictions.items()}
 
     # Since we've overwritten predict_story, rebuild this routine instead

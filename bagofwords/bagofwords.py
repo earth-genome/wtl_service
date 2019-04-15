@@ -17,22 +17,25 @@ Classes:
     BinaryBoWClassifier: BowClassifier descendant for binary classification.
 
 Usage:
-   To train a binary MultinomailNB text model from databases (e.g. NEG_DB, POS_DB
-   below), given a path TEXT_MODEL_DIR to save the model:
-   > from sklearn.naive_bayes import MultinomialNB()
-   > nbc = BinaryBoWClassifier(MultinomailNB(), 'text')
-   > nbc.train_from_dbs(neg_db=NEG_DB, pos_db=POS_DB, threshold=.7,
-                        x_val=5, freeze_dir=TEXT_MODEL_DIR)
+    To train a binary MultinomailNB text model using stories from our 
+    default databases:
+    > from sklearn.naive_bayes import MultinomialNB()
+    > nbc = BinaryBoWClassifier(MultinomailNB(), 'text')
+    > nbc.train_from_dbs(          
+          threshold=.7,
+          hand_tune_params=HAND_TUNE_PARAMS,
+          freeze_dir='/path/to/model/dir')
+    (See train_from_dbs() below for default database parameters.)
 
-   To run the latest stored text classifer, e.g. on a url:
-   > from sklearn.externals import joblib
-   > import extract_text
-   > nbc = joblib.load('/'.join((TEXT_MODEL_DIR, 'latest_model.pkl')))
-   > text = extract_text.get_text(url)[0]
-   > nbc.predict_datum(text)
+    To run the latest stored text classifer, e.g. on a url:
+    > from sklearn.externals import joblib
+    > import extract_text
+    > nbc = joblib.load('/'.join(('/path/to/model/dir', 'latest_model.pkl')))
+    > text = extract_text.get_text(url)[0]
+    > nbc.predict_datum(text)
 
-   To run on a DBItem story:
-   > nbc.classify_story(story)
+    To run on a DBItem story:
+    > nbc.classify_story(story)
 
 """
 
@@ -42,9 +45,6 @@ from bagofwords import freezer
 from bagofwords import prep_text
 from bagofwords import prep_image
 from utilities import firebaseio
-
-POS_DB = firebaseio.DB(firebaseio.FIREBASE_GL_URL)
-NEG_DB = firebaseio.DB(firebaseio.FIREBASE_NEG_URL)
 
 DATA_TYPES = ('text', 'image_tags')
 
@@ -103,12 +103,12 @@ class BoWClassifier(object):
         """Determine probabilities for input datum (singular)."""
         return self.__call__([datum])[0]
         
-    def predict_db(self, database):
+    def predict_db(self, database, category):
         """Determine probabilities for data in a Firebase database.
 
         Returns: dict of text index and class probabilities
         """
-        idx, data = database.grab_data(data_type=self.data_type)
+        idx, data = database.grab_data(category, self.data_type)
         probs = self.__call__(data)
         return dict(zip(idx, probs))
 
@@ -158,18 +158,26 @@ class BoWClassifier(object):
         freezer.freeze_model(self, model_data, freeze_dir)
         return
 
-    def train_from_dbs(self, neg_db=NEG_DB, pos_db=POS_DB,
-                       threshold=.5, x_val=5, freeze_dir=None):
+    def train_from_dbs(
+        self,
+        neg_db=firebaseio.DB(**firebaseio.FIREBASES['negative-training-cases']),
+        pos_db=firebaseio.DB(**firebaseio.FIREBASES['good-locations']),
+        category='/stories',
+        threshold=.5,
+        x_val=5,
+        hand_tune_params=None, 
+        freeze_dir=None):
         """Train from our Firebase databases, with option to freeze model.
 
         Arguments:
             neg_db, pos_db: firebaseio.DB instances
+            category: top-level database key
             threshold: probabilty threshold 
             x_val: integer k indicating k-fold cross-validation, or None
             freeze_dir: If given, the model will be pickled to this directory
         """
-        neg = neg_db.grab_data(data_type=self.data_type)[1]
-        pos = pos_db.grab_data(data_type=self.data_type)[1]
+        neg = neg_db.grab_data(category, self.data_type)[1]
+        pos = pos_db.grab_data(category, self.data_type)[1]
         data =  neg + pos
         labels = ([0 for _ in range(len(neg))] + [1 for _ in range(len(pos))])
         self.train(data, labels, threshold=threshold, x_val=x_val)
@@ -193,8 +201,8 @@ class BinaryBoWClassifier(BoWClassifier):
     def predict_datum(self, datum):
         return super().predict_datum(datum)[1]
 
-    def predict_db(self, database):
-        predictions = super().predict_db(database)
+    def predict_db(self, database, category):
+        predictions = super().predict_db(database, category)
         return {idx:probs[1] for idx, probs in predictions.items()}
 
     def predict_story(self, story):
@@ -206,21 +214,3 @@ class BinaryBoWClassifier(BoWClassifier):
         prob = self.predict_story(story)
         membership = 1 if prob >= self.threshold else 0
         return membership, prob
-
-
-    
-
-
-"""
-# Future: If real testing becomes preferred to cross validation: 
-# (random_state=0 provides the same shuffle every time)
-from sklearn.model_selection import train_test_split
-test_frac = .1
-train_vectors, test_vectors, train_labels, test_labels = train_test_split(
-        vectors, labels, test_size=test_frac, random_state=0)
-nbc = train_model(train_vectors, train_labels, vectorizer)
-if test_vectors.shape[0] > 0:
-        score = nbc.classifier.score(test_vectors, test_labels)
-else:
-    score = None
-"""
