@@ -21,6 +21,7 @@ from harvest_urls import WIRE_URLS
 import news_scraper
 from request_thumbnails import PROVIDER_PARAMS
 from story_seeds.utilities import log_utilities
+from story_seeds.utilities import firebaseio
 from story_seeds.utilities.firebaseio import ALLOWED_ORDERINGS
 from story_seeds.utilities.geobox import us_counties
 import worker
@@ -37,6 +38,9 @@ EVP_GEOJSON = os.path.join(os.path.dirname(__file__), 'us_evpstates.json')
 BOUNDARY_TOL = .2
 
 FLOYD_INIT_FILE = '.floydexpt'
+
+DATABASE = 'story-seeds'
+DB_CATEGORY = '/WTL'
 
 @app.route('/')
 def welcome():
@@ -95,7 +99,7 @@ def retrieve():
         msg['Exception'] = repr(e)
         return jsonify(msg)
 
-    stories = news_scraper.STORY_SEEDS.grab_stories('/WTL', **kwargs)
+    stories = firebaseio.DB(DATABASE).grab_stories(DB_CATEGORY, **kwargs)
     
     if themes:
         stories = [s for s in stories
@@ -131,7 +135,7 @@ def retrieve_story():
         msg['Exception'] = repr(e)
         return jsonify(msg)
 
-    record = news_scraper.STORY_SEEDS.get('/WTL', idx)
+    record = firebaseio.DB(DATABASE).get(DB_CATEGORY, idx)
     return jsonify({idx: record})
     
 def _clean(story):

@@ -9,16 +9,24 @@ from floyd.manager.auth_config import AuthConfigManager
 from floyd.model.access_token import AccessToken
 from floyd.model.credentials import Credentials
 
+AUTH_ENV_VARS = {
+    'username': 'FLOYDHUB_USERNAME',
+    'password': 'FLOYDHUB_PASSWORD'
+}
+
 def get_client():
     """Instantiate the Floyd ExperimentClient"""
     return ExperimentClient()
     
-def login(username=os.environ['FLOYDHUB_USERNAME'],
-          password=os.environ['FLOYDHUB_PASSWORD']):
+def login(username=None, password=None):
     """Login to Floydhub and set the access token. 
 
     Returns: The Floyd user instance
     """
+    if not username:
+        username = os.environ[AUTH_ENV_VARS['username']]
+    if not password:
+        password = os.environ[AUTH_ENV_VARS['password']]
     credentials = Credentials(username=username, password=password)
 
     auth = AuthClient()

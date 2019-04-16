@@ -7,10 +7,8 @@ The class is to be called by an RQ worker, scheduled within an asyncio
 event loop.
 
 Outputs:
-    All stories and their metadata are uploaded to Firebase (STORY_SEEDS).
-
-    After classification, the best candidate stories are sent to
-    WhereToLook ('/WTL') on STORY_SEEDS.  
+    Upon acceptance by the classifier, stories are posted (by default)
+    to WhereToLook ('/WTL') on our 'story-seeds' Firebase database.
 
     Exceptions are logged.
 
@@ -56,8 +54,6 @@ from story_seeds.utilities import firebaseio
 from story_seeds.utilities import log_utilities
 import track_urls
 
-STORY_SEEDS = firebaseio.DB('story-seeds')
-
 THEMES_URL = 'https://www.floydlabs.com/serve/earthrise/projects/themes'
 
 # Logging when running locally from main:
@@ -93,6 +89,7 @@ class Scrape(object):
         thumbnail_grabber: Class instance to pull thumbnail images.
         themes_url: Web app endpoint for themes classifier.
         timeout: Timeout for aiohttp requests. (See notes above.)
+        database: Database to store accepted stories.
         url_tracker: Class instance to track scraped urls.
         logger: Exception logger.
         builder: Class instance to extract, evaluate, and post story from
@@ -105,13 +102,8 @@ class Scrape(object):
     """
 
     def __init__(
-        self,
-        batch_size=100,
-        thumbnail_source=None,
-        themes_url=THEMES_URL,
-        http_timeout=1200,
-        url_tracker=track_urls.TrackURLs(),
-        logger=log_utilities.get_stream_logger(sys.stderr),
+        self, batch_size=100, thumbnail_source=None, themes_url=THEMES_URL,
+        http_timeout=1200, database=None, url_tracker=None, logger=None,
         **kwargs):
         
         self.batch_size = batch_size
@@ -122,8 +114,18 @@ class Scrape(object):
             self.thumbnail_grabber = None
         self.themes_url = themes_url
         self.timeout = aiohttp.ClientTimeout(total=http_timeout)
-        self.url_tracker = url_tracker
-        self.logger = logger
+
+        # (basically) fixed utilities
+        self.database = database if database else firebaseio.DB('story-seeds')
+        if url_tracker:
+            self.url_tracker = url_tracker
+        else:
+            self.url_tracker = track_urls.TrackURLs()
+        if logger:
+            self.logger = logger
+        else:
+            self.logger = log_utilities.get_stream_logger(sys.stderr)
+
         self.builder = story_builder.StoryBuilder(**kwargs)
 
     async def __call__(self, wires):
@@ -183,12 +185,12 @@ class Scrape(object):
             # Experiment on sentiment:
             if 'water' in story.record.get('themes', {}):
                 try:
-                    sentiment = story_builder.extract_text.get_sentiment(url)
+                    sentiment = story_builder.reader.get_sentiment(url)
                     story.record.update({'sentiment': sentiment})
                 except WatsonApiException as e:
                     self.logger.warning('Sentiment: {}:\n{}'.format(e, url))
                     
-            STORY_SEEDS.put_item(story)
+            self.database.put_item(story)
         return 
                              
     def _gather_records(self, wires):
