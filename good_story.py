@@ -1,11 +1,11 @@
-# Add to good_locations database a story that is a good candidate to
-# be enhanced by satellite imagery.
+"""Command-line tool to add stories to training and test databases.
 
-# usage: python good_story.py http://mystory.nytimes.com [-n] [-h]
+Usage: 
+> python good_story.py http://mystory.nytimes.com [-n] [-t] [-th THEMES]
 
-# Optional flags:
-# -h: Help
-# -n: This is a negative training case.
+For options see the help:
+> python good_story.py -h 
+"""
 
 import argparse
 import json
@@ -15,7 +15,6 @@ import sys
 from story_builder import story_builder
 from utilities import firebaseio
 
-# Currently available themes
 with open('themes/known_themes.txt', 'r') as f:
     KNOWN_THEMES = [l.strip() for l in f.readlines()]
 
@@ -30,7 +29,7 @@ def good_story(url, themes, database, db_category, logfile):
     """Build and upload story created from url to firebase database."""
     builder = story_builder.StoryBuilder(classifier=None, parse_images=True)
     try:
-        story = builder(category=db_category, url=url)
+        story = builder(url, category=db_category)
     except Exception as e:
         print('While creating story: {}'.format(repr(e)))
         print('Failed to create story for url {}\n'.format(url))
@@ -79,37 +78,34 @@ if __name__ == '__main__':
     parser.add_argument(
         '-n', '--negative_case',
         action='store_true',
-        help=('Flag: This is a negative training or test case. ' +
-            '(True if set, else False.)')
+        help='Flag: This is a negative training or test case.'
     )
     parser.add_argument(
         '-t', '--test',
         action='store_true',
-        help=('Flag: This is a test rather than training story.' +
-            '(True if set, else False.)')
+        help='Flag: This is a test rather than training story.'
     )
     parser.add_argument(
         '-th', '--themes',
         action='append',
         type=str,
+        default=[],
         help='Apply a theme from {}\n'.format(KNOWN_THEMES) +
             '(Option can be used multiple times, or none.)'
     )
         
     args = parser.parse_args()
     if args.negative_case:
-        database = firebaseio.DB(
-            **firebaseio.FIREBASES['negative-training_cases'])
+        database = firebaseio.DB('negative-training-cases')
         logfile = LOG_TEST_NEG if args.test else LOG_NEG
     else:
-        database = firebaseio.DB(**firebaseio.FIREBASES['good-locations'])
+        database = firebaseio.DB('good-locations')
         logfile = LOG_TEST_POS if args.test else LOG_POS
     db_category = '/test' if args.test else '/stories'
-    themes = args.themes if args.themes else []
-    if not set(themes).issubset(KNOWN_THEMES):
+
+    if not set(args.themes).issubset(KNOWN_THEMES):
         query = input('Themes {} are not from {}'.format(
-            themes, KNOWN_THEMES) + '\nContinue? [y/n] ')
-        if query.lower() != 'y':
+            args.themes, KNOWN_THEMES) + '\nContinue? [y/n] ')
+        if query.strip().lower() != 'y':
             sys.exit('Exiting...')
-    story = good_story(
-        args.url, themes, database, db_category, logfile)
+    story = good_story(args.url, args.themes, database, db_category, logfile)
