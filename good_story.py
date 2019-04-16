@@ -28,23 +28,13 @@ LOG_TEST_NEG = 'sat_neg_test.txt'
 def good_story(url, themes, database, db_category, logfile):
     """Build and upload story created from url to firebase database."""
     builder = story_builder.StoryBuilder(classifier=None, parse_images=True)
-    try:
-        story = builder(url, category=db_category)
-    except Exception as e:
-        print('While creating story: {}'.format(repr(e)))
-        print('Failed to create story for url {}\n'.format(url))
-        raise
+    story = builder(url, category=db_category)
     story.record.update({'themes': themes})
-    try:
-        database.put_item(story)
-        log_url(url, logfile)
-        if check_sat(story.record['text']):
-            log_url(url, LOG_SAT)
-    except Exception as e:
-        print('While posting story: {}'.format(repr(e)))
-        print('Failed to post story for url {}\n'.format(url))
-        raise
-    return 
+    database.put_item(story)
+    
+    log_url(url, logfile)
+    if check_sat(story.record['text']):
+        log_url(url, LOG_SAT)
 
 def log_url(url, logfile):
     """Local logging of urls."""
@@ -56,15 +46,10 @@ def log_url(url, logfile):
             lines = [l.strip() for l in f]
             if url not in lines:
                 f.write(url+'\n')
-    return
 
 def check_sat(text, chars='satellite'):
-    """Check whether the word '(S)satellite' appears in text.
-    """
-    if chars in text.lower():
-        return True
-    else:
-        return False
+    """Check whether the word '(S)satellite' appears in text."""
+    return chars in text.lower()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
