@@ -14,8 +14,6 @@ import sys
 
 from utilities import firebaseio
 
-STORY_SEEDS = firebaseio.DB(**firebaseio.FIREBASES['story-seeds'])
-
 if __name__ == '__main__':
 
     try: 
@@ -28,7 +26,7 @@ if __name__ == '__main__':
     end = today + datetime.timedelta(days=1)
     start = today - datetime.timedelta(days=daysback)
 
-    stories = STORY_SEEDS.grab_stories(
+    stories = firebaseio.DB('story-seeds').grab_stories(
         category='/WTL',
         orderBy='scrape_date',
         startAt=start.isoformat(),

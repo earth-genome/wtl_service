@@ -143,26 +143,23 @@ class Stacker(object):
         return
 
     def train_from_dbs(
-        self,
-        neg_db=firebaseio.DB(**firebaseio.FIREBASES['negative-training-cases']),
-        pos_db=firebaseio.DB(**firebaseio.FIREBASES['good-locations']),
-        category='/stories',
-        threshold=.5,
-        x_val=5,
-        hand_tune_params=None, 
+        self, neg_db='negative-training-cases', pos_db='good-locations',
+        category='/stories', threshold=.5, x_val=5, hand_tune_params=None, 
         freeze_dir=None):
         """Train from our Firebase databases.
 
         Arguments:
-            neg_db, pos_db: firebaseio.DB instances
+            neg_db, pos_db: named databases, from firebaseio.FIREBASES
             category: top-level database key
             threshold: probabilty threshold 
             x_val: integer k indicating k-fold cross-validation, or None
             hand_tune_params: array of relative weights for input_classifiers
             freeze_dir: If given, the model will be pickled to this directory
         """
-        neg = neg_db.grab_stories(category)
-        pos = pos_db.grab_stories(category)
+        neg_client = firebaseio.DB(neg_db)
+        pos_client = firebaseio.DB(pos_db)
+        neg = neg_client.grab_stories(category)
+        pos = pos_client.grab_stories(category)
         stories =  neg + pos
         labels = ([0 for _ in range(len(neg))] + [1 for _ in range(len(pos))])
         self.train(stories, labels, threshold=threshold, x_val=x_val)
