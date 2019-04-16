@@ -35,7 +35,7 @@ def newsapi():
         for article in articles:
             metadata = {k:v for k,v in article.items() if k in
                         ('url', 'title', 'description')}
-            if 'publishedAt' in article.keys():
+            if 'publishedAt' in article:
                 metadata.update({
                     'publication_date': article['publishedAt']
                 })

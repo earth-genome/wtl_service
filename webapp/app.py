@@ -17,9 +17,9 @@ from rq import Queue
 import shapely
 
 import floyd_login
-import harvest_urls
+from harvest_urls import WIRE_URLS
 import news_scraper
-import request_thumbnails
+from request_thumbnails import PROVIDER_PARAMS
 from story_seeds.utilities import log_utilities
 from story_seeds.utilities.firebaseio import ALLOWED_ORDERINGS
 from story_seeds.utilities.geobox import us_counties
@@ -225,15 +225,13 @@ def _parse_scrape_params(args):
         'thumbnail_timeout': args.get('thumbnail_timeout')
     }
     
-    if not wires or not set(wires) <= set(harvest_urls.WIRE_URLS.keys()):
-        raise ValueError('Supported wire are {}'.format(
-            set(harvest_urls.WIRE_URLS.keys())))
+    if not wires or not set(wires) <= set(WIRE_URLS):
+        raise ValueError('Supported wire are {}'.format(set(WIRE_URLS)))
     
-    known_grabbers = set(request_thumbnails.PROVIDER_PARAMS.keys())
     tns = kwargs['thumbnail_source']
-    if tns and tns not in known_grabbers:
+    if tns and tns not in PROVIDER_PARAMS:
         raise ValueError('thumbnail_source must be from {}'.format(
-            known_grabbers))
+            set(PROVIDER_PARAMS)))
 
     kwargs = {k:v for k,v in kwargs.items() if v is not None}
     return wires, kwargs
@@ -353,12 +351,10 @@ def _format_scraper_args():
     """Produce a dict explaining scraper args for help messaging."""
     scraper_args = {
         'Argument': {
-            'wires': 'One or more of {}'.format(
-                set(harvest_urls.WIRE_URLS.keys()))
+            'wires': 'One or more of {}'.format(set(WIRE_URLS))
         },
         'Optional arguments': {
-            'thumbnail_source': 'One of {}'.format(
-                set(request_thumbnails.PROVIDER_PARAMS.keys())),
+            'thumbnail_source': 'One of {}'.format(set(PROVIDER_PARAMS)),
             'thumbnail_timeout': 'Integer number of seconds',
             'batch_size': ('Integer number of records to gather for ' +
                 'asynchronous processing.'),
