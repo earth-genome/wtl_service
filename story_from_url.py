@@ -9,7 +9,7 @@ Usage: python story_from_url.py http://story.nytimes.com
 import json
 import sys
 
-from story_builder.story_builder import StoryBuilder
+from story_builder import story_builder
 
 if __name__ == '__main__':
     try:
@@ -18,7 +18,7 @@ if __name__ == '__main__':
         print('Exiting.  No url specified.')
         print('Usage: python story_from_url.py http://story.nytimes.com')
         sys.exit()
-    builder = StoryBuilder(parse_images=True)
+    builder = story_builder.StoryBuilder()
     story = builder(url=url)
     savename = story.idx[:30]+'.json'
     with open(savename, 'w') as f:

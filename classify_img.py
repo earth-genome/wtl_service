@@ -11,7 +11,7 @@ from sklearn.externals import joblib
 
 from story_builder import tag_image
 
-CLASSIFIER = joblib.load('bagofwords/NBimage_models/latest_model.pkl')
+MODEL = 'bagofwords/NBimage_models/latest_model.pkl'
 
 if __name__ == '__main__':
     try:
@@ -20,5 +20,6 @@ if __name__ == '__main__':
         print('Exiting.  No url specified.')
         print('Usage: python classify_img.py http://url.to.image.jpg')
         sys.exit()
-    tags = tag_image.get_tags(url)
-    print('\nProbability: {:.3f}\n'.format(CLASSIFIER.predict_datum(tags)))
+    tags = tag_image.WatsonTagger().get_tags(url)
+    classifier = joblib.load(MODEL)
+    print('\nProbability: {:.3f}\n'.format(classifier.predict_datum(tags)))

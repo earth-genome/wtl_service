@@ -10,7 +10,7 @@ from sklearn.externals import joblib
 
 from story_builder import extract_text
 
-CLASSIFIER = joblib.load('bagofwords/NBtext_models/latest_model.pkl')
+MODEL = 'bagofwords/NBtext_models/latest_model.pkl'
 
 if __name__ == '__main__':
     try:
@@ -19,5 +19,6 @@ if __name__ == '__main__':
         print('Exiting.  No url specified.')
         print('Usage: python classify_url_text.py http://story.nytimes.com')
         sys.exit()
-    text = extract_text.get_text(url)[0]
-    print('\nProbability: {:.3f}\n'.format(CLASSIFIER.predict_datum(text)))
+    text = extract_text.WatsonReader().get_text(url)[0]
+    classifier = joblib.load(MODEL)
+    print('\nProbability: {:.3f}\n'.format(classifier.predict_datum(text)))

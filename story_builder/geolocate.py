@@ -76,12 +76,12 @@ class Geolocate(object):
         __call__: Geocode, cluster, and score input places.
         assemble_geocodings: Find geo-coordinates with geocoders in sequence.
     """
-    def __init__(self,
-                 geocoders=[geocode.CageCode()],
-                 cluster_tool=geocluster.GrowGeoCluster(),
-                 classifier=None):
-        self.geocoders = geocoders
-        self.cluster_tool = cluster_tool
+    def __init__(self, geocoders=[], cluster_tool=None, classifier=None):
+        self.geocoders = geocoders if geocoders else [geocode.CageCode()]
+        if cluster_tool:
+            self.cluster_tool = cluster_tool
+        else:
+            self.cluster_tool = geocluster.GrowGeoCluster()
         # Temporary ad hoc scoring
         self.classifier = self._score
         #self.classifier = classifier
@@ -99,8 +99,8 @@ class Geolocate(object):
         for cluster in clusters:
             for name, data in cluster.items():
                 data.update({
-                    'cluster': list(cluster.keys()),
-                    'cluster_ratio': (len(cluster), len(candidates)),
+                    'cluster': list(cluster),
+                    'cluster_ratio': len(cluster)/len(candidates),
                     **places[name]
                 })
                 if self.classifier:

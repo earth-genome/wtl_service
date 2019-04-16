@@ -29,9 +29,9 @@ Usage:
 
     To run the latest stored text classifer, e.g. on a url:
     > from sklearn.externals import joblib
-    > import extract_text
-    > nbc = joblib.load('/'.join(('/path/to/model/dir', 'latest_model.pkl')))
-    > text = extract_text.get_text(url)[0]
+    > from extract_text import WatsonReader
+    > nbc = joblib.load(os.path.join('/path/to/model/dir', 'latest_model.pkl'))
+    > text = WatsonReader().get_text(url)[0]
     > nbc.predict_datum(text)
 
     To run on a DBItem story:

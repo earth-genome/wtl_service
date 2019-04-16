@@ -2,16 +2,14 @@
 
 External class: StoryBuilder
 
-Usage, with default CLASSSIFIER:
-> metadata = {'date_published': '2018-03-28', ...} #optional records for story
+Usage, with default MODEL as classifier:
+> metadata = {'publication_date': '2018-03-28', ...} # optional 
 > builder = StoryBuilder()
 > story = builder(url, **metadata)
 
-The CLASSIFIER variable loads a pickled classifier, which has method
-classify_story() that operates on an instance of the firebaseio.DBItem class.
-
 """
 import datetime
+from inspect import getsourcefile
 import json
 import os
 
@@ -22,21 +20,21 @@ from story_builder import geolocate
 from story_builder import tag_image
 from utilities import firebaseio
 
-CLASSIFIER = joblib.load(os.path.join(os.path.dirname(__file__),
-    '../bagofwords/Stacker_models/latest_model.pkl'))
-PARSE_IMAGES = True  # generally set True if CLASSIFIER processes image tags;
-    # otherwise the image contribution to classfier will have prob ~50%
-    # (cf. current Stacker thresholds ~75%.) 
+# Default classifier
+current_dir = os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
+MODEL = os.path.join(os.path.dirname(current_dir),
+                     'bagofwords/Stacker_models/latest_model.pkl')
 
 class StoryBuilder(object):
     """Parse text and/or image at url, classify story, and geolocate places
         mentioned.
 
     Attributes:
-        classifier: restored instance of (e.g. naivebayes or logistic
-            stacking) classifier
-        parse_images: True for classifier to operate on image tags, else False
-        geolocator: instance of geolocate.Geolocate() class
+        reader: instance of extract_text.WatsonReader class (required)
+        image_tagger: instance of tag_image.WatsonTagger class, or None
+        model: path to a pickled (e.g. naivebayes or logistic stacking) 
+            classifier, or None
+        geolocator: instance of geolocate.Geolocate class, or None
 
     Methods:
         __call__: Build a story from url.
@@ -44,11 +42,12 @@ class StoryBuilder(object):
         run_classifier: Classify story.
         run_geolocation: Geolocate places mentioned in story.
     """
-    def __init__(self, classifier=CLASSIFIER, parse_images=PARSE_IMAGES,
-                 geolocator=geolocate.Geolocate()):
-        self.classifier = classifier
-        self.parse_images = parse_images
-        self.geolocator = geolocator
+    def __init__(self, reader=None, parse_images=True, model=MODEL,
+                 geolocating=True):
+        self.reader = reader if reader else extract_text.WatsonReader()
+        self.image_tagger = tag_image.WatsonTagger() if parse_images else None
+        self.classifier = joblib.load(model) if model else None
+        self.geolocator = geolocate.Geolocate() if geolocating else None
 
     def __call__(self, url, category='/null', **metadata):
         """Build a story from url.
@@ -64,7 +63,8 @@ class StoryBuilder(object):
         if self.classifier:
             classification, probability = self.run_classifier(story)
             story.record.update({'probability': probability})
-        story = self.run_geolocation(story)
+        if self.geolocator:
+            story = self.run_geolocation(story)
         return story
 
     def assemble_content(self, url, category='/null', **metadata):
@@ -82,10 +82,12 @@ class StoryBuilder(object):
         record.update({
             'scrape_date': datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
         })
-        record.update(extract_text.get_parsed_text(url))
+        record.update(self.reader.get_parsed_text(url))
 
-        if self.parse_images and record.get('image'):
-            record.update({'image_tags': tag_image.get_tags(record['image'])})
+        if self.image_tagger and record.get('image'):
+            record.update({
+                'image_tags': self.image_tagger.get_tags(record['image'])
+            })
             
         return firebaseio.DBItem(category, None, record)
 
@@ -128,21 +130,22 @@ class StoryBuilder(object):
 
         try:
             story.record.update({
-                'core_location': _get_top(story.record['locations'])
+                'core_location': self._get_top(story.record['locations'])
             })
         except KeyError:
             pass
         return story
 
-def _get_top(locations):
-    """Return a cleaned version of the top scored location."""
-    try:
-        ranked = sorted(locations.items(), key=lambda item:item[1]['score'],
-                        reverse=True)
-        name, data = next(iter(ranked))
-    except (KeyError, StopIteration):
-        return {}
-    
-    cleaned = {k:v for k,v in data.items() if k in
-        ['boundingbox', 'lat', 'lon', 'mentions', 'osm_url', 'score', 'text']}
-    return cleaned
+    def _get_top(self, locations):
+        """Return a cleaned version of the top scored location."""
+        try:
+            ranked = sorted(locations.items(), key=lambda item:item[1]['score'],
+                            reverse=True)
+            name, data = next(iter(ranked))
+        except (KeyError, StopIteration):
+            return {}
+
+        keys_to_keep = ['boundingbox', 'lat', 'lon', 'mentions', 'osm_url',
+                        'score', 'text']
+        cleaned = {k:v for k,v in data.items() if k in keys_to_keep}
+        return cleaned

@@ -27,11 +27,12 @@ Usage:
 
     To restore and run on a url:
     > from sklearn.externals import joblib
-    > import extract_text
+    > from extract_text import WatsonReader
     > import firebaseio
-    > lstack = joblib.load('/'.join(('/path/to/model/dir', 'latest_model.pkl')))
+    > lstack = joblib.load(
+           os.path.join('/path/to/model/dir', 'latest_model.pkl'))
     > record = {'url': url}
-    > record.update(extract_text.get_parsed_text(url))
+    > record.update(WatsonReader().get_parsed_text(url))
     > story = firebaseio.DBItem('/null', None, record)
     > lstack.classify_story(story)
 

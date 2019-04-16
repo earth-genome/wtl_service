@@ -11,9 +11,7 @@ from sklearn.externals import joblib
 
 from story_builder import story_builder
 
-CLASSIFIER = joblib.load('bagofwords/Stacker_models/latest_model.pkl')
-
-PARSE_IMAGES = True
+MODEL = 'bagofwords/Stacker_models/latest_model.pkl'
 
 if __name__ == '__main__':
     try:
@@ -22,6 +20,8 @@ if __name__ == '__main__':
         print('Exiting.  No url specified.')
         print('Usage: python nbclassify_url.py http://story.nytimes.com')
         sys.exit()
-    builder = story_builder.StoryBuilder(classifier=None, parse_images=True)
+    builder = story_builder.StoryBuilder(parse_images=True, model=None, 
+                                         geolocating=False)
     story = builder.assemble_content(url)
-    print('\nProbability: {:.3f}\n'.format(CLASSIFIER.predict_story(story)))
+    classifier = joblib.load(MODEL)
+    print('\nProbability: {:.3f}\n'.format(classifier.predict_story(story)))

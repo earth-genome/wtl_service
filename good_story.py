@@ -27,7 +27,7 @@ LOG_TEST_NEG = 'sat_neg_test.txt'
 
 def good_story(url, themes, database, db_category, logfile):
     """Build and upload story created from url to firebase database."""
-    builder = story_builder.StoryBuilder(classifier=None, parse_images=True)
+    builder = story_builder.StoryBuilder(model=None, parse_images=True)
     story = builder(url, category=db_category)
     story.record.update({'themes': themes})
     database.put_item(story)

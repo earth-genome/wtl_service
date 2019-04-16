@@ -5,7 +5,7 @@ Class: ThemeClassifier
 This class descends from bagofwords.BoWClassifier, specializing as follows:
 -- A default estimator (sklearn MLPClassifier) is proposed in __init__
 -- The data_type is fixed to 'text'
--- Training happens only on a single database (defaults to bagofwords.POS_DB)
+-- Training happens only on a single database (defaults to 'good-locations')
 -- Methods are provided to extract string themes from the output vector
     probabilities provided by BoWClassifier methods
 
@@ -25,6 +25,7 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import MultiLabelBinarizer
 
 from bagofwords import bagofwords
+from utilities import firebaseio
 
 THRESHOLD = .1
     
@@ -41,14 +42,15 @@ class ThemeClassifier(bagofwords.BoWClassifier):
         train_from_db: Train from our Firebase database, with option to
             freeze model (overwrites parent method).  
     """
-    def __init__(self,
-        estimator=OneVsRestClassifier(
-            MLPClassifier(
-                hidden_layer_sizes=(100,),
-                activation='logistic',
-                solver='lbfgs',
-                warm_start=True,
-                verbose=True))):
+    def __init__(self, estimator=None):
+        if not estimator:
+            estimator = OneVsRestClassifier(
+                MLPClassifier(
+                    hidden_layer_sizes=(100,),
+                    activation='logistic',
+                    solver='lbfgs',
+                    warm_start=True,
+                    verbose=True))
         super().__init__(estimator, data_type='text')
         
     def predict_text_themes(self, text):
@@ -61,17 +63,18 @@ class ThemeClassifier(bagofwords.BoWClassifier):
         probs = self.predict_story(story)
         return self._extract_themes(probs)
 
-    def train_from_dbs(self, db=bagofwords.POS_DB, threshold=THRESHOLD,
+    def train_from_dbs(self, database='good-locations', threshold=THRESHOLD,
                        x_val=None, freeze_dir=None):
         """Train from our Firebase database, with option to freeze model.
 
         Arguments:
-            db: firebaseio.DB instance
+            database: named database, from firebaseio.FIREBASES
             threshold: probabilty threshold 
             x_val: integer k indicating k-fold cross-validation, or None
             freeze_dir: If given, the model will be pickled to this directory
         """
-        stories = db.grab_stories()
+        db_client = firebaseio.DB(database)
+        stories = db_client.grab_stories()
         texts = [s.record['text'] for s in stories]
         labels = [s.record['themes'] if 'themes' in s.record.keys() else []
                   for s in stories]

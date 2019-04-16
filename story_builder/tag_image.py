@@ -1,7 +1,12 @@
-"""Apply Watson Vision Recognition to tag an image with keywords describing
-its subject matter.
+"""Apply Watson Vision Recognition to identify objects, qualities, and themes 
+in web-based images.
 
-External function: get_tags
+Class WatsonTagger, descendant of wdc.VisualRecognitionV3
+    External method: get_tags
+
+Usage: 
+> tags = WatsonTagger().get_tags(img_url)
+
 """ 
 
 import json
@@ -12,42 +17,50 @@ import watson_developer_cloud as wdc
 
 from utilities.firebaseio import FB_FORBIDDEN_CHARS
 
-SERVICE = wdc.VisualRecognitionV3(
-    '2018-03-19',
-    iam_apikey=os.environ['WATSON_VISION_API_KEY'])
+API_KEY_ENV_VAR = 'WATSON_VISION_API_KEY'
 
 EXCLUDED_TAG_WORDS = ['color']
 
-def get_tags(img_url):
-    """Apply Watson Vision Recognition to tag image with class names.
+class WatsonTagger(wdc.VisualRecognitionV3):
+    """Class to identify objects, qualities, and themes in images.
 
-    Argument: Url pointing to image.
+    Descendant external method:
+        get_tags: Apply Watson Vision Recognition to label an image.
+
+    """
+    def __init__(self, version='2018-03-19', apikey=None):
+        if not apikey:
+            apikey = os.environ[API_KEY_ENV_VAR]
+        super().__init__(version, iam_apikey=apikey)
     
-    Returns:  Dict of class names and relevance scores.
-    """
-    try:
-        result = SERVICE.classify(url=img_url).get_result()
-        classlist = result['images'][0]['classifiers'][0]['classes']
-    except (wdc.WatsonApiException, IndexError, KeyError) as e:
-        print('Tagging image: {}'.format(repr(e)))
-        classlist = []
+    def get_tags(self, img_url):
+        """Apply Watson Vision Recognition to label content of image.
+    
+        Returns:  Dict of class names and relevance scores.
+        """
+        try:
+            result = self.classify(url=img_url).get_result()
+            classlist = result['images'][0]['classifiers'][0]['classes']
+        except (wdc.WatsonApiException, IndexError, KeyError) as e:
+            print('Tagging image: {}'.format(repr(e)))
+            classlist = []
         
-    return clean_tags(classlist)
+        return self._clean_tags(classlist)
 
-def clean_tags(classlist):
-    """Clean classlist to various specs.
+    def _clean_tags(self, classlist):
+        """Clean classlist to various specs.
 
-    The function removes Firebase forbidden characters, simplifies the
-        data structure, and filters against EXCLUDED_TAG_WORDS.
+        The function removes Firebase forbidden characters, simplifies the
+            data structure, and filters against EXCLUDED_TAG_WORDS.
 
-    Argument classlist: list of dicts with keys 'class' and 'score'
+        Argument classlist: list of dicts with keys 'class' and 'score'
 
-    Returns: dict
-    """
-    tags = {
-        re.sub(FB_FORBIDDEN_CHARS, '', c['class']):c['score']
-        for c in classlist
-    }
-    for excl in EXCLUDED_TAG_WORDS:
-        tags = {k:v for k,v in tags.items() if excl not in k}
-    return tags
+        Returns: dict
+        """
+        tags = {
+            re.sub(FB_FORBIDDEN_CHARS, '', c['class']):c['score']
+            for c in classlist
+        }
+        for excl in EXCLUDED_TAG_WORDS:
+            tags = {k:v for k,v in tags.items() if excl not in k}
+        return tags
