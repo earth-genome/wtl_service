@@ -21,7 +21,7 @@ if __name__ == '__main__':
         print('Usage: python nbclassify_url.py http://story.nytimes.com')
         sys.exit()
     builder = story_builder.StoryBuilder(parse_images=True, model=None, 
-                                         geolocating=False)
+                                         geoloc=False)
     story = builder.assemble_content(url)
     classifier = joblib.load(MODEL)
     print('\nProbability: {:.3f}\n'.format(classifier.predict_story(story)))

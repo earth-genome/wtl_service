@@ -47,8 +47,8 @@ import nltk
 import numpy as np
 from shapely import geometry
 
-from story_builder import geocode
-from story_builder import geocluster
+from geolocation import geocode
+from geolocation import geocluster
 from utilities.geobox import geobox
 
 def find_mentions(place, text, limit=6):

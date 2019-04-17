@@ -15,8 +15,8 @@ import os
 
 from sklearn.externals import joblib
 
+from geolocation import geolocate
 from story_builder import extract_text
-from story_builder import geolocate
 from story_builder import tag_image
 from utilities import firebaseio
 
@@ -43,11 +43,11 @@ class StoryBuilder(object):
         run_geolocation: Geolocate places mentioned in story.
     """
     def __init__(self, reader=None, parse_images=True, model=MODEL,
-                 geolocating=True):
+                 geoloc=True):
         self.reader = reader if reader else extract_text.WatsonReader()
         self.image_tagger = tag_image.WatsonTagger() if parse_images else None
         self.classifier = joblib.load(model) if model else None
-        self.geolocator = geolocate.Geolocate() if geolocating else None
+        self.geolocator = geolocate.Geolocate() if geoloc else None
 
     def __call__(self, url, category='/null', **metadata):
         """Build a story from url.
