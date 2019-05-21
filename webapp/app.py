@@ -28,6 +28,7 @@ import worker
 
 q = Queue('default', connection=worker.connection, default_timeout=86400)
 app = Flask(__name__)
+app.config['JSON_SORT_KEYS'] = False
 
 KNOWN_THEMES_URL = news_scraper.THEMES_URL + '/known_themes'
 
@@ -48,7 +49,7 @@ def welcome():
         'endpoints, each of which takes required and optional arguments. ' +
         'Hit one of these urls to see specific argument formatting.')
     msg = {
-        'Advertisement': welcome,
+        'Welcome': welcome,
         'Scrape news wires for stories':
             ''.join((request.url, 'scrape?')),
         'Retrieve stories posted to the WTL database':
@@ -142,23 +143,24 @@ def _clean(story):
     """Curate story data for web presentation."""
     title = story.record.get('title', '')
     themes = story.record.get('themes', {})
-    try:
-        loc = story.record['core_location']
-        latlon = [loc['lat'], loc['lon']]
-    except KeyError:
-        latlon = []
+    location = story.record.get('core_location', {})
+    if location:
+        location = {
+            'name': location.get('text', ''),
+            'latlon': [location.get('lat'), location.get('lon')]
+        }
     rec = {
-        'Source url': story.record['url'],
-        'title': title,
-        'themes': themes,
-        'latlon': latlon,
+        'Title': title,
+        'Source url': story.record.get('url'),
+        'Location': location,
+        'Themes': themes,
         'Full record': request.url_root + 'retrieve-story?idx={}'.format(
             urllib.parse.quote(story.idx))
     }
 
     # Experiment on sentiment:
     if 'water' in themes:
-        rec.update({'sentiment': story.record.get('sentiment', {})})
+        rec.update({'Sentiment': story.record.get('sentiment', {})})
     return rec
 
 @app.route('/us-geojsons')
