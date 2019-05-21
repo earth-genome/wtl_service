@@ -144,15 +144,12 @@ def _clean(story):
     title = story.record.get('title', '')
     themes = story.record.get('themes', {})
     location = story.record.get('core_location', {})
-    if location:
-        location = {
-            'name': location.get('text', ''),
-            'latlon': [location.get('lat'), location.get('lon')]
-        }
+
     rec = {
         'Title': title,
         'Source url': story.record.get('url'),
-        'Location': location,
+        'Location': location.get('text', ''),
+        'Latlon': [location.get('lat'), location.get('lon')],
         'Themes': themes,
         'Full record': request.url_root + 'retrieve-story?idx={}'.format(
             urllib.parse.quote(story.idx))
