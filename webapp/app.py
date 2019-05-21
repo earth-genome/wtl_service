@@ -143,13 +143,13 @@ def _clean(story):
     """Curate story data for web presentation."""
     title = story.record.get('title', '')
     themes = story.record.get('themes', {})
-    location = story.record.get('core_location', {})
+    loc = story.record.get('core_location', {})
 
     rec = {
         'Title': title,
         'Source url': story.record.get('url'),
-        'Location': location.get('text', ''),
-        'Latlon': [location.get('lat'), location.get('lon')],
+        'Location': loc.get('text', ''),
+        'Latlon': [loc.get('lat'), loc.get('lon')] if loc else [],
         'Themes': themes,
         'Full record': request.url_root + 'retrieve-story?idx={}'.format(
             urllib.parse.quote(story.idx))
