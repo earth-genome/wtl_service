@@ -185,7 +185,7 @@ class Scrape(object):
             # Experiment on sentiment:
             if 'water' in story.record.get('themes', {}):
                 try:
-                    sentiment = story_builder.reader.get_sentiment(url)
+                    sentiment = self.builder.reader.get_sentiment(url)
                     story.record.update({'sentiment': sentiment})
                 except WatsonApiException as e:
                     self.logger.warning('Sentiment: {}:\n{}'.format(e, url))
