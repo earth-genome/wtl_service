@@ -51,7 +51,9 @@ from geolocation import geocode
 from geolocation import geocluster
 from utilities.geobox import geobox
 
-def find_mentions(place, text, limit=6):
+MAX_MENTIONS = 6
+
+def find_mentions(place, text, limit=MAX_MENTIONS):
     """Extract sentences where place is mentioned in text.
     
     Arguments:
