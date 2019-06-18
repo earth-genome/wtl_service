@@ -1,25 +1,37 @@
 """Class to run the TensorFlow Universal Sentence Encoder to create dense
 vector representations of text sentences.
 
-Usage. On init the class requires a TensorFlow session, e.g. from within a 
+Usage. On init the class requires a TensorFlow session. From within a 
 context manager:
 
-with tf.Session() as sess:
-    coder = TFSentenceEncoder(sess)
-    vectors = coder(sentences)
+> with tf.Session() as sess:
+>     coder = TFSentenceEncoder(sess)
+>     vectors = coder(sentences)
+
+Or: 
+> sess = tf.Session()
+> coder = TFSentenceEncoder(sess)
+> vectors = coder(sentences)
+> sess.close()
 
 The class also requires a large (>1GB) TensorFlow module. The module can be 
 cached locally and persistently by setting environment variable 
 TFHUB_CACHE_DIR. If TFHUB_CACHE_DIR remains set, on a call to
-hub.Module with the MODULE_URL, the routine will check
-TFHUB_CACHE_DIR for the module before re-downloading.
+hub.Module with the MODULE_URL, the routine will check TFHUB_CACHE_DIR 
+for the module before re-downloading.
+
+The __init__ can run several tens of seconds in building the TensorFlow 
+graph for the large module. However, execution of encode() is fast. 
+Before re-initializing the class, it is helpful also to reset the TF default 
+graph: 
+> tf.reset_default_graph()
+
+
 """
 
 import numpy as np
 import tensorflow as tf
 import tensorflow_hub as hub
-
-from geolocation.geolocate import MAX_MENTIONS
 
 MODULE_URL = 'https://tfhub.dev/google/universal-sentence-encoder/2'
 
@@ -31,7 +43,7 @@ def trim_and_pad(sentences, N):
     return trimmed
 
 class TFSentenceEncoder(object):
-    """Create high-dimensional vector representations of text sentences. 
+    """Create dense vector representations of text sentences. 
 
     External methods:
         __call__: Compute a numerical representation of texts.
@@ -39,33 +51,30 @@ class TFSentenceEncoder(object):
     Attributes:
         placeholders: placeholder for input text sentences
         graph_embeds: tensor of placeholder sentences
-        session: TensorFlow session 
+        session: instance of tf.Session() 
+        pad_to: Integer number of sentences to trim and pad to.
         
     """
-    def __init__(self, session, module_url=MODULE_URL):
+    def __init__(self, session, module_url=MODULE_URL, pad_to=None):
         encoder = hub.Module(module_url)
         self.placeholders = tf.placeholder(dtype=tf.string, shape=[None])
         self.graph_embeds = encoder(self.placeholders)
         self.session = session
         self.session.run([tf.global_variables_initializer(),
                           tf.tables_initializer()])
+        self.pad_to = pad_to
         
-    def encode(self, mentions, pad_to=MAX_MENTIONS):
-        """Compute a numerical representation of texts.
+    def encode(self, sentences):
+        """Compute a numerical representation of sentences.
 
-        Arguments:
-            mentions: list of strings
-            pad_to: If not None, trim and pad mentions to this number of 
-                strings.
+        Argument sentences: list of strings
 
-        Returns: Array of floats, with first dimension of size len(mentions)
+        Returns: Array of floats, with first dimension of size len(sentences)
         """
-        if pad_to:
-            mentions = trim_and_pad(mentions, pad_to)
-            #tokens = np.array(trim_and_pad(mentions, pad_to))
-        #else:
-        #    tokens = np.array(mentions)
-        tokens = np.array(' '.join(mentions))
+        if self.pad_to:
+            tokens = np.array(trim_and_pad(sentences, self.pad_to))
+        else:
+            tokens = np.array(sentences)
         vectors = self.session.run(
             self.graph_embeds, feed_dict={self.placeholders: tokens.flatten()})
         return vectors.reshape(*tokens.shape, vectors.shape[-1])
