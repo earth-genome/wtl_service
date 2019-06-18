@@ -4,15 +4,15 @@ vector representations of text sentences.
 Usage. On init the class requires a TensorFlow session. From within a 
 context manager:
 
-> with tf.Session() as sess:
->     coder = TFSentenceEncoder(sess)
+> with tf.Session() as session:
+>     coder = TFSentenceEncoder(session, pad_to=6)
 >     vectors = coder(sentences)
 
 Or: 
-> sess = tf.Session()
-> coder = TFSentenceEncoder(sess)
+> session = tf.Session()
+> coder = TFSentenceEncoder(session, pad_to=6)
 > vectors = coder(sentences)
-> sess.close()
+> sesions.close()
 
 The class also requires a large (>1GB) TensorFlow module. The module can be 
 cached locally and persistently by setting environment variable 
