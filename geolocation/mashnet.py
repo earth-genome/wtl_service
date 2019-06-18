@@ -6,6 +6,7 @@ from collections import Counter
 import datetime
 from inspect import getsourcefile
 import os
+import sys
 
 from keras.callbacks import ModelCheckpoint, TensorBoard
 import numpy as np
@@ -14,7 +15,10 @@ from sklearn.externals import joblib
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelBinarizer
 
-from geolocation import sentence_encoder
+current_dir = os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
+sys.path.insert(1, os.path.dirname(current_dir))
+from geolocation.geolocate import MAX_MENTIONS
+import sentence_encoder
 from utilities.geobox import geobox
 
 def tvt_split(locations_data, val_frac=.15, test_frac=.15, save_file=None):
@@ -31,11 +35,13 @@ class MashNet(object):
 
     def __init__(self, model, session, binarizer=None, vectorizer=None):
         self.estimator = model
+        self.num_losses = len(model.loss_functions)
         self.binarizer = binarizer if binarizer else LabelBinarizer()
         if vectorizer:
             self.vectorizer = vectorizer
         else:
-            self.vectorizer = sentence_encoder.TFSentenceEncoder(session)
+            self.vectorizer = sentence_encoder.TFSentenceEncoder(
+                session, pad_to=MAX_MENTIONS)
 
     #def __enter__(self):
     #    return self
@@ -47,10 +53,16 @@ class MashNet(object):
         features, _ = self.prep_features(locations_data)
         probabilities = self.estimator.predict(features)
         return probabilities
+
+    def predict_final(self, locations_data):
+        if self.num_losses > 1:
+            return self.predict(locations_data)[-1]
+        else:
+            return self.predict(locations_data)
     
     def predict_labels(self, locations_data):
         features, _ = self.prep_features(locations_data)
-        probabilities = self.estimator.predict(features)
+        probabilities = self.predict_final(features)
         labelings = []
         for loc_probs in probabilities:
             labeling = {c:p for c,p in zip(self.binarizer.classes_, loc_probs)}
@@ -66,7 +78,8 @@ class MashNet(object):
     def test(self, test_set):
         metrics = self.estimator.metrics_names
         test_x, test_y = self.prep_features(test_set, with_labels=True)
-        evals = self.estimator.evaluate(test_x, [test_y, test_y])
+        evals = self.estimator.evaluate(
+            test_x, [test_y for _ in range(self.num_losses)])
         return {m:e for m,e in zip(metrics, evals)}
         
     def train(self, train_set, val_set, batch_size=10, epochs=500):
@@ -81,11 +94,11 @@ class MashNet(object):
         train_x, train_y = self.prep_features(
             train_set, with_labels=True, fit_binarizer=True)
         val_x, val_y = self.prep_features(val_set, with_labels=True)                                         
-        self.estimator.fit(x=train_x, y=[train_y, train_y],
-                           batch_size=batch_size,
-                           epochs=epochs, verbose=1,
-                           callbacks=[model_checkpoint, TensorBoard()],
-                           validation_data=(val_x, [val_y, val_y]))
+        self.estimator.fit(
+            x=train_x, y=[train_y for _ in range(self.num_losses)],
+            batch_size=batch_size, epochs=epochs, verbose=1,
+            callbacks=[model_checkpoint, TensorBoard()],
+            validation_data=(val_x, [val_y for _ in range(self.num_losses)]))
         
     # Preprocessing
 
