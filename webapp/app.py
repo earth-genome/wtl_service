@@ -42,6 +42,10 @@ FLOYD_INIT_FILE = '.floydexpt'
 
 DATABASE = 'story-seeds'
 DB_CATEGORY = '/WTL'
+TRAINING_DB = 'good-locations'
+TRAINING_DB_CATEGORY = '/labeled_themes'
+
+LABEL_KEY = 'kyiv'
 
 @app.route('/')
 def welcome():
@@ -127,18 +131,35 @@ def retrieve():
 
 @app.route('/retrieve-story')
 def retrieve_story():
-    """Retrieve a story record from the WTL database."""
+    """Retrieve a story index and record from the WTL database."""
     msg = _help_msg(request.base_url,
                     'idx=Index of the story in the database', '')
     try:
-        idx  = _parse_index(request.args)
+        story = _retrieve_story(request.args)
     except ValueError as e:
         msg['Exception'] = repr(e)
         return jsonify(msg)
 
-    record = firebaseio.DB(DATABASE).get(DB_CATEGORY, idx)
-    return jsonify({idx: record})
-    
+    return jsonify({story.idx: story.record})
+
+def _retrieve_story(args):
+    """Working routine to retrieve a story, with unified error messaging.
+
+    Raises: ValueError if story index is not given or malformed, or if no
+        story with that index is found.
+
+    Returns: A DBItem story.
+    """
+    idx = _parse_index(args)
+    try:
+        record = firebaseio.DB(DATABASE).get(DB_CATEGORY, idx)
+    except json.decoder.JSONDecodeError as e:
+        raise ValueError(('Malformed story index: <{}> '.format(idx) + 
+                         'Ref. firebaseio.py for list of forbidden chars.'))
+    if not record:
+        raise ValueError('No story found with index: <{}>'.format(idx))
+    return firebaseio.DBItem('/null', idx, record)
+   
 def _clean(story):
     """Curate story data for web presentation."""
     title = story.record.get('title', '')
@@ -159,6 +180,34 @@ def _clean(story):
     if 'water' in themes:
         rec.update({'Sentiment': story.record.get('sentiment', {})})
     return rec
+
+@app.route('/label')
+def label():
+    msg = _help_msg(
+        request.base_url,
+        ('key=YourSecretKey&themes=water&themes=waste' +
+         '&idx=Index of the story in the database'),
+        {'known themes': KNOWN_THEMES_URL})
+
+    try:
+        _validate_key(request.args)
+        themes = _parse_themes(request.args)
+        story = _retrieve_story(request.args)
+    except ValueError as e:
+        msg['Exception'] = repr(e)
+        return jsonify(msg)
+
+    story.category = TRAINING_DB_CATEGORY
+    story.record.update({'themes': themes})
+    rec_uploaded = firebaseio.DB(TRAINING_DB).put_item(story, verbose=True)
+
+    if rec_uploaded:
+        return jsonify({
+            'Successfully posted to {}'.format(TRAINING_DB): story.idx,
+            'With labeled themes': rec_uploaded.get('themes')
+        })
+    else:
+        return jsonify({'Failed to upload': story.idx})
 
 @app.route('/us-geojsons')
 def us_geojsons():
@@ -259,18 +308,9 @@ def _parse_retrieve_params(args):
             ALLOWED_ORDERINGS))
     kwargs.update({'orderBy': filterby})
 
-    themes = args.getlist('themes')
-    if themes:
-        try:
-            known_themes = requests.get(KNOWN_THEMES_URL).json()
-            if not set(themes) <= set(known_themes):
-                raise ValueError('One or more themes not recognized.')
-        except json.decoder.JSONDecodeError as e:
-            # This won't break anything, but prevents checking user input.
-            print('Parsing retrieve params. Floydhub: {}'.format(repr(e)))
-    
+    themes = _parse_themes(args)
     return themes, kwargs
-    
+
 def _parse_daysback(args):
     """Parse number of days from today and convert to start/end dates."""
     daysback = args.get('daysback', type=int)
@@ -295,6 +335,19 @@ def _parse_dates(args):
         raise ValueError('Either daysback or both start and end are required.')
     
     return start.isoformat(), end.isoformat()
+
+def _parse_themes(args):
+    """Parse url for themes."""
+    themes = args.getlist('themes')
+    if themes:
+        try:
+            known_themes = requests.get(KNOWN_THEMES_URL).json()
+            if not set(themes) <= set(known_themes):
+                raise ValueError('One or more themes not recognized.')
+        except json.decoder.JSONDecodeError as e:
+            # This won't break anything, but prevents checking user input.
+            print('Parsing themes. Floydhub: {}'.format(repr(e)))
+    return themes
 
 def _get_counties(args):
     """Parse url args for states and counties. 
@@ -340,6 +393,15 @@ def _parse_job(args):
     project = expt['name']
     job_name = os.path.join(project, str(job))
     return job_name
+
+def _validate_key(args):
+    """Check a static key; if check fails, raise ValueError.
+
+    This is not for authentication so much as to prevent accidental access
+    of the '/label' endpoint.
+    """
+    if args.get('key', '').lower() != LABEL_KEY:
+        raise ValueError('Invalid auth key. See administrator.')
 
 # Help messaging
     
