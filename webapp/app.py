@@ -45,8 +45,6 @@ DB_CATEGORY = '/WTL'
 TRAINING_DB = 'good-locations'
 TRAINING_DB_CATEGORY = '/labeled_themes'
 
-LABEL_KEY = 'kyiv'
-
 @app.route('/')
 def welcome():
     welcome = ('This web app provides functionality from the following ' + 
@@ -183,6 +181,7 @@ def _clean(story):
 
 @app.route('/label')
 def label():
+    """Add theme labels to a story in WTL and post to good-locations."""
     msg = _help_msg(
         request.base_url,
         ('key=YourSecretKey&themes=water&themes=waste' +
@@ -190,7 +189,6 @@ def label():
         {'known themes': KNOWN_THEMES_URL})
 
     try:
-        _validate_key(request.args)
         themes = _parse_themes(request.args)
         story = _retrieve_story(request.args)
     except ValueError as e:
@@ -198,19 +196,20 @@ def label():
         return jsonify(msg)
 
     story.category = TRAINING_DB_CATEGORY
-    story.record.update({'themes': themes})
+    story.record.update({'labeled_themes': themes})
     rec_uploaded = firebaseio.DB(TRAINING_DB).put_item(story, verbose=True)
 
     if rec_uploaded:
         return jsonify({
             'Successfully posted to {}'.format(TRAINING_DB): story.idx,
-            'With labeled themes': rec_uploaded.get('themes')
+            'With labeled themes': rec_uploaded.get('labeled_themes')
         })
     else:
         return jsonify({'Failed to upload': story.idx})
 
 @app.route('/us-geojsons')
 def us_geojsons():
+    """Get geojsons for U.S. states or counties."""
     msg = _help_msg(request.base_url,
                     'states=CA&counties=Yolo&counties=Napa',
                     _format_counties_args())
@@ -393,15 +392,6 @@ def _parse_job(args):
     project = expt['name']
     job_name = os.path.join(project, str(job))
     return job_name
-
-def _validate_key(args):
-    """Check a static key; if check fails, raise ValueError.
-
-    This is not for authentication so much as to prevent accidental access
-    of the '/label' endpoint.
-    """
-    if args.get('key', '').lower() != LABEL_KEY:
-        raise ValueError('Invalid auth key. See administrator.')
 
 # Help messaging
     
