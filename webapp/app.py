@@ -31,6 +31,8 @@ app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
 
 KNOWN_THEMES_URL = news_scraper.THEMES_URL + '/known_themes'
+with open('training_themes.txt') as f:
+    TRAINING_THEMES = [l.strip() for l in f.readlines()]
 
 US_CSV = os.path.join(os.path.dirname(__file__), 'us_county_geojson.csv')
 US_GEOJSON = os.path.join(os.path.dirname(__file__), 'us_allstates.json')
@@ -184,12 +186,13 @@ def label():
     """Add theme labels to a story in WTL and post to good-locations."""
     msg = _help_msg(
         request.base_url,
-        ('key=YourSecretKey&themes=water&themes=waste' +
-         '&idx=Index of the story in the database'),
-        {'known themes': KNOWN_THEMES_URL})
+        'themes=water&themes=oceans&idx=Index of the story in the database',
+        {'known themes': TRAINING_THEMES})
 
     try:
-        themes = _parse_themes(request.args)
+        themes = request.args.getlist('themes')
+        if not set(themes) <= set(TRAINING_THEMES):
+            raise ValueError('One or more themes not recognized.')
         story = _retrieve_story(request.args)
     except ValueError as e:
         msg['Exception'] = repr(e)
