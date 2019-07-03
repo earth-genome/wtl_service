@@ -41,10 +41,11 @@ Usage from
 
 """
 
-import functools
+from collections import OrderedDict
 
 import nltk
 import numpy as np
+import requests
 from shapely import geometry
 
 from geolocation import geocode
@@ -52,6 +53,7 @@ from geolocation import geocluster
 from utilities.geobox import geobox
 
 MAX_MENTIONS = 6
+MODEL_URL = 'https://www.floydlabs.com/serve/earthrise/projects/serving/locations'
 
 def find_mentions(place, text, limit=MAX_MENTIONS):
     """Extract sentences where place is mentioned in text.
@@ -72,21 +74,21 @@ class Geolocate(object):
     Attributes:
         geocoders: list of functions from geocode module
         cluster_tool: instance of GrowGeoCluster class
-        classifier: TODO
+        model_url: Url pointing to served model, or None
 
     External methods: 
         __call__: Geocode, cluster, and score input places.
         assemble_geocodings: Find geo-coordinates with geocoders in sequence.
+        classify_relevance: Hit served model to determine relevance of 
+            locations.
     """
-    def __init__(self, geocoders=[], cluster_tool=None, classifier=None):
+    def __init__(self, geocoders=[], cluster_tool=None, model_url=MODEL_URL):
         self.geocoders = geocoders if geocoders else [geocode.CageCode()]
         if cluster_tool:
             self.cluster_tool = cluster_tool
         else:
             self.cluster_tool = geocluster.GrowGeoCluster()
-        # Temporary ad hoc scoring
-        self.classifier = self._score
-        #self.classifier = classifier
+        self.model_url = model_url
 
     def __call__(self, places):
         """Geocode, cluster, and score input places.
@@ -105,10 +107,11 @@ class Geolocate(object):
                     'cluster_ratio': len(cluster)/len(candidates),
                     **places[name]
                 })
-                if self.classifier:
-                    data.update({'score': self.classifier(data)})
 
         locations = {k:v for cluster in clusters for k,v in cluster.items()}
+
+        if self.model_url:
+            locations = self.classify(locations)
 
         return locations
         
@@ -129,7 +132,19 @@ class Geolocate(object):
                 candidates.update({name: geolocs})
         return candidates
 
-    # Temporary ad-hoc scoring, to be replaced by a classifier.
+    def classify(self, locations):
+        """Hit served model to determine relevance of locations."""
+        ordered_locs = OrderedDict(locations)
+        response = requests.post(
+            self.model_url, data={'locations_data':ordered_locs.values()})
+        response.raise_for_status()
+
+        for scores, data in zip(response.json(), ordered_locs.values()):
+            data.update({'map_relevance': scores})
+            
+        return dict(ordered_locs)
+            
+    # Temporary ad-hoc scoring, now replaced by the served classifier.
     def _score(self, data):
         try:
             sizing = self._size_score(data.get('boundingbox'))

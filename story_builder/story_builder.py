@@ -13,6 +13,7 @@ from inspect import getsourcefile
 import json
 import os
 
+from requests.exceptions import RequestException
 from sklearn.externals import joblib
 
 from geolocation import geolocate
@@ -124,18 +125,30 @@ class StoryBuilder(object):
         try:
             locations = self.geolocator(input_places)
             story.record.update({'locations': locations})
-        except ValueError as e:
+        except (ValueError, RequestException) as e:
             print('Geolocation: {}'.format(repr(e)))
             story.record.update({'locations': input_places})
 
-        try:
-            story.record.update({
-                'core_location': self._get_top(story.record['locations'])
-            })
-        except KeyError:
-            pass
+        story.record.update({
+            'core_location': self._get_core(story.record.get('locations', {})
+        })
         return story
 
+    def _get_core(self, locations):
+        """Return a cleaned version of the most relevant location."""
+        ranked = []
+        for status in ('core', 'relevant'):
+            candidates = [d for d in locations.values() if status in
+                          d.get('map_relevance')]
+            ranked += sorted(
+                candidates, key=lambda x:x['relevance'][status], reverse=True)
+        if ranked:
+            data = next(iter(ranked))
+        keys_to_keep = ['boundingbox', 'lat', 'lon', 'mentions', 'osm_url',
+                        'map_relevance', 'text']
+        return {k:v for k,v in data.items() if k in keys_to_keep}
+    
+    # Now deprecated, used with ad hoc location scoring:
     def _get_top(self, locations):
         """Return a cleaned version of the top scored location."""
         try:
