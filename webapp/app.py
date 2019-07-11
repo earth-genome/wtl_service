@@ -186,7 +186,7 @@ def label():
     """Add theme labels to a story in WTL and post to good-locations."""
     msg = _help_msg(
         request.base_url,
-        'themes=water&themes=oceans&idx=Index of the story in the database',
+        'themes=pollution&themes=water&idx=Index of the story in the database',
         {'known themes': TRAINING_THEMES})
 
     try:
@@ -235,17 +235,18 @@ def restart_floyd():
     except ValueError as e:
         msg['Exception'] = repr(e)
         return jsonify(msg)
+    
     try:
         floyd_login.login()
         client = floyd_login.get_client()
         experiments = client.get_all()
+        _halt_serving(client, experiments)
     except floyd_login.FloydException as e:
         msg['Exception'] = repr(e)
         return jsonify(msg)
 
-    _halt_serving(client, experiments)
     try:
-        to_serve = next(e for e in experiments if job_name in e.name)
+        to_serve = next(expt for expt in experiments if job_name in expt.name)
         status = client.restart(to_serve.id)
     except (floyd_login.FloydException, StopIteration) as e:
         msg['Exception'] = repr(e)
@@ -260,12 +261,16 @@ def _halt_serving(client, experiments):
         more than one job is serving, this will halt the most recently
         created serving job.
     """
-    for e in experiments:
-        if e.mode == 'serving':   
-            if not e.is_finished:
-                client.stop(e.id)  
+    def _is_finished(experiment):
+        """Amendment to the Floyd method to account for preempted jobs."""
+        return experiment.is_finished or experiment.state=='preempted'
+
+    for expt in experiments:
+        if expt.mode == 'serving':   
+            if not _is_finished(expt):
+                client.stop(expt.id)  
                 return
-    
+
 # Argument parsing functions
 
 def _parse_scrape_params(args):
