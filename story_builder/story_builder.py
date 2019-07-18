@@ -140,8 +140,9 @@ class StoryBuilder(object):
         for status in ('core', 'relevant'):
             candidates = [d for d in locations.values() if status in
                           d.get('map_relevance')]
-            ranked += sorted(
-                candidates, key=lambda x:x['relevance'][status], reverse=True)
+            ranked += sorted(candidates,
+                             key=lambda x:x['map_relevance'][status],
+                             reverse=True)
         if ranked:
             data = next(iter(ranked))
         keys_to_keep = ['boundingbox', 'lat', 'lon', 'mentions', 'osm_url',
