@@ -130,7 +130,7 @@ class StoryBuilder(object):
             story.record.update({'locations': input_places})
 
         story.record.update({
-            'core_location': self._get_core(story.record.get('locations', {})
+            'core_location': self._get_core(story.record.get('locations', {}))
         })
         return story
 
