@@ -136,7 +136,8 @@ class Geolocate(object):
         """Hit served model to determine relevance of locations."""
         ordered_locs = OrderedDict(locations)
         response = requests.post(
-            self.model_url, data={'locations_data':ordered_locs.values()})
+            self.model_url,
+            data={'locations_data': json.dumps(list(ordered_locs.values()))})
         response.raise_for_status()
 
         for scores, data in zip(response.json(), ordered_locs.values()):
