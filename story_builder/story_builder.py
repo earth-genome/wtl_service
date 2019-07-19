@@ -68,13 +68,9 @@ class StoryBuilder(object):
         Returns: a firebaseio.DBItem story
         """
         story = self.assemble_content(url, category, **metadata)
-        if self.classifier:
-            classification, probability = self.run_classifier(story)
-            story.record.update({'probability': probability})
-        if self.geolocator:
-            story = self.run_geolocation(story)
-        if self.themes_url:
-            story = self.run_themes(story)
+        self.run_classifier(story)
+        self.run_geolocation(story)
+        self.run_themes(story)
         return story
 
     def assemble_content(self, url, category='/null', **metadata):
@@ -98,7 +94,6 @@ class StoryBuilder(object):
             record.update({
                 'image_tags': self.image_tagger.get_tags(record['image'])
             })
-            
         return firebaseio.DBItem(category, None, record)
 
     def run_classifier(self, story):
@@ -108,22 +103,29 @@ class StoryBuilder(object):
             parsed content as required for self.classifier (typically,
             returned from assemble_content)
 
-        Returns: a class label (0/1/None) and probability 
+        Output: Updates story.record with a 'probability' if avaiable
+
+        Returns: A class label (0/1/None) 
         """
-        url = story.record['url']
+        if not self.classifier:
+            return None
         classification, probability = self.classifier.classify_story(story)
         result = 'Accepted' if classification == 1 else 'Declined'
         print(result + ' for feed @ prob {:.3f}: {}\n'.format(
-            probability, url), flush=True)
-        
-        return classification, probability
+            probability, story.record['url']), flush=True)
+        story.record.update({'probability': probability})
+        return classification
         
     def run_geolocation(self, story):
         """Geolocate places mentioned in story.
 
-        Returns: An updated story, with 'locations' and 'core_locations'
+        Output: Updates story.record with 'locations' and 'core_location'
+            if avaiable
         """
         input_places = story.record.get('locations', {})
+        if not self.geolocator or not input_places:
+            return
+        
         for name, data in input_places.items():
             data.update({
                 'mentions':
@@ -134,20 +136,23 @@ class StoryBuilder(object):
             story.record.update({'locations': locations})
         except ValueError as e:
             print('Geolocation: {}'.format(repr(e)))
-            return story
+            return 
         except RequestException:
             raise
 
         story.record.update({
             'core_location': self._get_core(story.record.get('locations', {}))
         })
-        return story
+        return
 
     def run_themes(self, story):
         """Query an app-based themes classifier.
 
-        Returns: An updated story, with 'themes'
+        Output: Updates story.record with 'themes' if available
         """
+        if not self.themes_url:
+            return
+        
         response = requests.post(self.themes_url,
                                  data={'text': story.record['text']})
         try:
@@ -156,7 +161,7 @@ class StoryBuilder(object):
             raise requests.RequestException(response.json())
         
         story.record.update({'themes': response.json()})
-        return story
+        return
         
     def _get_core(self, locations):
         """Return a cleaned version of the most relevant location."""
