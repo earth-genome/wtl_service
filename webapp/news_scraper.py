@@ -45,6 +45,7 @@ import signal
 import sys
 import time
 
+from requests.exceptions import RequestException
 from watson_developer_cloud import WatsonApiException
 
 import harvest_urls
@@ -53,8 +54,6 @@ from story_seeds.story_builder import story_builder
 from story_seeds.utilities import firebaseio
 from story_seeds.utilities import log_utilities
 import track_urls
-
-THEMES_URL = 'https://www.floydlabs.com/serve/earthrise/projects/themes'
 
 # Logging when running locally from main:
 EXCEPTIONS_DIR = os.path.join(os.path.dirname(__file__), 'NewsScraperLogs')
@@ -87,13 +86,11 @@ class Scrape(object):
     Attributes:
         batch_size: Number of records to process together asynchronously.
         thumbnail_grabber: Class instance to pull thumbnail images.
-        themes_url: Web app endpoint for themes classifier.
         timeout: Timeout for aiohttp requests. (See notes above.)
         database: Database to store accepted stories.
         url_tracker: Class instance to track scraped urls.
         logger: Exception logger.
-        builder: Class instance to extract, evaluate, and post story from
-            url.
+        builder: Class instance to extract, evaluate, and post story from url.
         session: An aiohttp.ClientSession created within __call__
         
 
@@ -102,9 +99,8 @@ class Scrape(object):
     """
 
     def __init__(
-        self, batch_size=100, thumbnail_source=None, themes_url=THEMES_URL,
-        http_timeout=1200, database=None, url_tracker=None, logger=None,
-        **kwargs):
+        self, batch_size=100, thumbnail_source=None, http_timeout=1200,
+        database=None, url_tracker=None, logger=None, **kwargs):
         
         self.batch_size = batch_size
         if thumbnail_source:
@@ -112,7 +108,6 @@ class Scrape(object):
                 thumbnail_source)
         else:
             self.thumbnail_grabber = None
-        self.themes_url = themes_url
         self.timeout = aiohttp.ClientTimeout(total=http_timeout)
 
         # (basically) fixed utilities
@@ -167,7 +162,14 @@ class Scrape(object):
         story.record.update({'probability': probability})
         
         if classification == 1:
-            story = self.builder.run_geolocation(story)
+            try: 
+                story = self.builder.run_geolocation(story)
+            except RequestException as e:
+                self.logger.warning('Geolocation: {}:\n{}'.format(e, url))
+            try:
+                story = self.builder.run_themes(story)
+            except RequestException as e:
+                self.logger.warning('Themes: {}:\n{}'.format(e, url))
             if self.thumbnail_grabber:
                 try:
                     loc = story.record['core_location']
@@ -176,20 +178,6 @@ class Scrape(object):
                     story.record.update({'thumbnails': thumbnail_urls})
                 except (KeyError, aiohttp.ClientError) as e:
                     self.logger.warning('Thumbnails: {}:\n{}'.format(e, url))
-            try:
-                themes = await self._identify_themes(story.record['text'])
-                story.record.update({'themes': themes})
-            except aiohttp.ClientError as e:
-                self.logger.warning('Themes: {}:\n{}'.format(e, url))
-
-            # Experiment on sentiment:
-            if 'water' in story.record.get('themes', {}):
-                try:
-                    sentiment = self.builder.reader.get_sentiment(url)
-                    story.record.update({'sentiment': sentiment})
-                except WatsonApiException as e:
-                    self.logger.warning('Sentiment: {}:\n{}'.format(e, url))
-                    
             self.database.put_item(story)
         return 
                              
@@ -210,14 +198,6 @@ class Scrape(object):
         fresh_urls = self.url_tracker.find_fresh([r['url'] for r in records])
         records = [r for r in records if r['url'] in fresh_urls]
         return records
-
-    async def _identify_themes(self, text):
-        """Query an app-based themes classifier."""
-        async with self.session.post(self.themes_url,
-                                     data={'text':text},
-                                     raise_for_status=True) as resp:
-            themes = await resp.json()
-        return themes
 
     def _log_exceptions(self, results):
         """Log exceptions returned from asyncio.gather.
