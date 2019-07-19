@@ -54,7 +54,6 @@ from geolocation import geocluster
 from utilities.geobox import geobox
 
 MAX_MENTIONS = 6
-MODEL_URL = 'https://www.floydlabs.com/serve/earthrise/projects/serving/locations'
 
 def find_mentions(place, text, limit=MAX_MENTIONS):
     """Extract sentences where place is mentioned in text.
@@ -83,7 +82,7 @@ class Geolocate(object):
         classify_relevance: Hit served model to determine relevance of 
             locations.
     """
-    def __init__(self, geocoders=[], cluster_tool=None, model_url=MODEL_URL):
+    def __init__(self, geocoders=[], cluster_tool=None, model_url=None):
         self.geocoders = geocoders if geocoders else [geocode.CageCode()]
         if cluster_tool:
             self.cluster_tool = cluster_tool
