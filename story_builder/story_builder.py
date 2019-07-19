@@ -137,7 +137,7 @@ class StoryBuilder(object):
         except ValueError as e:
             print('Geolocation: {}'.format(repr(e)))
             return 
-        except RequestException:
+        except requests.RequestException:
             raise
 
         story.record.update({
