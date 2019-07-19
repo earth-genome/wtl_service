@@ -138,7 +138,10 @@ class Geolocate(object):
         response = requests.post(
             self.model_url,
             data={'locations_data': json.dumps(list(ordered_locs.values()))})
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.RequestException:
+            raise requests.RequestException(response.json())
 
         for scores, data in zip(response.json(), ordered_locs.values()):
             data.update({'map_relevance': scores})

@@ -14,7 +14,6 @@ import json
 import os
 
 import requests
-from requests.exceptions import RequestException
 from sklearn.externals import joblib
 
 from geolocation import geolocate
@@ -151,7 +150,11 @@ class StoryBuilder(object):
         """
         response = requests.post(self.themes_url,
                                  data={'text': story.record['text']})
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.RequestException:
+            raise requests.RequestException(response.json())
+        
         story.record.update({'themes': response.json()})
         return story
         
