@@ -44,6 +44,7 @@ import os
 import signal
 import sys
 import time
+import traceback
 
 from requests import RequestException
 from watson_developer_cloud import WatsonApiException
@@ -161,11 +162,11 @@ class Scrape(object):
         classification = self.builder.run_classifier(story)
         if classification == 1:
             try: 
-                story = self.builder.run_geolocation(story)
+                self.builder.run_geolocation(story)
             except RequestException as e:
                 self.logger.warning('Geolocation: {}:\n{}'.format(e, url))
             try:
-                story = self.builder.run_themes(story)
+                self.builder.run_themes(story)
             except RequestException as e:
                 self.logger.warning('Themes: {}:\n{}'.format(e, url))
             if self.thumbnail_grabber:
@@ -204,4 +205,8 @@ class Scrape(object):
         """
         for r in results:
             if isinstance(r, Exception):
-                self.logger.error('Exception from gather: {}'.format(repr(r)))
+                try:
+                    raise r
+                except:
+                    self.logger.error('Exception from gather: {}'.format(
+                        traceback.format_exc()))
