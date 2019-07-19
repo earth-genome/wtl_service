@@ -20,6 +20,7 @@ import floyd_login
 from harvest_urls import WIRE_URLS
 import news_scraper
 from request_thumbnails import PROVIDER_PARAMS
+from story_seeds.story_builder.story_builder import FLOYD_URL
 from story_seeds.utilities import log_utilities
 from story_seeds.utilities import firebaseio
 from story_seeds.utilities.firebaseio import ALLOWED_ORDERINGS
@@ -30,7 +31,7 @@ q = Queue('default', connection=worker.connection, default_timeout=86400)
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
 
-KNOWN_THEMES_URL = news_scraper.THEMES_URL + '/known_themes'
+KNOWN_THEMES_URL = os.path.join(FLOYD_URL, 'themes/known_themes')
 with open('training_themes.txt') as f:
     TRAINING_THEMES = [l.strip() for l in f.readlines()]
 
