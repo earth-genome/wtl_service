@@ -99,7 +99,7 @@ class Scrape(object):
     """
 
     def __init__(
-        self, batch_size=100, thumbnail_source=None, http_timeout=1200,
+        self, batch_size=20, thumbnail_source=None, http_timeout=1200,
         database=None, url_tracker=None, logger=None, **kwargs):
         
         self.batch_size = batch_size
