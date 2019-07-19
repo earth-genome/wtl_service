@@ -45,7 +45,7 @@ import signal
 import sys
 import time
 
-from requests.exceptions import RequestException
+from requests import RequestException
 from watson_developer_cloud import WatsonApiException
 
 import harvest_urls
@@ -158,9 +158,7 @@ class Scrape(object):
             self.logger.warning('Assembling content: {}:\n{}'.format(e, url))
             return
 
-        classification, probability = self.builder.run_classifier(story)
-        story.record.update({'probability': probability})
-        
+        classification = self.builder.run_classifier(story)
         if classification == 1:
             try: 
                 story = self.builder.run_geolocation(story)
