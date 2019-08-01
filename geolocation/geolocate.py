@@ -141,7 +141,7 @@ class Geolocate(object):
         try:
             response.raise_for_status()
         except requests.RequestException:
-            raise requests.RequestException(response.json())
+            raise requests.RequestException(response.text)
 
         for scores, data in zip(response.json(), ordered_locs.values()):
             data.update({'map_relevance': scores})

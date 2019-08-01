@@ -158,7 +158,7 @@ class StoryBuilder(object):
         try:
             response.raise_for_status()
         except requests.RequestException:
-            raise requests.RequestException(response.json())
+            raise requests.RequestException(response.text)
         
         story.record.update({'themes': response.json()})
         return
@@ -169,6 +169,9 @@ class StoryBuilder(object):
         for status in ('core', 'relevant'):
             candidates = [d for d in locations.values() if status in
                           d.get('map_relevance', {})]
+            # TODO: train to replace ad hoc probability cutoff
+            candidates = [c for c in candidates
+                          if c['map_relevance'][status] > .5]
             ranked += sorted(candidates,
                              key=lambda x:x['map_relevance'][status],
                              reverse=True)
