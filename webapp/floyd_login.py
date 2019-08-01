@@ -1,4 +1,10 @@
-"""Routines to manage the baroque Floydhub login process."""
+"""Routines to manage the baroque Floydhub login process.
+
+The ExperimentClient accesses a particular Floydhub project as defined by a 
+.floydexpt file, which should be copied from the local floyd project directory
+to this folder. 
+
+"""
 
 import os
 
