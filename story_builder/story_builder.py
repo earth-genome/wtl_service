@@ -21,11 +21,12 @@ from story_builder import extract_text
 from story_builder import tag_image
 from utilities import firebaseio
 
-# Default classifier
+# Default classifiers
 current_dir = os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
-MODEL = os.path.join(os.path.dirname(current_dir),
-                     'bagofwords/Stacker_models/latest_model.pkl')
+WTL_MODEL = os.path.join(os.path.dirname(current_dir),
+                         'bagofwords/Stacker_models/latest_model.pkl')
 
+MODELS_URL = 'http://52.34.232.26'
 FLOYD_URL = 'https://www.floydlabs.com/serve/earthrise/projects/serving'
 
 class StoryBuilder(object):
@@ -45,14 +46,14 @@ class StoryBuilder(object):
         run_classifier: Classify story.
         run_geolocation: Geolocate places mentioned in story.
     """
-    def __init__(self, reader=None, parse_images=False, model=MODEL,
+    def __init__(self, reader=None, parse_images=False, model=WTL_MODEL,
                  geoloc=True, themes=True):
         self.reader = reader if reader else extract_text.WatsonReader()
         self.image_tagger = tag_image.WatsonTagger() if parse_images else None
         self.classifier = joblib.load(model) if model else None
         if geoloc:
             self.geolocator = geolocate.Geolocate(
-                model_url=os.path.join(FLOYD_URL, 'locations'))
+                model_url=os.path.join(MODELS_URL, 'locations'))
         else:
             self.geolocator = None
         self.themes_url = os.path.join(FLOYD_URL, 'themes') if themes else None
