@@ -7,3 +7,10 @@ webapp/.google_config.json
 webapp/us_county_geojson.csv
 webapp/us_allstates.json
 webapp/us_evpstates.json
+
+# Modules from tensorflow_hub, trained models, data, logs, etc.
+saved_models
+saved_models/
+*.hdf5
+*logs/
+*.pkl

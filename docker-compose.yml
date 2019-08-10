@@ -9,9 +9,10 @@ services:
       - redis_worker
       - redis_db
     ports:
-      - "5000:5000"
+      - "80:5000"
     volumes:
       - ./webapp:/opt/webapp
+      - ./saved_models:/opt/saved_models
     tty: true
   redis_worker:
     image: redis:alpine

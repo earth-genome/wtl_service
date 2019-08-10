@@ -5,11 +5,13 @@ is pushed to a Redis queue and handled by the worker process in worker.py.
 """
 
 import datetime
-import json
+from inspect import getsourcefile
 import os
+import traceback
 import urllib.parse
+import sys
 
-from flask import Flask, jsonify, request
+from flask import Flask, json, jsonify, request
 from flask_restful import inputs
 import numpy as np
 import requests
@@ -27,10 +29,15 @@ from story_seeds.utilities.firebaseio import ALLOWED_ORDERINGS
 from story_seeds.utilities.geobox import us_counties
 import worker
 
+app_dir = os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
+models_dir = os.path.join(os.path.dirname(app_dir), 'saved_models')
+sys.path.append(models_dir)
+from geoloc190703 import restore190703
+
 q = Queue('default', connection=worker.connection, default_timeout=86400)
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
-
+    
 KNOWN_THEMES_URL = os.path.join(FLOYD_URL, 'themes/known_themes')
 with open('training_themes.txt') as f:
     TRAINING_THEMES = [l.strip() for l in f.readlines()]
@@ -48,6 +55,10 @@ DB_CATEGORY = '/WTL'
 TRAINING_DB = 'good-locations'
 TRAINING_DB_CATEGORY = '/labeled_themes'
 
+# Learned models to serve
+locations_net, locations_graph = restore190703.restore()
+print(locations_net.estimator.summary())
+
 @app.route('/')
 def welcome():
     welcome = ('This web app provides functionality from the following ' + 
@@ -64,7 +75,9 @@ def welcome():
         'Get a geojson for US states or counties.':
             ''.join((request.url, 'us-geojsons?')),
         'Restart serving the Floydhub learned models':
-            ''.join((request.url, 'restart-floyd?'))
+            ''.join((request.url, 'restart-floyd?')),
+        'Determine relevance of a geolocation':
+            ''.join((request.url, 'locations'))
     }
     return jsonify(msg)
 
@@ -89,6 +102,23 @@ def scrape():
 
     return jsonify(_format_scraping_guide())
 
+@app.route('/locations', methods=['GET', 'POST'])
+def classify_locations():
+    msg = _locations_help(request.url)
+    if request.method == 'GET':
+        return jsonify(msg), 405
+
+    try:
+        locations_data = json.loads(request.form['locations_data'])
+        with locations_graph.as_default():
+            predictions = locations_net.predict_relevance(locations_data)
+    except:
+        return jsonify(traceback.format_exc()), 400
+
+    # convert from np.float32 to float32 for JSON-serializeable output
+    predictions = [{k:float(v) for k,v in p.items()} for p in predictions]
+    return jsonify(predictions)
+    
 @app.route('/retrieve')
 def retrieve():
     """Retrieve records from the WTL database."""
@@ -423,6 +453,14 @@ def _format_scraper_args():
         }
     }
     return scraper_args
+
+def _locations_help(url):
+    msg = {
+        'Method': 'POST a JSON-serialized list of locations data.',
+        'Example': ("requests.post('{}', ".format(url) +
+                    "data = {'locations_data':json.dumps(<list of dicts>)})")
+    }
+    return msg
 
 def _format_retrieve_args():
     """Produce a dict explaining retrieve args for help messaging."""
