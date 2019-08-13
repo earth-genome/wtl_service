@@ -23,8 +23,7 @@ from harvest_urls import WIRE_URLS
 import news_scraper
 from request_thumbnails import PROVIDER_PARAMS
 from story_seeds.story_builder.story_builder import FLOYD_URL
-from story_seeds.utilities import log_utilities
-from story_seeds.utilities import firebaseio
+from story_seeds.utilities import firebaseio, log_utilities
 from story_seeds.utilities.firebaseio import ALLOWED_ORDERINGS
 from story_seeds.utilities.geobox import us_counties
 import worker
@@ -34,10 +33,20 @@ models_dir = os.path.join(os.path.dirname(app_dir), 'saved_models')
 sys.path.append(models_dir)
 from geoloc190703 import restore190703
 
+# App
 q = Queue('default', connection=worker.connection, default_timeout=86400)
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
-    
+
+# Logging
+fh = log_utilities.get_rotating_handler(
+    os.path.join(app_dir, 'logs/app.log'), when='D', interval=7, backupCount=3)
+app.logger.addHandler(fh)
+
+# Learned models to serve
+locations_net, locations_graph = restore190703.restore()
+print(locations_net.estimator.summary())
+
 KNOWN_THEMES_URL = os.path.join(FLOYD_URL, 'themes/known_themes')
 with open('training_themes.txt') as f:
     TRAINING_THEMES = [l.strip() for l in f.readlines()]
@@ -54,10 +63,6 @@ DATABASE = 'story-seeds'
 DB_CATEGORY = '/WTL'
 TRAINING_DB = 'good-locations'
 TRAINING_DB_CATEGORY = '/labeled_themes'
-
-# Learned models to serve
-locations_net, locations_graph = restore190703.restore()
-print(locations_net.estimator.summary())
 
 @app.route('/')
 def welcome():
@@ -113,7 +118,9 @@ def classify_locations():
         with locations_graph.as_default():
             predictions = locations_net.predict_relevance(locations_data)
     except:
-        return jsonify(traceback.format_exc()), 400
+        tb = traceback.format_exc()
+        app.logger.error('Classifying locations: {}'.format(tb))
+        return jsonify(tb), 400
 
     # convert from np.float32 to float32 for JSON-serializeable output
     predictions = [{k:float(v) for k,v in p.items()} for p in predictions]
