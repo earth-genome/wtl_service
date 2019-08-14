@@ -31,7 +31,7 @@ import worker
 app_dir = os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
 models_dir = os.path.join(os.path.dirname(app_dir), 'saved_models')
 sys.path.append(models_dir)
-from geoloc190703 import restore190703
+from geoloc_model import restore
 
 # App
 q = Queue('default', connection=worker.connection, default_timeout=86400)
@@ -44,7 +44,7 @@ fh = log_utilities.get_rotating_handler(
 app.logger.addHandler(fh)
 
 # Learned models to serve
-locations_net, locations_graph = restore190703.restore()
+locations_net, locations_graph = restore.restore()
 print(locations_net.estimator.summary())
 
 KNOWN_THEMES_URL = os.path.join(FLOYD_URL, 'themes/known_themes')
