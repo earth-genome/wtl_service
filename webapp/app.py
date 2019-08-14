@@ -97,7 +97,7 @@ def scrape():
         msg['Exception'] = repr(e)
         return jsonify(msg)
 
-    kwargs.update({'served_models_url': request.url})
+    kwargs.update({'served_models_url': request.url_root})
     job = q.enqueue_call(
         func=news_scraper.scraper_wrapper, args=(wires,), kwargs=kwargs)
 
