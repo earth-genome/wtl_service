@@ -26,7 +26,6 @@ current_dir = os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
 WTL_MODEL = os.path.join(os.path.dirname(current_dir),
                          'bagofwords/Stacker_models/latest_model.pkl')
 
-MODELS_URL = 'http://52.34.232.26'
 FLOYD_URL = 'https://www.floydlabs.com/serve/earthrise/projects/serving'
 
 class StoryBuilder(object):
@@ -47,13 +46,13 @@ class StoryBuilder(object):
         run_geolocation: Geolocate places mentioned in story.
     """
     def __init__(self, reader=None, parse_images=False, model=WTL_MODEL,
-                 geoloc=True, themes=True):
+                 served_models_url=None, geoloc=True, themes=True):
         self.reader = reader if reader else extract_text.WatsonReader()
         self.image_tagger = tag_image.WatsonTagger() if parse_images else None
         self.classifier = joblib.load(model) if model else None
-        if geoloc:
+        if geoloc and served_models_url:
             self.geolocator = geolocate.Geolocate(
-                model_url=os.path.join(MODELS_URL, 'locations'))
+                model_url=os.path.join(served_models_url, 'locations'))
         else:
             self.geolocator = None
         self.themes_url = os.path.join(FLOYD_URL, 'themes') if themes else None
