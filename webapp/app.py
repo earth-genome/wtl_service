@@ -18,7 +18,6 @@ import requests
 from rq import Queue
 import shapely
 
-import floyd_login
 from harvest_urls import WIRE_URLS
 import news_scraper
 from request_thumbnails import PROVIDER_PARAMS
@@ -57,8 +56,6 @@ EVP_GEOJSON = os.path.join(os.path.dirname(__file__), 'us_evpstates.json')
 
 BOUNDARY_TOL = .2
 
-FLOYD_INIT_FILE = '.floydexpt'
-
 DATABASE = 'story-seeds'
 DB_CATEGORY = '/WTL'
 TRAINING_DB = 'good-locations'
@@ -79,8 +76,6 @@ def welcome():
             ''.join((request.url, 'retrieve-story?')),
         'Get a geojson for US states or counties.':
             ''.join((request.url, 'us-geojsons?')),
-        'Restart serving the Floydhub learned models':
-            ''.join((request.url, 'restart-floyd?')),
         'Determine relevance of a geolocation':
             ''.join((request.url, 'locations'))
     }
@@ -259,51 +254,7 @@ def us_geojsons():
         return jsonify(msg)
 
     return jsonify(shapely.geometry.mapping(footprint))
-    
-@app.route('/restart-floyd')
-def restart_floyd():
-    """Restart the Floydhub job serving our learned models."""
-    msg = _help_msg(request.base_url, 'job=22', '')
-    try:
-        job_name = _parse_job(request.args)
-    except ValueError as e:
-        msg['Exception'] = repr(e)
-        return jsonify(msg)
-    
-    try:
-        floyd_login.login()
-        client = floyd_login.get_client()
-        experiments = client.get_all()
-        _halt_serving(client, experiments)
-    except floyd_login.FloydException as e:
-        msg['Exception'] = repr(e)
-        return jsonify(msg)
 
-    try:
-        to_serve = next(expt for expt in experiments if job_name in expt.name)
-        status = client.restart(to_serve.id)
-    except (floyd_login.FloydException, StopIteration) as e:
-        msg['Exception'] = repr(e)
-        return jsonify(msg)
-    
-    return jsonify(status)
-
-def _halt_serving(client, experiments):
-    """Halt the current serving job on Floydhub.
-
-    We expect to serve at most one job at a time. If for some reason
-        more than one job is serving, this will halt the most recently
-        created serving job.
-    """
-    def _is_finished(experiment):
-        """Amendment to the Floyd method to account for preempted jobs."""
-        return experiment.is_finished or experiment.state=='preempted'
-
-    for expt in experiments:
-        if expt.mode == 'serving':   
-            if not _is_finished(expt):
-                client.stop(expt.id)  
-                return
 
 # Argument parsing functions
 
@@ -424,16 +375,6 @@ def _parse_index(args):
         raise ValueError('A story index is required.')
     return idx
 
-def _parse_job(args):
-    """Parse url arguments for a Floydhub job number."""
-    job = request.args.get('job', type=int)
-    if not job:
-        raise ValueError('An integer job number is required.')
-    with open(FLOYD_INIT_FILE) as f:
-        expt = json.load(f)
-    project = expt['name']
-    job_name = os.path.join(project, str(job))
-    return job_name
 
 # Help messaging
     
