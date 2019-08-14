@@ -10,10 +10,8 @@ ADD ./requirements.txt /tmp/requirements.txt
 RUN pip install -r /tmp/requirements.txt
 RUN python3 -m nltk.downloader -d /usr/share/nltk_data punkt
 
-# Add our code
+# Our code
 ADD ./webapp /opt/webapp/
+ADD ./saved_models:/opt/saved_models
 ADD ./bin /bin
 WORKDIR /opt/webapp
-
-# To deploy locally
-CMD python3 app.py

@@ -10,10 +10,10 @@ services:
       - redis_db
     ports:
       - "80:5000"
-    volumes:
-      - ./webapp:/opt/webapp
-      - ./saved_models:/opt/saved_models
     tty: true
+    command: gunicorn --bind 0.0.0.0:5000 wsgi --timeout 6000
+    # Or to use the Flask built-in server for testing: 
+    # command: python3 app.py
   redis_worker:
     image: redis:alpine
     ports:
