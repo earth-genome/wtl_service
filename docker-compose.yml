@@ -11,7 +11,8 @@ services:
     ports:
       - "80:5000"
     tty: true
-    volumes:  # NB: the primary shared code base is added in the Dockerfile
+    volumes:  
+      - ./webapp:/opt/webapp
       - ./saved_models:/opt/saved_models
     command: gunicorn --bind 0.0.0.0:5000 wsgi --timeout 6000
     # Or to use the Flask built-in server for testing: 
@@ -29,5 +30,7 @@ services:
     env_file: .env
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/opt/webapp/.google_config.json
+    volumes:  
+      - ./webapp:/opt/webapp
     command: python3 worker.py
 
