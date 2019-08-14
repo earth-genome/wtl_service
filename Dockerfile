@@ -13,5 +13,4 @@ RUN python3 -m nltk.downloader -d /usr/share/nltk_data punkt
 # Our code
 ADD ./webapp /opt/webapp/
 ADD ./saved_models:/opt/saved_models
-ADD ./bin /bin
 WORKDIR /opt/webapp

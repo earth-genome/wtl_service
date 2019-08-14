@@ -1,2 +1,0 @@
-FROM wtl_service_web:latest
-CMD python3 worker.py
