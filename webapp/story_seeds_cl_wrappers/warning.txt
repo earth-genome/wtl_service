@@ -1,0 +1,2 @@
+Command line utilities in this folder reference files that have been moved or removed
+in the course of merging the old story_seeds into the current wtl_service. They will fail and need to be updated.
