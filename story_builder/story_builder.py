@@ -26,7 +26,7 @@ current_dir = os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
 WTL_MODEL = os.path.join(os.path.dirname(current_dir),
                          'bagofwords/Stacker_models/latest_model.pkl')
 
-FLOYD_URL = 'https://www.floydlabs.com/serve/earthrise/projects/serving'
+FLOYD_URL = 'https://www.floydlabs.com/serve/earthrise/projects/themes'
 
 class StoryBuilder(object):
     """Parse text and/or image at url, classify story, and geolocate places
