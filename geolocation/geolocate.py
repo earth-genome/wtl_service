@@ -3,41 +3,23 @@ reporting.
 
 The fundamental entity worked on by these routines is a dict, often
 taking variable name 'locations' (also sometimes 'places', if not yet
-geocoded, or 'cluster') of the following form(s):
+geocoded, or 'cluster'). 
 
-# TODO: update these examples:
+On input, the following keys are required:
+'text': string (the place name as it appears in a story)
+'relevance': float in [0,1] 
+'mentions': list of strings (sentences in which the 'text' appears in a story)
 
-Initially as input:
-places = 
-{'Maputo': {'dbpedia': 'http://dbpedia.org/resource/Maputo',
-  'relevance': 0.846839,
-  'subtype': ['AdministrativeDivision', 'City']},
- 'Mozambique': {'dbpedia': '',
-  'relevance': 0.484892,
-  'subtype': ['StateOrCounty']}}
-
-Final output:
-core_locations =
-{'Maputo, Mozambique': {'address': 'Maputo, Mozambique',
-   'boundingbox': (32.5233079, -25.9839715, 32.6980592, -25.8085457),
-   'dbpedia': 'http://dbpedia.org/resource/Maputo',
-   'lat': -25.969248,
-   'lon': 32.5731746,
-   'name': 'Maputo',
-   'relevance': 0.846839,
-   'source': 'google',
-   'subtype': ['AdministrativeDivision', 'City'],
-   'types': ['locality', 'political']}}
-   
-The 'relevance', 'text', and 'mentions' keys are required. 'Mentions' can be
-extracted with the find_mentions function, included in this module because
-the limit parameter impacts classifier architecture.
+The last can be extracted with the find_mentions function, included in this 
+module because the limit parameter impacts classifier architecture.
 
 External class: Geolocate
 External function: find_mentions
 
-# TODO: add usage
-Usage from 
+Usage with defaults and a served classifier: 
+> locator = geolocate.Geolocate(model_url='http://52.34.232.26/locations') 
+> locator(places)
+
 
 """
 
