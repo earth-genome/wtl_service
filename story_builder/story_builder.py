@@ -13,17 +13,20 @@ from inspect import getsourcefile
 import json
 import os
 
+import requests
 from sklearn.externals import joblib
 
+from geolocation import geolocate
 from story_builder import extract_text
-from story_builder import geolocate
 from story_builder import tag_image
 from utilities import firebaseio
 
-# Default classifier
+# Default classifiers
 current_dir = os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
-MODEL = os.path.join(os.path.dirname(current_dir),
-                     'bagofwords/Stacker_models/latest_model.pkl')
+WTL_MODEL = os.path.join(os.path.dirname(current_dir),
+                         'bagofwords/Stacker_models/latest_model.pkl')
+
+FLOYD_URL = 'https://www.floydlabs.com/serve/earthrise/projects/themes'
 
 class StoryBuilder(object):
     """Parse text and/or image at url, classify story, and geolocate places
@@ -42,12 +45,17 @@ class StoryBuilder(object):
         run_classifier: Classify story.
         run_geolocation: Geolocate places mentioned in story.
     """
-    def __init__(self, reader=None, parse_images=True, model=MODEL,
-                 geolocating=True):
+    def __init__(self, reader=None, parse_images=False, model=WTL_MODEL,
+                 served_models_url=None, geoloc=True, themes=True):
         self.reader = reader if reader else extract_text.WatsonReader()
         self.image_tagger = tag_image.WatsonTagger() if parse_images else None
         self.classifier = joblib.load(model) if model else None
-        self.geolocator = geolocate.Geolocate() if geolocating else None
+        if geoloc and served_models_url:
+            self.geolocator = geolocate.Geolocate(
+                model_url=os.path.join(served_models_url, 'locations'))
+        else:
+            self.geolocator = None
+        self.themes_url = os.path.join(FLOYD_URL, 'themes') if themes else None
 
     def __call__(self, url, category='/null', **metadata):
         """Build a story from url.
@@ -60,11 +68,9 @@ class StoryBuilder(object):
         Returns: a firebaseio.DBItem story
         """
         story = self.assemble_content(url, category, **metadata)
-        if self.classifier:
-            classification, probability = self.run_classifier(story)
-            story.record.update({'probability': probability})
-        if self.geolocator:
-            story = self.run_geolocation(story)
+        self.run_classifier(story)
+        self.run_geolocation(story)
+        self.run_themes(story)
         return story
 
     def assemble_content(self, url, category='/null', **metadata):
@@ -88,7 +94,6 @@ class StoryBuilder(object):
             record.update({
                 'image_tags': self.image_tagger.get_tags(record['image'])
             })
-            
         return firebaseio.DBItem(category, None, record)
 
     def run_classifier(self, story):
@@ -98,24 +103,29 @@ class StoryBuilder(object):
             parsed content as required for self.classifier (typically,
             returned from assemble_content)
 
-        Returns: a class label (0/1/None) and probability 
+        Output: Updates story.record with a 'probability' if avaiable
+
+        Returns: A class label (0/1/None) 
         """
-        url = story.record['url']
+        if not self.classifier:
+            return None
         classification, probability = self.classifier.classify_story(story)
         result = 'Accepted' if classification == 1 else 'Declined'
         print(result + ' for feed @ prob {:.3f}: {}\n'.format(
-            probability, url), flush=True)
-        
-        return classification, probability
+            probability, story.record['url']), flush=True)
+        story.record.update({'probability': probability})
+        return classification
         
     def run_geolocation(self, story):
         """Geolocate places mentioned in story.
 
-        Argument story:  A firebasio.DBItem story
-
-        Returns: An updated firebaseio.DBItem story
+        Output: Updates story.record with 'locations' and 'core_location'
+            if avaiable
         """
-        input_places = json.loads(json.dumps(story.record['locations']))
+        input_places = story.record.get('locations', {})
+        if not self.geolocator or not input_places:
+            return
+        
         for name, data in input_places.items():
             data.update({
                 'mentions':
@@ -126,16 +136,54 @@ class StoryBuilder(object):
             story.record.update({'locations': locations})
         except ValueError as e:
             print('Geolocation: {}'.format(repr(e)))
-            story.record.update({'locations': input_places})
+            return 
+        except requests.RequestException:
+            raise
 
+        story.record.update({
+            'core_location': self._get_core(story.record.get('locations', {}))
+        })
+        return
+
+    def run_themes(self, story):
+        """Query an app-based themes classifier.
+
+        Output: Updates story.record with 'themes' if available
+        """
+        if not self.themes_url:
+            return
+        
+        response = requests.post(self.themes_url,
+                                 data={'text': story.record['text']})
         try:
-            story.record.update({
-                'core_location': self._get_top(story.record['locations'])
-            })
-        except KeyError:
-            pass
-        return story
-
+            response.raise_for_status()
+        except requests.RequestException:
+            raise requests.RequestException(response.text)
+        
+        story.record.update({'themes': response.json()})
+        return
+        
+    def _get_core(self, locations):
+        """Return a cleaned version of the most relevant location."""
+        ranked = []
+        for status in ('core', 'relevant'):
+            candidates = [d for d in locations.values() if status in
+                          d.get('map_relevance', {})]
+            # TODO: train to replace ad hoc probability cutoff
+            candidates = [c for c in candidates
+                          if c['map_relevance'][status] > .5]
+            ranked += sorted(candidates,
+                             key=lambda x:x['map_relevance'][status],
+                             reverse=True)
+        if not ranked:
+            return {}
+        
+        data = next(iter(ranked))
+        keys_to_keep = ['boundingbox', 'lat', 'lon', 'mentions', 'osm_url',
+                        'map_relevance', 'text']
+        return {k:v for k,v in data.items() if k in keys_to_keep}
+    
+    # Now deprecated, used with ad hoc location scoring:
     def _get_top(self, locations):
         """Return a cleaned version of the top scored location."""
         try:
