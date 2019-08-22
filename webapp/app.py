@@ -6,6 +6,7 @@ is pushed to a Redis queue and handled by the worker process in worker.py.
 
 import datetime
 from inspect import getsourcefile
+from json.decoder import JSONDecodeError
 import os
 import traceback
 import urllib.parse
@@ -46,7 +47,7 @@ app.logger.addHandler(fh)
 locations_net, locations_graph = restore.restore()
 print(locations_net.estimator.summary())
 
-KNOWN_THEMES_URL = os.path.join(FLOYD_URL, 'themes/known_themes')
+KNOWN_THEMES_URL = os.path.join(FLOYD_URL, 'known_themes')
 with open('training_themes.txt') as f:
     TRAINING_THEMES = [l.strip() for l in f.readlines()]
 
@@ -187,7 +188,7 @@ def _retrieve_story(args):
     idx = _parse_index(args)
     try:
         record = firebaseio.DB(DATABASE).get(DB_CATEGORY, idx)
-    except json.decoder.JSONDecodeError as e:
+    except JSONDecodeError as e:
         raise ValueError(('Malformed story index: <{}> '.format(idx) + 
                          'Ref. firebaseio.py for list of forbidden chars.'))
     if not record:
@@ -337,7 +338,7 @@ def _parse_themes(args):
             known_themes = requests.get(KNOWN_THEMES_URL).json()
             if not set(themes) <= set(known_themes):
                 raise ValueError('One or more themes not recognized.')
-        except json.decoder.JSONDecodeError as e:
+        except JSONDecodeError as e:
             # This won't break anything, but prevents checking user input.
             print('Parsing themes. Floydhub: {}'.format(repr(e)))
     return themes
