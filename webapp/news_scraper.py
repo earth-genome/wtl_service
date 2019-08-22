@@ -52,13 +52,8 @@ from watson_developer_cloud import WatsonApiException
 import harvest_urls
 import request_thumbnails
 from story_seeds.story_builder import story_builder
-from story_seeds.utilities import firebaseio
-from story_seeds.utilities import log_utilities
+from story_seeds.utilities import firebaseio, log_utilities
 import track_urls
-
-# Logging when running locally from main:
-EXCEPTIONS_DIR = os.path.join(os.path.dirname(__file__), 'NewsScraperLogs')
-LOGFILE = 'newswire' + datetime.date.today().isoformat() + '.log'
 
 # The asyncio event scheduling cannot be pickled and therefore cannot
 # be Redis-queued. From app.py we must enqueue a function that, as
@@ -94,7 +89,6 @@ class Scrape(object):
         builder: Class instance to extract, evaluate, and post story from url.
         session: An aiohttp.ClientSession created within __call__
         
-
     External method:
         __call__: Process urls from wires.
     """
@@ -102,7 +96,7 @@ class Scrape(object):
     def __init__(
         self, batch_size=20, thumbnail_source=None, http_timeout=1200,
         database=None, url_tracker=None, logger=None, **kwargs):
-        
+
         self.batch_size = batch_size
         if thumbnail_source:
             self.thumbnail_grabber = request_thumbnails.RequestThumbnails(
@@ -120,8 +114,11 @@ class Scrape(object):
         if logger:
             self.logger = logger
         else:
-            self.logger = log_utilities.get_stream_logger(sys.stderr)
-
+            fh = log_utilities.get_rotating_handler(
+                os.path.join(os.path.dirname(__file__), 'logs/scrape.log'),
+                when='D', interval=7, backupCount=3)
+            self.logger = log_utilities.build_logger(
+                handler=fh, level='INFO', name='scrapelog')
         self.builder = story_builder.StoryBuilder(**kwargs)
 
     async def __call__(self, wires):
@@ -140,7 +137,7 @@ class Scrape(object):
                 del records[-self.batch_size:]
                 print('Batch of {} done\n'.format(self.batch_size), flush=True)
 
-        print('complete')
+        self.logger.info('Scrape complete.')
         return
 
     async def _build(self, **record):

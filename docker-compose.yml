@@ -2,6 +2,7 @@ version: '2'
 services:
   web:
     build: .
+    image: wtl_service_web
     env_file: .env
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/opt/webapp/.google_config.json
@@ -9,10 +10,14 @@ services:
       - redis_worker
       - redis_db
     ports:
-      - "5000:5000"
-    volumes:
-      - ./webapp:/opt/webapp
+      - "80:5000"
     tty: true
+    volumes:  
+      - ./webapp:/opt/webapp
+      - ./saved_models:/opt/saved_models
+    command: gunicorn --bind 0.0.0.0:5000 wsgi --timeout 6000
+    # Or to use the Flask built-in server for testing: 
+    # command: python3 app.py
   redis_worker:
     image: redis:alpine
     ports:
@@ -26,5 +31,7 @@ services:
     env_file: .env
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/opt/webapp/.google_config.json
+    volumes:  
+      - ./webapp:/opt/webapp
     command: python3 worker.py
 

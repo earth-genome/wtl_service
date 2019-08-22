@@ -5,33 +5,49 @@ is pushed to a Redis queue and handled by the worker process in worker.py.
 """
 
 import datetime
-import json
+from inspect import getsourcefile
+from json.decoder import JSONDecodeError
 import os
+import traceback
 import urllib.parse
+import sys
 
-from flask import Flask, jsonify, request
+from flask import Flask, json, jsonify, request
 from flask_restful import inputs
 import numpy as np
 import requests
 from rq import Queue
 import shapely
 
-import floyd_login
 from harvest_urls import WIRE_URLS
 import news_scraper
 from request_thumbnails import PROVIDER_PARAMS
 from story_seeds.story_builder.story_builder import FLOYD_URL
-from story_seeds.utilities import log_utilities
-from story_seeds.utilities import firebaseio
+from story_seeds.utilities import firebaseio, log_utilities
 from story_seeds.utilities.firebaseio import ALLOWED_ORDERINGS
 from story_seeds.utilities.geobox import us_counties
 import worker
 
+app_dir = os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
+models_dir = os.path.join(os.path.dirname(app_dir), 'saved_models')
+sys.path.append(models_dir)
+from geoloc_model import restore
+
+# App
 q = Queue('default', connection=worker.connection, default_timeout=86400)
 app = Flask(__name__)
 app.config['JSON_SORT_KEYS'] = False
 
-KNOWN_THEMES_URL = os.path.join(FLOYD_URL, 'themes/known_themes')
+# Logging
+fh = log_utilities.get_rotating_handler(
+    os.path.join(app_dir, 'logs/app.log'), when='D', interval=7, backupCount=3)
+app.logger.addHandler(fh)
+
+# Learned models to serve
+locations_net, locations_graph = restore.restore()
+print(locations_net.estimator.summary())
+
+KNOWN_THEMES_URL = os.path.join(FLOYD_URL, 'known_themes')
 with open('training_themes.txt') as f:
     TRAINING_THEMES = [l.strip() for l in f.readlines()]
 
@@ -40,8 +56,6 @@ US_GEOJSON = os.path.join(os.path.dirname(__file__), 'us_allstates.json')
 EVP_GEOJSON = os.path.join(os.path.dirname(__file__), 'us_evpstates.json')
 
 BOUNDARY_TOL = .2
-
-FLOYD_INIT_FILE = '.floydexpt'
 
 DATABASE = 'story-seeds'
 DB_CATEGORY = '/WTL'
@@ -63,8 +77,8 @@ def welcome():
             ''.join((request.url, 'retrieve-story?')),
         'Get a geojson for US states or counties.':
             ''.join((request.url, 'us-geojsons?')),
-        'Restart serving the Floydhub learned models':
-            ''.join((request.url, 'restart-floyd?'))
+        'Determine relevance of a geolocation':
+            ''.join((request.url, 'locations'))
     }
     return jsonify(msg)
 
@@ -84,11 +98,31 @@ def scrape():
         msg['Exception'] = repr(e)
         return jsonify(msg)
 
+    kwargs.update({'served_models_url': request.url_root})
     job = q.enqueue_call(
         func=news_scraper.scraper_wrapper, args=(wires,), kwargs=kwargs)
 
     return jsonify(_format_scraping_guide())
 
+@app.route('/locations', methods=['GET', 'POST'])
+def classify_locations():
+    msg = _locations_help(request.url)
+    if request.method == 'GET':
+        return jsonify(msg), 405
+
+    try:
+        locations_data = json.loads(request.form['locations_data'])
+        with locations_graph.as_default():
+            predictions = locations_net.predict_relevance(locations_data)
+    except:
+        tb = traceback.format_exc()
+        app.logger.error('Classifying locations: {}'.format(tb))
+        return jsonify(tb), 400
+
+    # convert from np.float32 to float32 for JSON-serializeable output
+    predictions = [{k:float(v) for k,v in p.items()} for p in predictions]
+    return jsonify(predictions)
+    
 @app.route('/retrieve')
 def retrieve():
     """Retrieve records from the WTL database."""
@@ -154,7 +188,7 @@ def _retrieve_story(args):
     idx = _parse_index(args)
     try:
         record = firebaseio.DB(DATABASE).get(DB_CATEGORY, idx)
-    except json.decoder.JSONDecodeError as e:
+    except JSONDecodeError as e:
         raise ValueError(('Malformed story index: <{}> '.format(idx) + 
                          'Ref. firebaseio.py for list of forbidden chars.'))
     if not record:
@@ -222,51 +256,7 @@ def us_geojsons():
         return jsonify(msg)
 
     return jsonify(shapely.geometry.mapping(footprint))
-    
-@app.route('/restart-floyd')
-def restart_floyd():
-    """Restart the Floydhub job serving our learned models."""
-    msg = _help_msg(request.base_url, 'job=22', '')
-    try:
-        job_name = _parse_job(request.args)
-    except ValueError as e:
-        msg['Exception'] = repr(e)
-        return jsonify(msg)
-    
-    try:
-        floyd_login.login()
-        client = floyd_login.get_client()
-        experiments = client.get_all()
-        _halt_serving(client, experiments)
-    except floyd_login.FloydException as e:
-        msg['Exception'] = repr(e)
-        return jsonify(msg)
 
-    try:
-        to_serve = next(expt for expt in experiments if job_name in expt.name)
-        status = client.restart(to_serve.id)
-    except (floyd_login.FloydException, StopIteration) as e:
-        msg['Exception'] = repr(e)
-        return jsonify(msg)
-    
-    return jsonify(status)
-
-def _halt_serving(client, experiments):
-    """Halt the current serving job on Floydhub.
-
-    We expect to serve at most one job at a time. If for some reason
-        more than one job is serving, this will halt the most recently
-        created serving job.
-    """
-    def _is_finished(experiment):
-        """Amendment to the Floyd method to account for preempted jobs."""
-        return experiment.is_finished or experiment.state=='preempted'
-
-    for expt in experiments:
-        if expt.mode == 'serving':   
-            if not _is_finished(expt):
-                client.stop(expt.id)  
-                return
 
 # Argument parsing functions
 
@@ -348,7 +338,7 @@ def _parse_themes(args):
             known_themes = requests.get(KNOWN_THEMES_URL).json()
             if not set(themes) <= set(known_themes):
                 raise ValueError('One or more themes not recognized.')
-        except json.decoder.JSONDecodeError as e:
+        except JSONDecodeError as e:
             # This won't break anything, but prevents checking user input.
             print('Parsing themes. Floydhub: {}'.format(repr(e)))
     return themes
@@ -387,16 +377,6 @@ def _parse_index(args):
         raise ValueError('A story index is required.')
     return idx
 
-def _parse_job(args):
-    """Parse url arguments for a Floydhub job number."""
-    job = request.args.get('job', type=int)
-    if not job:
-        raise ValueError('An integer job number is required.')
-    with open(FLOYD_INIT_FILE) as f:
-        expt = json.load(f)
-    project = expt['name']
-    job_name = os.path.join(project, str(job))
-    return job_name
 
 # Help messaging
     
@@ -423,6 +403,14 @@ def _format_scraper_args():
         }
     }
     return scraper_args
+
+def _locations_help(url):
+    msg = {
+        'Method': 'POST a JSON-serialized list of locations data.',
+        'Example': ("requests.post('{}', ".format(url) +
+                    "data = {'locations_data':json.dumps(<list of dicts>)})")
+    }
+    return msg
 
 def _format_retrieve_args():
     """Produce a dict explaining retrieve args for help messaging."""
