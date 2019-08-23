@@ -3,23 +3,22 @@ A containerized web app to source stories for the Where To Look database.
 
 ### Dependencies
 
-The webapp/utilities repo is a submodule. Also, a number of out-of-repo
-files are required or required for full functionality.
+The webapp/utilities repo is a submodule. 
 
-* Required API keys:
+A number of out-of-repo files are required or required for full functionality:
+
+* Required API keys
   * .env 
   * webapp/.google_config.json
 
-* Various learned models to be served. As of writing, this includes directories:
+* Various learned models to be served. All are loaded exclusively through app.py (see therein) and stashed in:
+  * saved_models/
 
-- saved_models/geoloc_model/
-- saved_models/universal_sentence_encoder/
+* U.S. state geojsons to retrive stories by state or county
+  * webapp/static_geojsons/us_county_geojson.csv
+  * webapp/static_geojsons/us_allstates.json
+  * webapp/static_geojsons/us_evpstates.json
 
-* U.S. state geojsons to retrive stories by state or county:
-
-- webapp/us_county_geojson.csv
-- webapp/us_allstates.json
-- webapp/us_evpstates.json
 
 ### Developing
 
