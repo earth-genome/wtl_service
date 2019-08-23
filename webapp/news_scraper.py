@@ -51,8 +51,8 @@ from watson_developer_cloud import WatsonApiException
 
 import harvest_urls
 import request_thumbnails
-from story_seeds.story_builder import story_builder
-from story_seeds.utilities import firebaseio, log_utilities
+from story_builder import story_builder
+from utilities import firebaseio, log_utilities
 import track_urls
 
 # The asyncio event scheduling cannot be pickled and therefore cannot

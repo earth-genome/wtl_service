@@ -22,10 +22,10 @@ import shapely
 from harvest_urls import WIRE_URLS
 import news_scraper
 from request_thumbnails import PROVIDER_PARAMS
-from story_seeds.story_builder.story_builder import FLOYD_URL
-from story_seeds.utilities import firebaseio, log_utilities
-from story_seeds.utilities.firebaseio import ALLOWED_ORDERINGS
-from story_seeds.utilities.geobox import us_counties
+from story_builder.story_builder import FLOYD_URL
+from utilities import firebaseio, log_utilities
+from utilities.firebaseio import ALLOWED_ORDERINGS
+from utilities.geobox import us_counties
 import worker
 
 app_dir = os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))

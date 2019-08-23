@@ -1,0 +1,3 @@
+[submodule "webapp/utilities"]
+	path = webapp/utilities
+	url = https://github.com/earth-genome/utilities
