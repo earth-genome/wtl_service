@@ -40,8 +40,8 @@ docker-compose up -d
 For Heroku via Heroku container service:
 
 ```bash
-heroku container:push --recursive -a <app-name>
-heroku container:release web worker 
+heroku container:push --recursive -a <heroku-app-name>
+heroku container:release web worker -a <heroku-app-name>
 ```
 
 ### WIP
