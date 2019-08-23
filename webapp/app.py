@@ -87,7 +87,9 @@ def welcome():
             ''.join((request.url, 'retrieve-story?')),
         'Get a geojson for US states or counties.':
             ''.join((request.url, 'us-geojsons?')),
-        'Determine relevance of a geolocation':
+        'Endpoint for served narrow-band text classifiers':
+            ''.join((request.url, 'narrowband')),
+        'Endpoint for served geolocation classifier':
             ''.join((request.url, 'locations'))
     }
     return jsonify(msg)
