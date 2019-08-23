@@ -45,11 +45,16 @@ class StoryBuilder(object):
         run_classifier: Classify story.
         run_geolocation: Geolocate places mentioned in story.
     """
-    def __init__(self, reader=None, parse_images=False, model=WTL_MODEL,
-                 served_models_url=None, geoloc=True, themes=True):
+    def __init__(self, reader=None, parse_images=False,
+                 model=WTL_MODEL, served_models_url=None,
+                 refilter=True, geoloc=True, themes=True):
         self.reader = reader if reader else extract_text.WatsonReader()
         self.image_tagger = tag_image.WatsonTagger() if parse_images else None
         self.classifier = joblib.load(model) if model else None
+        if refilter and served_models_url:
+            self.narrow_band_url = os.path.join(served_models_url, 'narrowband')
+        else:
+            self.narrow_band_url = None
         if geoloc and served_models_url:
             self.geolocator = geolocate.Geolocate(
                 model_url=os.path.join(served_models_url, 'locations'))
@@ -69,6 +74,7 @@ class StoryBuilder(object):
         """
         story = self.assemble_content(url, category, **metadata)
         self.run_classifier(story)
+        self.refilter(story)
         self.run_geolocation(story)
         self.run_themes(story)
         return story
@@ -99,11 +105,9 @@ class StoryBuilder(object):
     def run_classifier(self, story):
         """Classify story.
 
-        Argument story:  A firebasio.DBItem story that includes
-            parsed content as required for self.classifier (typically,
-            returned from assemble_content)
+        Argument story:  A firebasio.DBItem story
 
-        Output: Updates story.record with a 'probability' if avaiable
+        Output: Updates story with a 'probability' if avaiable
 
         Returns: A class label (0/1/None) 
         """
@@ -115,12 +119,47 @@ class StoryBuilder(object):
             probability, story.record['url']), flush=True)
         story.record.update({'probability': probability})
         return classification
+
+    def refilter(self, story):
+        """Run narrow-band binary classifier(s).
+
+        Output: Updates story with 'narrowband' tags
+
+        Returns: The logical AND of available filter classifications (0/1/None)
+        """
+        if not self.narrow_band_url:
+            return
+        clf, labels = self._query(self.narrow_band_url, story.record['text'])
+        if clf == 0:
+            print('Story {} to be excluded due to {}'.format(
+                story.record['url'], labels))
+        story.record.update({'narrowband': labels})
+        return clf
+        
+    def run_themes(self, story):
+        """Query a served themes classifier.
+
+        Output: Updates story with 'themes' if available
+        """
+        if not self.themes_url:
+            return
+        themes = self._query(self.themes_url, story.record['text'])
+        story.record.update({'themes': themes})
+        return
+
+    def _query(self, url, text):
+        """Post text to url."""
+        response = requests.post(url, data={'text': text})
+        try:
+            response.raise_for_status()
+        except requests.RequestException:
+            raise requests.RequestException(response.text)
+        return response.json()
         
     def run_geolocation(self, story):
         """Geolocate places mentioned in story.
 
-        Output: Updates story.record with 'locations' and 'core_location'
-            if avaiable
+        Output: Updates story with 'locations' and possible 'core_location'
         """
         input_places = story.record.get('locations', {})
         if not self.geolocator or not input_places:
@@ -143,24 +182,6 @@ class StoryBuilder(object):
         story.record.update({
             'core_location': self._get_core(story.record.get('locations', {}))
         })
-        return
-
-    def run_themes(self, story):
-        """Query an app-based themes classifier.
-
-        Output: Updates story.record with 'themes' if available
-        """
-        if not self.themes_url:
-            return
-        
-        response = requests.post(self.themes_url,
-                                 data={'text': story.record['text']})
-        try:
-            response.raise_for_status()
-        except requests.RequestException:
-            raise requests.RequestException(response.text)
-        
-        story.record.update({'themes': response.json()})
         return
         
     def _get_core(self, locations):

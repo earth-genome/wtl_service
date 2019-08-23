@@ -158,6 +158,12 @@ class Scrape(object):
 
         classification = self.builder.run_classifier(story)
         if classification == 1:
+            try:
+                narrow_band_clf = self.builder.refilter(story)
+                if narrow_band_clf == 0:
+                    return
+            except RequestException as e:
+                self.logger.warning('Narrow-band: {}:\n{}'.format(e, url))
             try: 
                 self.builder.run_geolocation(story)
             except RequestException as e:

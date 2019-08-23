@@ -30,7 +30,9 @@ import worker
 
 app_dir = os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
 models_dir = os.path.join(os.path.dirname(app_dir), 'saved_models')
+filter_dir = os.path.join(model_dir, 'theme_and_filter')
 sys.path.append(models_dir)
+from theme_and_filter import oracle
 from geoloc_model import restore
 
 # App
@@ -46,6 +48,12 @@ app.logger.addHandler(fh)
 # Learned models to serve
 locations_net, locations_graph = restore.restore()
 print(locations_net.estimator.summary())
+
+hiker_net = oracle.Oracle(
+    *oracle.load(os.path.join(filter_dir, 'RandomDeathFilter')))
+#tourism_net = oracle.Oracle(
+#    *oracle.load(os.path.join(filter_dir, 'TourismFilter')))
+filter_nets = [hiker_net] #, tourism_net]
 
 KNOWN_THEMES_URL = os.path.join(FLOYD_URL, 'known_themes')
 with open('training_themes.txt') as f:
@@ -86,7 +94,7 @@ def welcome():
 
 @app.route('/scrape')
 def scrape():
-    """Pull images given lat, lon, and scale."""
+    """Initiate scraping of news stories to build the WTL database."""
     msg = _help_msg(
         request.base_url,
         'wires=gdelt&wires=newsapi&thumbnail_source=landsat',
@@ -106,8 +114,31 @@ def scrape():
 
     return jsonify(_format_scraping_guide())
 
+@app.route('/narrowband', methods=['GET', 'POST'])
+def refilter():
+    """Serve a model to apply narrow-band binary filters to a text."""
+    msg = _themes_help(request.url)
+    if request.method == 'GET':
+        return jsonify(msg), 405
+
+    try:
+        text = request.form['text']
+        outputs = [net(text) for net in filter_nets]
+    except:
+        tb = traceback.format_exc()
+        app.logger.error('Applying narrow-band filters: {}'.format(tb))
+        msg.update({'Exception': tb})
+        return jsonify(msg), 400
+
+    clf = int(np.prod([o[0] for o in outputs]))
+    labels = [o[1] for o in outputs]
+    labels_merged = {l:p for labeling in labels for l,p in labeling.items()}
+    
+    return jsonify((clf, labels_merged))
+    
 @app.route('/locations', methods=['GET', 'POST'])
 def classify_locations():
+    """Serve a model to classify relevance of locations to a story."""
     msg = _locations_help(request.url)
     if request.method == 'GET':
         return jsonify(msg), 405
@@ -119,7 +150,8 @@ def classify_locations():
     except:
         tb = traceback.format_exc()
         app.logger.error('Classifying locations: {}'.format(tb))
-        return jsonify(tb), 400
+        msg.update({'Exception': tb})
+        return jsonify(msg), 400
 
     # convert from np.float32 to float32 for JSON-serializeable output
     predictions = [{k:float(v) for k,v in p.items()} for p in predictions]
@@ -405,6 +437,14 @@ def _format_scraper_args():
         }
     }
     return scraper_args
+
+def _themes_help(url):
+    msg = {
+        'Method': 'POST a text to this endpoint as a single string.',
+        'Example': ("requests.post('{}', ".format(url) +
+                    "data = {'text':<text string>})")
+    }
+    return msg
 
 def _locations_help(url):
     msg = {
