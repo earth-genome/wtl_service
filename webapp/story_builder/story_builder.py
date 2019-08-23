@@ -132,7 +132,7 @@ class StoryBuilder(object):
         clf, labels = self._query(self.narrow_band_url, story.record['text'])
         if clf == 0:
             print('Story {} to be excluded due to {}'.format(
-                story.record['url'], labels))
+                story.record['url'], labels), flush=True)
         story.record.update({'narrowband': labels})
         return clf
         
