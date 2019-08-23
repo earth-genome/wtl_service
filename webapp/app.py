@@ -51,12 +51,14 @@ KNOWN_THEMES_URL = os.path.join(FLOYD_URL, 'known_themes')
 with open('training_themes.txt') as f:
     TRAINING_THEMES = [l.strip() for l in f.readlines()]
 
-US_CSV = os.path.join(os.path.dirname(__file__), 'us_county_geojson.csv')
-US_GEOJSON = os.path.join(os.path.dirname(__file__), 'us_allstates.json')
-EVP_GEOJSON = os.path.join(os.path.dirname(__file__), 'us_evpstates.json')
-
+# Static geojsons for retrieving stories by U.S. state or county
+geojson_dir = os.path.join(app_dir, 'geojsons')
+US_CSV = os.path.join(geojson_dir, 'us_county_geojson.csv')
+US_GEOJSON = os.path.join(geojson_dir, 'us_allstates.json')
+EVP_GEOJSON = os.path.join(geojson_dir, 'us_evpstates.json')
 BOUNDARY_TOL = .2
 
+# Firebase endpoints
 DATABASE = 'story-seeds'
 DB_CATEGORY = '/WTL'
 TRAINING_DB = 'good-locations'
