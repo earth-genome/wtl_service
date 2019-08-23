@@ -1,0 +1,4 @@
+# For deployment via Heroku container service only
+
+FROM wtl_service_web:latest
+CMD python3 worker.py
