@@ -3,35 +3,57 @@ A containerized web app to source stories for the Where To Look database.
 
 ### Dependencies
 
-The story_seeds repo is a submodule. It creates and classifies the story records.
+The webapp/utilities repo is a submodule. Also, a number of out-of-repo
+files are required or required for full functionality.
 
-Out-of-repo file .env containing API keys for IBM Watson, Floydhub, NewsAPI, and Google Places.
+* Required API keys:
+
+-  .env 
+-  webapp/.google_config.json
+
+* Various learned models to be served. As of writing, this includes directories:
+
+- saved_models/geoloc_model/
+- saved_models/universal_sentence_encoder/
+
+* U.S. state geojsons to retrive stories by state or county:
+
+- webapp/us_county_geojson.csv
+- webapp/us_allstates.json
+- webapp/us_evpstates.json
 
 ### Developing
 
-The image service is based a containerized Flask web app, deployed on
-Heroku.  To test the app, simply use the following command from the top-level
-directory:
-
-```bash
-docker-compose up
-```
-
-If you change the environment (e.g., adding a dependency), then you will first
-have to rebuild the container with:
+The image service is based a containerized Flask web app.  To test the app, run
+from the top-level directory:
 
 ```bash
 docker-compose build
+docker-compose up
 ```
 
 ### Deploying
 
-The app name on Heroku for this project is `earthrise-wtl`.  As such,
-when deploying live, simply use the following command from the top-level
-directory.
+On AWS simply run in detatched mode:
+```bash
+docker-compose up -d
+```
+
+For Heroku via Heroku container service:
 
 ```bash
-heroku container:push --recursive -a earthrise-wtl
+heroku container:push --recursive -a <app-name>
 heroku container:release web worker 
-
 ```
+
+### WIP
+
+The served model are set to serve from whatever endpoint point the app
+is running on. This works fine for me from AWS but not from my own
+laptop, presumably due to some security rules. This should not break
+the news scraper but will result in truncated stories.
+
+Some command-line wrappers from the old story_seeds repo, now in the
+story_seeds_cl_wrappers folder, need to be repaired - and in some cases
+out-of-repo models reintroduced - to fit the new directory structure
+of wtl_service.
