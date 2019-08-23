@@ -7,9 +7,8 @@ The webapp/utilities repo is a submodule. Also, a number of out-of-repo
 files are required or required for full functionality.
 
 * Required API keys:
-
-..* .env 
-..*  webapp/.google_config.json
+  * .env 
+  * webapp/.google_config.json
 
 * Various learned models to be served. As of writing, this includes directories:
 
