@@ -13,7 +13,6 @@ saved_models/
 *.hdf5
 *logs/
 *.log*
-*.pkl
 
 .DS_Store
 */.DS_Store
