@@ -46,10 +46,10 @@ heroku container:release web worker -a <heroku-app-name>
 
 ### WIP
 
-The served model are set to serve from whatever endpoint point the app
-is running on. This works fine for me from AWS but not from my own
-laptop, presumably due to some security rules. This should not break
-the news scraper but will result in truncated stories.
+The served model are set to serve from whatever web endpoint the app
+is running on. This works fine for me from AWS, but I am not able to 
+post data to the served models on my own laptop, presumably due to some security rules. 
+This should not break the news scraper but will result in truncated stories.
 
 Some command-line wrappers from the old story_seeds repo, now in the
 story_seeds_cl_wrappers folder, need to be repaired - and in some cases
