@@ -55,7 +55,7 @@ class StoryBuilder(object):
                 model_url=os.path.join(served_models_url, 'locations'))
         else:
             self.geolocator = None
-        self.themes_url = os.path.join(FLOYD_URL, 'themes') if themes else None
+        self.themes_url = FLOYD_URL if themes else None
 
     def __call__(self, url, category='/null', **metadata):
         """Build a story from url.
