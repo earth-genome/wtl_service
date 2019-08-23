@@ -30,7 +30,7 @@ import worker
 
 app_dir = os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
 models_dir = os.path.join(os.path.dirname(app_dir), 'saved_models')
-filter_dir = os.path.join(model_dir, 'theme_and_filter')
+filter_dir = os.path.join(models_dir, 'theme_and_filter')
 sys.path.append(models_dir)
 from theme_and_filter import oracle
 from geoloc_model import restore
