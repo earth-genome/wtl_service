@@ -46,13 +46,11 @@ import sys
 import time
 import traceback
 
-from requests import RequestException
-from watson_developer_cloud import WatsonApiException
-
 import harvest_urls
 import request_thumbnails
 from story_builder import story_builder
-from utilities import firebaseio, log_utilities
+from utilities import firebaseio
+from utilities import log_utilities
 import track_urls
 
 # The asyncio event scheduling cannot be pickled and therefore cannot
@@ -119,7 +117,7 @@ class Scrape(object):
                 when='D', interval=7, backupCount=3)
             self.logger = log_utilities.build_logger(
                 handler=fh, level='INFO', name='scrapelog')
-        self.builder = story_builder.StoryBuilder(**kwargs)
+        self.builder = story_builder.StoryBuilder(logger=self.logger, **kwargs)
 
     async def __call__(self, wires):
         """Process urls from wires."""
@@ -149,29 +147,9 @@ class Scrape(object):
         """
         url = record.pop('url')
         self.url_tracker.add(url, time.time())
-        try:
-            story = self.builder.assemble_content(url, category='/WTL',
-                                                  **record)
-        except WatsonApiException as e:
-            self.logger.warning('Assembling content: {}:\n{}'.format(e, url))
-            return
-
-        classification = self.builder.run_classifier(story)
-        if classification == 1:
-            try:
-                narrow_band_clf = self.builder.refilter(story)
-                if narrow_band_clf == 0:
-                    return
-            except RequestException as e:
-                self.logger.warning('Narrow-band: {}:\n{}'.format(e, url))
-            try: 
-                self.builder.run_geolocation(story)
-            except RequestException as e:
-                self.logger.warning('Geolocation: {}:\n{}'.format(e, url))
-            try:
-                self.builder.run_themes(story)
-            except RequestException as e:
-                self.logger.warning('Themes: {}:\n{}'.format(e, url))
+        story = self.builder(url, category='/WTL', **record)
+        
+        if story:
             if self.thumbnail_grabber:
                 try:
                     loc = story.record['core_location']

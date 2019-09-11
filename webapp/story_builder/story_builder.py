@@ -15,18 +15,24 @@ import os
 
 import requests
 from sklearn.externals import joblib
+from watson_developer_cloud import WatsonApiException
 
 from geolocation import geolocate
 from story_builder import extract_text
 from story_builder import tag_image
 from utilities import firebaseio
+from utilities import log_utilities
 
 # Default classifiers
 current_dir = os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
 WTL_MODEL = os.path.join(os.path.dirname(current_dir),
                          'bagofwords/Stacker_models/latest_model.pkl')
 
-FLOYD_URL = 'https://www.floydlabs.com/serve/earthrise/projects/themes'
+served_models_url = 'http://wtl.earthrise.media'
+NARROWBAND_URL = os.path.join(served_models_url, 'narrowband')
+#THEMES_URL = os.path.join(served_models_url, 'themes')
+THEMES_URL = 'https://www.floydlabs.com/serve/earthrise/projects/themes'
+GEOLOC_URL = os.path.join(served_models_url, 'locations')
 
 class StoryBuilder(object):
     """Parse text and/or image at url, classify story, and geolocate places
@@ -35,32 +41,48 @@ class StoryBuilder(object):
     Attributes:
         reader: instance of extract_text.WatsonReader class (required)
         image_tagger: instance of tag_image.WatsonTagger class, or None
-        model: path to a pickled (e.g. naivebayes or logistic stacking) 
-            classifier, or None
+        reject_for_class: bool to abort build on negative classification 
+            from any binary model
+        main_model: restored bagofwords classifier or None
+        narrowband_url: url for additional served binary classifier, or None
+        themes_url: url for served themes classifier, or None
         geolocator: instance of geolocate.Geolocate class, or None
+        logger: python logging instance
 
     Methods:
         __call__: Build a story from url.
         assemble_content: Assemble parsed url content into a basic story.
-        run_classifier: Classify story.
+        classify: Apply main model to story.
+        refilter: Run served narrow-band binary classifier.
+        apply_themes: Query a served themes classifier.
         run_geolocation: Geolocate places mentioned in story.
     """
-    def __init__(self, reader=None, parse_images=False,
-                 model=WTL_MODEL, served_models_url=None,
-                 refilter=True, geoloc=True, themes=True):
+    def __init__(self,
+                 reader=None,
+                 parse_images=False,
+                 reject_for_class=True,
+                 main_model=WTL_MODEL,
+                 narrowband_url=NARROWBAND_URL,
+                 themes_url=THEMES_URL,
+                 geoloc_url=GEOLOC_URL,
+                 logger=None):
         self.reader = reader if reader else extract_text.WatsonReader()
         self.image_tagger = tag_image.WatsonTagger() if parse_images else None
-        self.classifier = joblib.load(model) if model else None
-        if refilter and served_models_url:
-            self.narrow_band_url = os.path.join(served_models_url, 'narrowband')
-        else:
-            self.narrow_band_url = None
-        if geoloc and served_models_url:
-            self.geolocator = geolocate.Geolocate(
-                model_url=os.path.join(served_models_url, 'locations'))
+        self.reject_for_class = reject_for_class
+        
+        self.main_model = joblib.load(main_model) if main_model else None
+        self.narrowband_url = narrowband_url
+        self.themes_url = themes_url
+        if geoloc_url:
+            self.geolocator = geolocate.Geolocate(model_url=geoloc_url)
         else:
             self.geolocator = None
-        self.themes_url = FLOYD_URL if themes else None
+            
+        if logger:
+            self.logger = logger
+        else:
+            self.logger = log_utilities.build_logger(
+                handler=log_utilities.get_stream_handler())
 
     def __call__(self, url, category='/null', **metadata):
         """Build a story from url.
@@ -70,14 +92,47 @@ class StoryBuilder(object):
             category: database top-level key
             metadata: options parameters to store in story record
 
-        Returns: a firebaseio.DBItem story
+        Returns: a firebaseio.DBItem story on success, or None
         """
-        story = self.assemble_content(url, category, **metadata)
-        self.run_classifier(story)
-        self.refilter(story)
-        self.run_geolocation(story)
-        self.run_themes(story)
+        try:
+            story = self.assemble_content(url, category=category, **metadata)
+        except WatsonApiException as e:
+            self.logger.warning('Assembling content: {}:\n{}'.format(e, url))
+            return
+
+        clf = self.classify(story)
+        if self._abort(clf):
+            return
+        
+        try: 
+            clf = self.refilter(story)
+            if self._abort(clf):
+                return
+        except requests.RequestException as e:
+            self.logger.warning('Narrowband: {}:\n{}'.format(e, url))
+
+        try:
+            self.apply_themes(story)
+        except requests.RequestException as e:
+            self.logger.warning('Themes: {}:\n{}'.format(e, url))
+            
+        try: 
+            self.run_geolocation(story)
+        except requests.RequestException as e:
+            self.logger.warning('Geolocation: {}:\n{}'.format(e, url))
+
         return story
+
+    def _abort(self, clf):
+        """Determine whether or not to abort build on a story.
+
+        Argument clf: int (0/1) or NoneType
+        
+        Returns: bool
+        """
+        if not self.reject_for_class:
+            return False
+        return True if clf == 0 else False
 
     def assemble_content(self, url, category='/null', **metadata):
         """Assemble parsed url content into a basic story.
@@ -102,8 +157,8 @@ class StoryBuilder(object):
             })
         return firebaseio.DBItem(category, None, record)
 
-    def run_classifier(self, story):
-        """Classify story.
+    def classify(self, story):
+        """Apply main model to story.
 
         Argument story:  A firebasio.DBItem story
 
@@ -111,32 +166,32 @@ class StoryBuilder(object):
 
         Returns: A class label (0/1/None) 
         """
-        if not self.classifier:
-            return None
-        classification, probability = self.classifier.classify_story(story)
-        result = 'Accepted' if classification == 1 else 'Declined'
+        if not self.main_model:
+            return
+        clf, probability = self.main_model.classify_story(story)
+        result = 'Accepted' if clf == 1 else 'Declined'
         print(result + ' for feed @ prob {:.3f}: {}\n'.format(
             probability, story.record['url']), flush=True)
         story.record.update({'probability': probability})
-        return classification
+        return clf
 
     def refilter(self, story):
-        """Run narrow-band binary classifier(s).
+        """Run served narrow-band binary classifier.
 
-        Output: Updates story with 'narrowband' tags
+        Output: Updates story with 'narrowband' labels
 
-        Returns: The logical AND of available filter classifications (0/1/None)
+        Returns: A class label (0/1/None)
         """
-        if not self.narrow_band_url:
+        if not self.narrowband_url:
             return
-        clf, labels = self._query(self.narrow_band_url, story.record['text'])
+        clf, labels = self._query(self.narrowband_url, story.record['text'])
         if clf == 0:
             print('Story {} to be excluded due to {}'.format(
                 story.record['url'], labels), flush=True)
         story.record.update({'narrowband': labels})
         return clf
         
-    def run_themes(self, story):
+    def apply_themes(self, story):
         """Query a served themes classifier.
 
         Output: Updates story with 'themes' if available

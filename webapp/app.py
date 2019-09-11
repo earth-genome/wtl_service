@@ -22,7 +22,7 @@ import shapely
 from harvest_urls import WIRE_URLS
 import news_scraper
 from request_thumbnails import PROVIDER_PARAMS
-from story_builder.story_builder import FLOYD_URL
+from story_builder.story_builder import THEMES_URL
 from utilities import firebaseio, log_utilities
 from utilities.firebaseio import ALLOWED_ORDERINGS
 from utilities.geobox import us_counties
@@ -55,7 +55,7 @@ hiker_net = oracle.Oracle(
 #    *oracle.load(os.path.join(filter_dir, 'TourismFilter')))
 filter_nets = [hiker_net] #, tourism_net]
 
-KNOWN_THEMES_URL = os.path.join(FLOYD_URL, 'known_themes')
+KNOWN_THEMES_URL = os.path.join(THEMES_URL, 'known_themes')
 with open('training_themes.txt') as f:
     TRAINING_THEMES = [l.strip() for l in f.readlines()]
 
@@ -110,14 +110,13 @@ def scrape():
         msg['Exception'] = repr(e)
         return jsonify(msg)
 
-    kwargs.update({'served_models_url': request.url_root})
     job = q.enqueue_call(
         func=news_scraper.scraper_wrapper, args=(wires,), kwargs=kwargs)
 
     return jsonify(_format_scraping_guide())
 
 @app.route('/narrowband', methods=['GET', 'POST'])
-def refilter():
+def narrowband():
     """Serve a model to apply narrow-band binary filters to a text."""
     msg = _themes_help(request.url)
     if request.method == 'GET':
@@ -139,7 +138,7 @@ def refilter():
     return jsonify((clf, labels_merged))
     
 @app.route('/locations', methods=['GET', 'POST'])
-def classify_locations():
+def locations():
     """Serve a model to classify relevance of locations to a story."""
     msg = _locations_help(request.url)
     if request.method == 'GET':
@@ -155,7 +154,7 @@ def classify_locations():
         msg.update({'Exception': tb})
         return jsonify(msg), 400
 
-    # convert from np.float32 to float32 for JSON-serializeable output
+    # convert from np.float to float for JSON-serializeable output
     predictions = [{k:float(v) for k,v in p.items()} for p in predictions]
     return jsonify(predictions)
     
