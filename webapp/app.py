@@ -60,7 +60,7 @@ with open('training_themes.txt') as f:
     TRAINING_THEMES = [l.strip() for l in f.readlines()]
 
 # Static geojsons for retrieving stories by U.S. state or county
-geojson_dir = os.path.join(app_dir, 'geojsons')
+geojson_dir = os.path.join(app_dir, 'static_geojsons')
 US_CSV = os.path.join(geojson_dir, 'us_county_geojson.csv')
 US_GEOJSON = os.path.join(geojson_dir, 'us_allstates.json')
 EVP_GEOJSON = os.path.join(geojson_dir, 'us_evpstates.json')
