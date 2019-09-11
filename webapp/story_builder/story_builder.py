@@ -258,18 +258,4 @@ class StoryBuilder(object):
         keys_to_keep = ['boundingbox', 'lat', 'lon', 'mentions', 'osm_url',
                         'map_relevance', 'text']
         return {k:v for k,v in data.items() if k in keys_to_keep}
-    
-    # Now deprecated, used with ad hoc location scoring:
-    def _get_top(self, locations):
-        """Return a cleaned version of the top scored location."""
-        try:
-            ranked = sorted(locations.items(), key=lambda item:item[1]['score'],
-                            reverse=True)
-            name, data = next(iter(ranked))
-        except (KeyError, StopIteration):
-            return {}
 
-        keys_to_keep = ['boundingbox', 'lat', 'lon', 'mentions', 'osm_url',
-                        'score', 'text']
-        cleaned = {k:v for k,v in data.items() if k in keys_to_keep}
-        return cleaned

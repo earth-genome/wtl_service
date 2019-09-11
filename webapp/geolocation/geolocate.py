@@ -129,27 +129,3 @@ class Geolocate(object):
             data.update({'map_relevance': scores})
             
         return dict(ordered_locs)
-            
-    # Temporary ad-hoc scoring, now replaced by the served classifier.
-    def _score(self, data):
-        try:
-            sizing = self._size_score(data.get('boundingbox'))
-        except TypeError:
-            sizing = 0
-        clustering = np.sqrt(len(data['cluster']))
-        return data['relevance'] * (sizing + clustering)
-
-    def _size_score(self, bounds):
-        sides = geobox.get_side_distances(geometry.box(*bounds))
-        size = np.mean(sides)
-        if size < 2:
-            return 3
-        elif size < 8:
-            return 2
-        elif size < 30:
-            return 1
-        elif size < 100:
-            return 0
-        else:
-            return -.99
-
