@@ -51,9 +51,9 @@ print(locations_net.estimator.summary())
 
 hiker_net = oracle.Oracle(
     *oracle.load(os.path.join(filter_dir, 'RandomDeathFilter')))
-#tourism_net = oracle.Oracle(
-#    *oracle.load(os.path.join(filter_dir, 'TourismFilter')))
-filter_nets = [hiker_net] #, tourism_net]
+tourism_net = oracle.Oracle(
+    *oracle.load(os.path.join(filter_dir, 'TourismFilter')))
+filter_nets = [hiker_net, tourism_net]
 
 KNOWN_THEMES_URL = os.path.join(THEMES_URL, 'known_themes')
 with open('training_themes.txt') as f:
