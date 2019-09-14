@@ -131,7 +131,7 @@ def narrowband():
 
     try:
         text = request.form['text']
-        outputs = [net(text) for net in themes_nets]
+        outputs = [net(text) for net in filter_nets]
     except:
         tb = traceback.format_exc()
         app.logger.error('Applying narrow-band filters: {}'.format(tb))
@@ -210,13 +210,13 @@ def retrieve():
             stories = [s for s in stories
                 if set(themes).intersection(s.record.get('themes', {}))]
         else:
-            themed = []
+            stories_w_reqd_themes = []
             for s in stories:
-                made_cut = [t for t,p in s.record.get('themes', {}).items()
-                                if p > THEMES_CUT]
-                if set(themes).intersection(made_cut):
-                    themed.append(s)
-            stories = themed
+                strong = [t for t,p in s.record.get('themes', {}).items()
+                              if p > THEMES_CUT]
+                if set(themes).intersection(strong):
+                    stories_w_reqd_themes.append(s)
+            stories = stories_w_reqd_themes
             
     if footprint:
         footprint = footprint.simplify(BOUNDARY_TOL, preserve_topology=False)
@@ -376,8 +376,8 @@ def _parse_dates(args):
 
 def _parse_themes(args):
     """Parse url for themes."""
-    themes = args.getlist('themes')
-    if themes and not set(themes) <= set(known_themes):
+    themes = args.getlist('themes', {})
+    if not set(themes) <= set(known_themes):
         raise ValueError('One or more themes not recognized.')
     return themes
 
