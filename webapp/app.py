@@ -78,8 +78,6 @@ BOUNDARY_TOL = .2
 # Firebase endpoints
 DATABASE = 'story-seeds'
 DB_CATEGORY = '/WTL'
-TRAINING_DB = 'good-locations'
-TRAINING_DB_CATEGORY = '/labeled_themes'
 
 @app.route('/')
 def welcome():
@@ -286,35 +284,6 @@ def _clean(story):
             urllib.parse.quote(story.idx))
     }
     return rec
-
-@app.route('/label')
-def label():
-    """Add theme labels to a story in WTL and post to good-locations."""
-    msg = _help_msg(
-        request.base_url,
-        'themes=pollution&themes=water&idx=Index of the story in the database',
-        {'known themes': TRAINING_THEMES})
-
-    try:
-        themes = request.args.getlist('themes')
-        if not set(themes) <= set(TRAINING_THEMES):
-            raise ValueError('One or more themes not recognized.')
-        story = _retrieve_story(request.args)
-    except ValueError as e:
-        msg['Exception'] = repr(e)
-        return jsonify(msg)
-
-    story.category = TRAINING_DB_CATEGORY
-    story.record.update({'labeled_themes': themes})
-    rec_uploaded = firebaseio.DB(TRAINING_DB).put_item(story, verbose=True)
-
-    if rec_uploaded:
-        return jsonify({
-            'Successfully posted to {}'.format(TRAINING_DB): story.idx,
-            'With labeled themes': rec_uploaded.get('labeled_themes')
-        })
-    else:
-        return jsonify({'Failed to upload': story.idx})
 
 @app.route('/us-geojsons')
 def us_geojsons():
