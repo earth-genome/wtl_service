@@ -113,19 +113,19 @@ class StoryBuilder(object):
             if self._abort(clf):
                 return
         except requests.RequestException as e:
-            self.logger.warning('Narrowband: {}:\n{}'.format(e, url))
+            self.logger.warning('During narrowband: {}:\n{}'.format(e, url))
 
         try:
             self.apply_themes(story)
             if self._abort_for_weather(story):
                 return
         except requests.RequestException as e:
-            self.logger.warning('Themes: {}:\n{}'.format(e, url))
+            self.logger.warning('During themes: {}:\n{}'.format(e, url))
             
         try: 
             self.run_geolocation(story)
         except requests.RequestException as e:
-            self.logger.warning('Geolocation: {}:\n{}'.format(e, url))
+            self.logger.warning('During geolocation: {}:\n{}'.format(e, url))
 
         return story
 
