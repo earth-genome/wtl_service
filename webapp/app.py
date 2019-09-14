@@ -55,9 +55,18 @@ tourism_net = oracle.Oracle(
     *oracle.load(os.path.join(filter_dir, 'TourismFilter')))
 filter_nets = [hiker_net, tourism_net]
 
-KNOWN_THEMES_URL = os.path.join(THEMES_URL, 'known_themes')
-with open('training_themes.txt') as f:
-    TRAINING_THEMES = [l.strip() for l in f.readlines()]
+main_themes_net = oracle.Oracle(
+    *oracle.load(os.path.join(filter_dir, 'MainThemes')))
+subthemes_net = oracle.Oracle(
+    *oracle.load(os.path.join(filter_dir, 'ClimateSubThemes')))
+
+# thresholds for running subthemes
+CLIMATE_CUT = .5
+POLLUTION_CUT = .3
+# threshold for retrieving stories based on themes
+THEMES_CUT = .5
+
+known_themes = main_themes_net.labels + subthemes_net.labels
 
 # Static geojsons for retrieving stories by U.S. state or county
 geojson_dir = os.path.join(app_dir, 'static_geojsons')
@@ -124,7 +133,7 @@ def narrowband():
 
     try:
         text = request.form['text']
-        outputs = [net(text) for net in filter_nets]
+        outputs = [net(text) for net in themes_nets]
     except:
         tb = traceback.format_exc()
         app.logger.error('Applying narrow-band filters: {}'.format(tb))
@@ -136,6 +145,27 @@ def narrowband():
     labels_merged = {l:p for labeling in labels for l,p in labeling.items()}
     
     return jsonify((clf, labels_merged))
+
+@app.route('/themes', methods=['GET', 'POST'])
+def themes():
+    """Serve a model to identify themes in a text."""
+    msg = _themes_help(request.url)
+    if request.method == 'GET':
+        return jsonify(msg), 405
+
+    try:
+        text = request.form['text']
+        themes = main_themes_net.predict_labels(text)
+        if (themes['pollution'] > POLLUTION_CUT or
+                themes['climate crisis'] > CLIMATE_CUT):
+            themes.update(subthemes_net.predict_labels(text))
+    except:
+        tb = traceback.format_exc()
+        app.logger.error('Applying themes: {}'.format(tb))
+        msg.update({'Exception': tb})
+        return jsonify(msg), 400
+
+    return jsonify(themes)
     
 @app.route('/locations', methods=['GET', 'POST'])
 def locations():
@@ -177,8 +207,18 @@ def retrieve():
     stories = firebaseio.DB(DATABASE).grab_stories(DB_CATEGORY, **kwargs)
     
     if themes:
-        stories = [s for s in stories
-                   if set(themes).intersection(s.record.get('themes', {}))]
+        # For pre-19.09.16 themes
+        if kwargs['endAt'] <= '2019-09-16':
+            stories = [s for s in stories
+                if set(themes).intersection(s.record.get('themes', {}))]
+        else:
+            themed = []
+            for s in stories:
+                made_cut = [t for t,p in s.record.get('themes', {}).items()
+                                if p > THEMES_CUT]
+                if set(themes).intersection(made_cut):
+                    themed.append(s)
+            stories = themed
             
     if footprint:
         footprint = footprint.simplify(BOUNDARY_TOL, preserve_topology=False)
@@ -368,14 +408,8 @@ def _parse_dates(args):
 def _parse_themes(args):
     """Parse url for themes."""
     themes = args.getlist('themes')
-    if themes:
-        try:
-            known_themes = requests.get(KNOWN_THEMES_URL).json()
-            if not set(themes) <= set(known_themes):
-                raise ValueError('One or more themes not recognized.')
-        except JSONDecodeError as e:
-            # This won't break anything, but prevents checking user input.
-            print('Parsing themes. Floydhub: {}'.format(repr(e)))
+    if themes and not set(themes) <= set(known_themes):
+        raise ValueError('One or more themes not recognized.')
     return themes
 
 def _get_counties(args):
@@ -472,7 +506,7 @@ def _format_retrieve_args():
             'filterby': 'One of {}. Defaults to {}'.format(
                 filters, next(iter(filters)))
         },
-        'known themes': KNOWN_THEMES_URL
+        'known themes': known_themes
     }
     scraper_args.update({
         'states and counties': request.url_root + 'us-geojsons'

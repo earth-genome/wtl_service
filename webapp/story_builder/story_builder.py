@@ -30,9 +30,10 @@ WTL_MODEL = os.path.join(os.path.dirname(current_dir),
 
 served_models_url = 'http://wtl.earthrise.media'
 NARROWBAND_URL = os.path.join(served_models_url, 'narrowband')
-#THEMES_URL = os.path.join(served_models_url, 'themes')
-THEMES_URL = 'https://www.floydlabs.com/serve/earthrise/projects/themes'
+THEMES_URL = os.path.join(served_models_url, 'themes')
 GEOLOC_URL = os.path.join(served_models_url, 'locations')
+
+WEATHER_CUT = .25
 
 class StoryBuilder(object):
     """Parse text and/or image at url, classify story, and geolocate places
@@ -46,6 +47,7 @@ class StoryBuilder(object):
         main_model: restored bagofwords classifier or None
         narrowband_url: url for additional served binary classifier, or None
         themes_url: url for served themes classifier, or None
+        weather_cut: probability cutoff for rejecting stories by weather signal
         geolocator: instance of geolocate.Geolocate class, or None
         logger: python logging instance
 
@@ -64,6 +66,7 @@ class StoryBuilder(object):
                  main_model=WTL_MODEL,
                  narrowband_url=NARROWBAND_URL,
                  themes_url=THEMES_URL,
+                 weather_cut = WEATHER_CUT,
                  geoloc_url=GEOLOC_URL,
                  logger=None):
         self.reader = reader if reader else extract_text.WatsonReader()
@@ -73,6 +76,7 @@ class StoryBuilder(object):
         self.main_model = joblib.load(main_model) if main_model else None
         self.narrowband_url = narrowband_url
         self.themes_url = themes_url
+        self.weather_cut = weather_cut
         if geoloc_url:
             self.geolocator = geolocate.Geolocate(model_url=geoloc_url)
         else:
@@ -113,6 +117,8 @@ class StoryBuilder(object):
 
         try:
             self.apply_themes(story)
+            if self._abort_for_weather(story):
+                return
         except requests.RequestException as e:
             self.logger.warning('Themes: {}:\n{}'.format(e, url))
             
@@ -133,6 +139,16 @@ class StoryBuilder(object):
         if not self.reject_for_class:
             return False
         return True if clf == 0 else False
+
+    def _abort_for_weather(self, story):
+        """Determine whether to abort build based on weather signal.
+
+        Output: Pops weather from story themes.
+
+        Returns: bool
+        """
+        weather_prob = story.record.get('themes', {}).pop('weather', {})
+        return True if weather_prob > self.weather_cut else False
 
     def assemble_content(self, url, category='/null', **metadata):
         """Assemble parsed url content into a basic story.
