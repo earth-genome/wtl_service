@@ -30,7 +30,7 @@ import worker
 
 app_dir = os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
 models_dir = os.path.join(os.path.dirname(app_dir), 'saved_models')
-filter_dir = os.path.join(models_dir, 'theme_and_filter')
+theme_and_filter_dir = os.path.join(models_dir, 'theme_and_filter')
 sys.path.append(models_dir)
 from theme_and_filter import oracle
 from geoloc_model import restore
@@ -46,19 +46,19 @@ fh = log_utilities.get_rotating_handler(
 app.logger.addHandler(fh)
 
 # Learned models to serve
-locations_net, locations_graph = restore.restore()
-print(locations_net.estimator.summary())
+LOCATIONS_NET, LOCATIONS_GRAPH = restore.restore()
+print(LOCATIONS_NET.estimator.summary())
 
 hiker_net = oracle.Oracle(
-    *oracle.load(os.path.join(filter_dir, 'RandomDeathFilter')))
+    *oracle.load(os.path.join(theme_and_filter_dir, 'RandomDeathFilter')))
 tourism_net = oracle.Oracle(
-    *oracle.load(os.path.join(filter_dir, 'TourismFilter')))
-filter_nets = [hiker_net, tourism_net]
+    *oracle.load(os.path.join(theme_and_filter_dir, 'TourismFilter')))
+FILTER_NETS = [hiker_net, tourism_net]
 
-main_themes_net = oracle.Oracle(
-    *oracle.load(os.path.join(filter_dir, 'MainThemes')))
-subthemes_net = oracle.Oracle(
-    *oracle.load(os.path.join(filter_dir, 'ClimateSubThemes')))
+MAIN_THEMES_NET = oracle.Oracle(
+    *oracle.load(os.path.join(theme_and_filter_dir, 'MainThemes')))
+SUBTHEMES_NET = oracle.Oracle(
+    *oracle.load(os.path.join(theme_and_filter_dir, 'ClimateSubThemes')))
 
 # thresholds for running subthemes
 CLIMATE_CUT = .5
@@ -66,7 +66,9 @@ POLLUTION_CUT = .3
 # threshold for retrieving stories based on themes
 THEMES_CUT = .5
 
-known_themes = main_themes_net.labels + subthemes_net.labels
+KNOWN_THEMES = MAIN_THEMES_NET.labels + SUBTHEMES_NET.labels
+with open(os.path.join(theme_and_filter_dir, 'pre1909themes.txt')) as f:
+    PRE1909_THEMES = [line.strip() for line in f]
 
 # Static geojsons for retrieving stories by U.S. state or county
 geojson_dir = os.path.join(app_dir, 'static_geojsons')
@@ -123,7 +125,7 @@ def scrape():
     return jsonify(_format_scraping_guide())
 
 @app.route('/narrowband', methods=['GET', 'POST'])
-def narrowband():
+def serve_narrowband_models():
     """Serve a model to apply narrow-band binary filters to a text."""
     msg = _themes_help(request.url)
     if request.method == 'GET':
@@ -131,7 +133,7 @@ def narrowband():
 
     try:
         text = request.form['text']
-        outputs = [net(text) for net in filter_nets]
+        outputs = [net(text) for net in FILTER_NETS]
     except:
         tb = traceback.format_exc()
         app.logger.error('Applying narrow-band filters: {}'.format(tb))
@@ -145,7 +147,7 @@ def narrowband():
     return jsonify((clf, labels_merged))
 
 @app.route('/themes', methods=['GET', 'POST'])
-def themes():
+def serve_themes_models():
     """Serve a model to identify themes in a text."""
     msg = _themes_help(request.url)
     if request.method == 'GET':
@@ -153,10 +155,10 @@ def themes():
 
     try:
         text = request.form['text']
-        themes = main_themes_net.predict_labels(text)
+        themes = MAIN_THEMES_NET.predict_labels(text)
         if (themes['pollution'] > POLLUTION_CUT or
                 themes['climate crisis'] > CLIMATE_CUT):
-            themes.update(subthemes_net.predict_labels(text))
+            themes.update(SUBTHEMES_NET.predict_labels(text))
     except:
         tb = traceback.format_exc()
         app.logger.error('Applying themes: {}'.format(tb))
@@ -166,7 +168,7 @@ def themes():
     return jsonify(themes)
     
 @app.route('/locations', methods=['GET', 'POST'])
-def locations():
+def serve_locations_model():
     """Serve a model to classify relevance of locations to a story."""
     msg = _locations_help(request.url)
     if request.method == 'GET':
@@ -174,8 +176,8 @@ def locations():
 
     try:
         locations_data = json.loads(request.form['locations_data'])
-        with locations_graph.as_default():
-            predictions = locations_net.predict_relevance(locations_data)
+        with LOCATIONS_GRAPH.as_default():
+            predictions = LOCATIONS_NET.predict_relevance(locations_data)
     except:
         tb = traceback.format_exc()
         app.logger.error('Classifying locations: {}'.format(tb))
@@ -203,9 +205,9 @@ def retrieve():
         return jsonify(msg)
 
     stories = firebaseio.DB(DATABASE).grab_stories(DB_CATEGORY, **kwargs)
-    
+
     if themes:
-        # For pre-19.09.16 themes
+        # For pre-19.09.16 themes. 
         if kwargs['endAt'] <= '2019-09-16':
             stories = [s for s in stories
                 if set(themes).intersection(s.record.get('themes', {}))]
@@ -376,8 +378,8 @@ def _parse_dates(args):
 
 def _parse_themes(args):
     """Parse url for themes."""
-    themes = args.getlist('themes', {})
-    if not set(themes) <= set(known_themes):
+    themes = args.getlist('themes')
+    if not set(themes) <= set(KNOWN_THEMES + PRE1909_THEMES):
         raise ValueError('One or more themes not recognized.')
     return themes
 
@@ -475,7 +477,7 @@ def _format_retrieve_args():
             'filterby': 'One of {}. Defaults to {}'.format(
                 filters, next(iter(filters)))
         },
-        'known themes': known_themes
+        'known themes': KNOWN_THEMES
     }
     scraper_args.update({
         'states and counties': request.url_root + 'us-geojsons'
