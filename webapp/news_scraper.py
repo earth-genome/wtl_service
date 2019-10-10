@@ -114,7 +114,7 @@ class Scrape(object):
         else:
             fh = log_utilities.get_rotating_handler(
                 os.path.join(os.path.dirname(__file__), 'logs/scrape.log'),
-                when='D', interval=7, backupCount=3)
+                maxBytes=1e7, backupCount=3)
             self.logger = log_utilities.build_logger(
                 handler=fh, level='INFO', name='scrapelog')
         self.builder = story_builder.StoryBuilder(logger=self.logger, **kwargs)

@@ -42,7 +42,7 @@ app.config['JSON_SORT_KEYS'] = False
 
 # Logging
 fh = log_utilities.get_rotating_handler(
-    os.path.join(app_dir, 'logs/app.log'), when='D', interval=7, backupCount=3)
+    os.path.join(app_dir, 'logs/app.log'), maxBytes=1e7, backupCount=3)
 app.logger.addHandler(fh)
 
 # Learned models to serve
