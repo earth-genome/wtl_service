@@ -22,7 +22,7 @@ import shapely
 from harvest_urls import WIRE_URLS
 import news_scraper
 from request_thumbnails import PROVIDER_PARAMS
-from story_builder.story_builder import FLOYD_URL
+from story_builder.story_builder import THEMES_URL
 from utilities import firebaseio, log_utilities
 from utilities.firebaseio import ALLOWED_ORDERINGS
 from utilities.geobox import us_counties
@@ -30,7 +30,9 @@ import worker
 
 app_dir = os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
 models_dir = os.path.join(os.path.dirname(app_dir), 'saved_models')
+theme_and_filter_dir = os.path.join(models_dir, 'theme_and_filter')
 sys.path.append(models_dir)
+from theme_and_filter import oracle
 from geoloc_model import restore
 
 # App
@@ -40,19 +42,36 @@ app.config['JSON_SORT_KEYS'] = False
 
 # Logging
 fh = log_utilities.get_rotating_handler(
-    os.path.join(app_dir, 'logs/app.log'), when='D', interval=7, backupCount=3)
+    os.path.join(app_dir, 'logs/app.log'), maxBytes=1e7, backupCount=3)
 app.logger.addHandler(fh)
 
 # Learned models to serve
-locations_net, locations_graph = restore.restore()
-print(locations_net.estimator.summary())
+LOCATIONS_NET, LOCATIONS_GRAPH = restore.restore()
+print(LOCATIONS_NET.estimator.summary())
 
-KNOWN_THEMES_URL = os.path.join(FLOYD_URL, 'known_themes')
-with open('training_themes.txt') as f:
-    TRAINING_THEMES = [l.strip() for l in f.readlines()]
+hiker_net = oracle.Oracle(
+    *oracle.load(os.path.join(theme_and_filter_dir, 'RandomDeathFilter')))
+tourism_net = oracle.Oracle(
+    *oracle.load(os.path.join(theme_and_filter_dir, 'TourismFilter')))
+FILTER_NETS = [hiker_net, tourism_net]
+
+MAIN_THEMES_NET = oracle.Oracle(
+    *oracle.load(os.path.join(theme_and_filter_dir, 'MainThemes')))
+SUBTHEMES_NET = oracle.Oracle(
+    *oracle.load(os.path.join(theme_and_filter_dir, 'ClimateSubThemes')))
+
+# thresholds for running subthemes
+CLIMATE_CUT = .5
+POLLUTION_CUT = .3
+# threshold for retrieving stories based on themes
+THEMES_CUT = .5
+
+KNOWN_THEMES = MAIN_THEMES_NET.labels + SUBTHEMES_NET.labels
+with open(os.path.join(theme_and_filter_dir, 'pre1909themes.txt')) as f:
+    PRE1909_THEMES = [line.strip() for line in f]
 
 # Static geojsons for retrieving stories by U.S. state or county
-geojson_dir = os.path.join(app_dir, 'geojsons')
+geojson_dir = os.path.join(app_dir, 'static_geojsons')
 US_CSV = os.path.join(geojson_dir, 'us_county_geojson.csv')
 US_GEOJSON = os.path.join(geojson_dir, 'us_allstates.json')
 EVP_GEOJSON = os.path.join(geojson_dir, 'us_evpstates.json')
@@ -61,8 +80,6 @@ BOUNDARY_TOL = .2
 # Firebase endpoints
 DATABASE = 'story-seeds'
 DB_CATEGORY = '/WTL'
-TRAINING_DB = 'good-locations'
-TRAINING_DB_CATEGORY = '/labeled_themes'
 
 @app.route('/')
 def welcome():
@@ -79,14 +96,16 @@ def welcome():
             ''.join((request.url, 'retrieve-story?')),
         'Get a geojson for US states or counties.':
             ''.join((request.url, 'us-geojsons?')),
-        'Determine relevance of a geolocation':
+        'Endpoint for served narrow-band text classifiers':
+            ''.join((request.url, 'narrowband')),
+        'Endpoint for served geolocation classifier':
             ''.join((request.url, 'locations'))
     }
     return jsonify(msg)
 
 @app.route('/scrape')
 def scrape():
-    """Pull images given lat, lon, and scale."""
+    """Initiate scraping of news stories to build the WTL database."""
     msg = _help_msg(
         request.base_url,
         'wires=gdelt&wires=newsapi&thumbnail_source=landsat',
@@ -100,28 +119,72 @@ def scrape():
         msg['Exception'] = repr(e)
         return jsonify(msg)
 
-    kwargs.update({'served_models_url': request.url_root})
     job = q.enqueue_call(
         func=news_scraper.scraper_wrapper, args=(wires,), kwargs=kwargs)
 
     return jsonify(_format_scraping_guide())
 
+@app.route('/narrowband', methods=['GET', 'POST'])
+def serve_narrowband_models():
+    """Serve a model to apply narrow-band binary filters to a text."""
+    msg = _themes_help(request.url)
+    if request.method == 'GET':
+        return jsonify(msg), 405
+
+    try:
+        text = request.form['text']
+        outputs = [net(text) for net in FILTER_NETS]
+    except:
+        tb = traceback.format_exc()
+        app.logger.error('Applying narrow-band filters: {}'.format(tb))
+        msg.update({'Exception': tb})
+        return jsonify(msg), 400
+
+    clf = int(np.prod([o[0] for o in outputs]))
+    labels = [o[1] for o in outputs]
+    labels_merged = {l:p for labeling in labels for l,p in labeling.items()}
+    
+    return jsonify((clf, labels_merged))
+
+@app.route('/themes', methods=['GET', 'POST'])
+def serve_themes_models():
+    """Serve a model to identify themes in a text."""
+    msg = _themes_help(request.url)
+    if request.method == 'GET':
+        return jsonify(msg), 405
+
+    try:
+        text = request.form['text']
+        themes = MAIN_THEMES_NET.predict_labels(text)
+        if (themes['pollution'] > POLLUTION_CUT or
+                themes['climate crisis'] > CLIMATE_CUT):
+            themes.update(SUBTHEMES_NET.predict_labels(text))
+    except:
+        tb = traceback.format_exc()
+        app.logger.error('Applying themes: {}'.format(tb))
+        msg.update({'Exception': tb})
+        return jsonify(msg), 400
+
+    return jsonify(themes)
+    
 @app.route('/locations', methods=['GET', 'POST'])
-def classify_locations():
+def serve_locations_model():
+    """Serve a model to classify relevance of locations to a story."""
     msg = _locations_help(request.url)
     if request.method == 'GET':
         return jsonify(msg), 405
 
     try:
         locations_data = json.loads(request.form['locations_data'])
-        with locations_graph.as_default():
-            predictions = locations_net.predict_relevance(locations_data)
+        with LOCATIONS_GRAPH.as_default():
+            predictions = LOCATIONS_NET.predict_relevance(locations_data)
     except:
         tb = traceback.format_exc()
         app.logger.error('Classifying locations: {}'.format(tb))
-        return jsonify(tb), 400
+        msg.update({'Exception': tb})
+        return jsonify(msg), 400
 
-    # convert from np.float32 to float32 for JSON-serializeable output
+    # convert from np.float to float for JSON-serializeable output
     predictions = [{k:float(v) for k,v in p.items()} for p in predictions]
     return jsonify(predictions)
     
@@ -142,10 +205,20 @@ def retrieve():
         return jsonify(msg)
 
     stories = firebaseio.DB(DATABASE).grab_stories(DB_CATEGORY, **kwargs)
-    
+
     if themes:
-        stories = [s for s in stories
-                   if set(themes).intersection(s.record.get('themes', {}))]
+        # For pre-19.09.16 themes. 
+        if kwargs['endAt'] <= '2019-09-16':
+            stories = [s for s in stories
+                if set(themes).intersection(s.record.get('themes', {}))]
+        else:
+            stories_w_reqd_themes = []
+            for s in stories:
+                strong = [t for t,p in s.record.get('themes', {}).items()
+                              if p > THEMES_CUT]
+                if set(themes).intersection(strong):
+                    stories_w_reqd_themes.append(s)
+            stories = stories_w_reqd_themes
             
     if footprint:
         footprint = footprint.simplify(BOUNDARY_TOL, preserve_topology=False)
@@ -213,35 +286,6 @@ def _clean(story):
             urllib.parse.quote(story.idx))
     }
     return rec
-
-@app.route('/label')
-def label():
-    """Add theme labels to a story in WTL and post to good-locations."""
-    msg = _help_msg(
-        request.base_url,
-        'themes=pollution&themes=water&idx=Index of the story in the database',
-        {'known themes': TRAINING_THEMES})
-
-    try:
-        themes = request.args.getlist('themes')
-        if not set(themes) <= set(TRAINING_THEMES):
-            raise ValueError('One or more themes not recognized.')
-        story = _retrieve_story(request.args)
-    except ValueError as e:
-        msg['Exception'] = repr(e)
-        return jsonify(msg)
-
-    story.category = TRAINING_DB_CATEGORY
-    story.record.update({'labeled_themes': themes})
-    rec_uploaded = firebaseio.DB(TRAINING_DB).put_item(story, verbose=True)
-
-    if rec_uploaded:
-        return jsonify({
-            'Successfully posted to {}'.format(TRAINING_DB): story.idx,
-            'With labeled themes': rec_uploaded.get('labeled_themes')
-        })
-    else:
-        return jsonify({'Failed to upload': story.idx})
 
 @app.route('/us-geojsons')
 def us_geojsons():
@@ -335,14 +379,8 @@ def _parse_dates(args):
 def _parse_themes(args):
     """Parse url for themes."""
     themes = args.getlist('themes')
-    if themes:
-        try:
-            known_themes = requests.get(KNOWN_THEMES_URL).json()
-            if not set(themes) <= set(known_themes):
-                raise ValueError('One or more themes not recognized.')
-        except JSONDecodeError as e:
-            # This won't break anything, but prevents checking user input.
-            print('Parsing themes. Floydhub: {}'.format(repr(e)))
+    if not set(themes) <= set(KNOWN_THEMES + PRE1909_THEMES):
+        raise ValueError('One or more themes not recognized.')
     return themes
 
 def _get_counties(args):
@@ -406,6 +444,14 @@ def _format_scraper_args():
     }
     return scraper_args
 
+def _themes_help(url):
+    msg = {
+        'Method': 'POST a text to this endpoint as a single string.',
+        'Example': ("requests.post('{}', ".format(url) +
+                    "data = {'text':<text string>})")
+    }
+    return msg
+
 def _locations_help(url):
     msg = {
         'Method': 'POST a JSON-serialized list of locations data.',
@@ -431,7 +477,7 @@ def _format_retrieve_args():
             'filterby': 'One of {}. Defaults to {}'.format(
                 filters, next(iter(filters)))
         },
-        'known themes': KNOWN_THEMES_URL
+        'known themes': KNOWN_THEMES
     }
     scraper_args.update({
         'states and counties': request.url_root + 'us-geojsons'
