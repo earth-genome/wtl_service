@@ -15,6 +15,7 @@ Minimal usage:
 import os
 
 import re
+import numpy as np
 import watson_developer_cloud as wdc
 import watson_developer_cloud.natural_language_understanding_v1 as nlu
 
@@ -82,6 +83,7 @@ class WatsonReader(wdc.NaturalLanguageUnderstandingV1):
             'locations': self._reprocess_entities(x.get('entities', [])),
             **{k:v for k,v in x.get('metadata', {}).items() if k in META_TYPES}
         }
+        record.update({'title': self._clean_title(record['title'])})
         return record
 
     # For an experiment on water-based stories:
@@ -146,3 +148,15 @@ class WatsonReader(wdc.NaturalLanguageUnderstandingV1):
             for kw in keywords
         }
         return cleaned
+
+    def _clean_title(self, title, symbols = [' – ', ' - ', ' | '], ratio = 1.5):
+        """Check for and remove extraneous material in page title."""
+        for symbol in symbols:
+            if symbol in title:
+                pieces = title.split(symbol)
+                minimum = min([len(piece) for piece in pieces])
+                lengths = [len(piece)/minimum for piece in pieces]
+                if max(lengths) > ratio:
+                    argmax = np.argmax(lengths)
+                    title = pieces[argmax]
+        return title
