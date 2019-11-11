@@ -140,6 +140,26 @@ class WatsonReader(wdc.NaturalLanguageUnderstandingV1):
         name = re.sub(FB_FORBIDDEN_CHARS, '', entity['text'])
         return name, data
 
+    def _clean_title(self, title, symbols = [' | ', ' – ', ' - '],
+                     length_ratio = 1.5):
+        """Remove extraneous material in an article title.
+
+        Arguments:
+            title: News article title 
+            symbols: List of patterns on which to iteratively split title
+            length_ratio: Relative length factor: When the longest segment of
+                the split title is longer than the shortest by at least this 
+                factor, the longest is captured as the cleaned title. The
+                operating heuristic is that phrases extraneous to the intended
+                title (e.g. an outlet name) tend to be short.
+        """
+        for symbol in symbols:
+            pieces = title.split(symbol)
+            lengths = [len(piece) for piece in pieces]
+            if max(lengths)/min(lengths) > length_ratio:
+                title = pieces[np.argmax(lengths)]
+        return title
+
     # Legacy routine:
     def _clean_keywords(self, keywords):
         """Check forbidden characters and simplify NLU data structure."""
@@ -148,15 +168,3 @@ class WatsonReader(wdc.NaturalLanguageUnderstandingV1):
             for kw in keywords
         }
         return cleaned
-
-    def _clean_title(self, title, symbols = [' – ', ' - ', ' | '], ratio = 1.5):
-        """Check for and remove extraneous material in page title."""
-        for symbol in symbols:
-            if symbol in title:
-                pieces = title.split(symbol)
-                minimum = min([len(piece) for piece in pieces])
-                lengths = [len(piece)/minimum for piece in pieces]
-                if max(lengths) > ratio:
-                    argmax = np.argmax(lengths)
-                    title = pieces[argmax]
-        return title
