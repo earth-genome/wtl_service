@@ -13,6 +13,7 @@ services:
       - "80:5000"
     tty: true
     volumes:
+      - ./webapp:/opt/webapp
       - ./saved_models:/opt/saved_models
     logging:
       driver: "json-file"
@@ -35,5 +36,7 @@ services:
     env_file: .env
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/opt/webapp/.google_config.json
+    volumes:
+      - ./webapp:/opt/webapp
     command: python3 worker.py
 
