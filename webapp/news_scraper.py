@@ -40,6 +40,7 @@ four thumbnail worker processes.
 import aiohttp
 import asyncio
 import datetime
+from inspect import getsourcefile
 import os
 import signal
 import sys
@@ -112,9 +113,11 @@ class Scrape(object):
         if logger:
             self.logger = logger
         else:
+            logpath = os.path.join(
+                os.path.dirname(os.path.abspath(getsourcefile(lambda:0))),
+                'logs/scrape.log')
             fh = log_utilities.get_rotating_handler(
-                os.path.join(os.path.dirname(__file__), 'logs/scrape.log'),
-                maxBytes=1e7, backupCount=3)
+                logpath, maxBytes=1e7, backupCount=3)
             self.logger = log_utilities.build_logger(
                 handler=fh, level='INFO', name='scrapelog')
         self.builder = story_builder.StoryBuilder(logger=self.logger, **kwargs)
