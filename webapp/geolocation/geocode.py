@@ -70,7 +70,7 @@ class CageCode(object):
 
     def _clean(self, record):
         """Format a raw OpenCage record."""
-        try: 
+        try:
             bbox = geobox.viewport_to_shapely_box(record['bounds'])
             bounds = bbox.bounds
         except KeyError:
@@ -80,15 +80,43 @@ class CageCode(object):
             osm_url = record['annotations']['OSM']['url']
         except KeyError:
             osm_url = ''
-        
+
+        try:
+            continent = record['components']['continent']
+        except KeyError:
+            continent = None
+
         geoloc = {
-            'address': record['formatted'],
+            'address': self._format_address(record),
+            'continent': continent,
             'lat': record['geometry']['lat'],
             'lon': record['geometry']['lng'],
             'boundingbox': bounds,
             'osm_url': osm_url
         }
+
         return geoloc
+
+    def _format_address(self, record):
+        """Format address from raw OpenCage record. Helper function to _clean()."""
+
+        whitelist = ['village', 'hamlet', 'town', 'locality', 'suburb',
+                     'city', 'county', 'state_code', 'state']
+
+        formatted = record['formatted']
+        components = record['components']
+
+        keys = [k for k in whitelist
+                if k in components
+                if str(components[k]) in formatted]
+        if 'country' in components: keys.append('country')
+
+        location = [components[k] for k in keys]
+        if len(location) > 3: location = [location[0]] + location[-2:]
+
+        reformatted = ''.join(l + ', ' for l in location)[:-2]
+
+        return reformatted if reformatted else formatted
 
 def google_geocode(text, N_records=1):
     """Find lat/lon coordinates for input text.
@@ -179,5 +207,3 @@ def dbpedia_geocode(url):
         'lon': lon,
     }
     return geoloc
-
-
