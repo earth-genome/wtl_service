@@ -97,7 +97,7 @@ class CageCode(object):
 
         return geoloc
 
-    def _format_address(self, record):
+    def _format_address(record):
         """Format address from raw OpenCage record. Helper function to _clean()."""
 
         whitelist = ['village', 'hamlet', 'town', 'locality', 'suburb',
@@ -106,15 +106,17 @@ class CageCode(object):
         formatted = record['formatted']
         components = record['components']
 
-        keys = [k for k in whitelist
-                if k in components
-                if str(components[k]) in formatted]
-        if 'country' in components: keys.append('country')
+        location = [components.get(k)
+                    for k in whitelist
+                    if components.get(k, 'Null Component') in formatted]
 
-        location = [components[k] for k in keys]
-        if len(location) > 3: location = [location[0]] + location[-2:]
+        if components.get('country'):
+            location.append(components['country'])
 
-        reformatted = ''.join(l + ', ' for l in location)[:-2]
+        if len(location) > 3:
+            location = location[:1] + location[-2:]
+
+        reformatted = ', '.join(l for l in location)
 
         return reformatted if reformatted else formatted
 
