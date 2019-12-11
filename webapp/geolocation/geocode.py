@@ -81,14 +81,8 @@ class CageCode(object):
         except KeyError:
             osm_url = ''
 
-        try:
-            continent = record['components']['continent']
-        except KeyError:
-            continent = None
-
         geoloc = {
             'address': self._format_address(record),
-            'continent': continent,
             'lat': record['geometry']['lat'],
             'lon': record['geometry']['lng'],
             'boundingbox': bounds,
@@ -97,7 +91,7 @@ class CageCode(object):
 
         return geoloc
 
-    def _format_address(record):
+    def _format_address(self, record):
         """Format address from raw OpenCage record. Helper function to _clean()."""
 
         whitelist = ['village', 'hamlet', 'town', 'locality', 'suburb',
@@ -105,18 +99,20 @@ class CageCode(object):
 
         formatted = record['formatted']
         components = record['components']
-
-        location = [components.get(k)
-                    for k in whitelist
-                    if components.get(k, 'Null Component') in formatted]
+        
+        location = []
+        for k in whitelist:
+            value = components.get(k, 'Null Component')
+            if value in formatted and value not in location:
+                location.append(value)
 
         if components.get('country'):
             location.append(components['country'])
 
         if len(location) > 3:
             location = location[:1] + location[-2:]
-
-        reformatted = ', '.join(l for l in location)
+        
+        reformatted = ', '.join(location)
 
         return reformatted if reformatted else formatted
 
