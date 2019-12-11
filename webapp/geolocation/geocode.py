@@ -92,7 +92,7 @@ class CageCode(object):
         return geoloc
 
     def _format_address(self, record):
-        """Format address from raw OpenCage record. Helper function to _clean()."""
+        """Format address from raw OpenCage record."""
 
         whitelist = ['village', 'hamlet', 'town', 'locality', 'suburb',
                      'city', 'county', 'state_code', 'state']
