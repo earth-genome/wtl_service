@@ -83,7 +83,7 @@ class WatsonReader(wdc.NaturalLanguageUnderstandingV1):
             'locations': self._reprocess_entities(x.get('entities', [])),
             **{k:v for k,v in x.get('metadata', {}).items() if k in META_TYPES}
         }
-        record.update({'title': self._clean_title(record['title'])})
+        record.update({'title': self._clean_title(record.get('title', ''))})
         return record
 
     # For an experiment on water-based stories:
@@ -153,6 +153,8 @@ class WatsonReader(wdc.NaturalLanguageUnderstandingV1):
                 operating heuristic is that phrases extraneous to the intended
                 title (e.g. an outlet name) tend to be short.
         """
+        if not title:
+            return ''
         for symbol in symbols:
             pieces = title.split(symbol)
             lengths = [len(piece) for piece in pieces]
