@@ -83,7 +83,7 @@ class WatsonReader(wdc.NaturalLanguageUnderstandingV1):
             'locations': self._reprocess_entities(x.get('entities', [])),
             **{k:v for k,v in x.get('metadata', {}).items() if k in META_TYPES}
         }
-        record.update({'title': self._clean_title(record.get('title', ''))})
+        record.update({'title': self._clean_title(record.get('title'))})
         return record
 
     # For an experiment on water-based stories:
