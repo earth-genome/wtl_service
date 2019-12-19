@@ -273,7 +273,7 @@ class StoryBuilder(object):
             return {}
         
         data = next(iter(ranked))
-        keys_to_keep = ['boundingbox', 'lat', 'lon', 'mentions', 'osm_url',
-                        'map_relevance', 'text']
+        keys_to_keep = ['address', 'boundingbox', 'lat', 'lon', 'mentions',
+                        'osm_url', 'map_relevance', 'text']
         return {k:v for k,v in data.items() if k in keys_to_keep}
 
