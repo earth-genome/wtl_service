@@ -143,13 +143,16 @@ class StoryBuilder(object):
     def _abort_for_weather(self, story):
         """Determine whether to abort build based on weather signal.
 
-        Output: Pops weather from story themes if self.reject_for_class.
+        Output: Pops weather from story themes if self.reject_for_class and
+            adds it separately to story record.
 
         Returns: bool
         """
         if not self.reject_for_class:
             return False
         weather_prob = story.record.get('themes', {}).pop('weather', 0)
+        if weather_prob:
+            story.record.update({'weather': weather_prob})
         return True if weather_prob > self.weather_cut else False
 
     def assemble_content(self, url, category='/null', **metadata):
