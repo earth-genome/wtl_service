@@ -33,7 +33,7 @@ NARROWBAND_URL = os.path.join(served_models_url, 'narrowband')
 THEMES_URL = os.path.join(served_models_url, 'themes')
 GEOLOC_URL = os.path.join(served_models_url, 'locations')
 
-WEATHER_CUT = .25
+WEATHER_CUT = .15
 
 class StoryBuilder(object):
     """Parse text and/or image at url, classify story, and geolocate places
