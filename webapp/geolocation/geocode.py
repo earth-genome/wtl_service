@@ -51,7 +51,7 @@ class CageCode(object):
     """
     def __init__(self,
                  base_url='https://api.opencagedata.com/geocode/v1/json',
-                 N_records=10):
+                 N_records=40):
         self.base_url = base_url
         self.base_payload = {
             'key': os.environ['OPENCAGE_API_KEY'],
@@ -84,7 +84,8 @@ class CageCode(object):
             'lat': record['geometry']['lat'],
             'lon': record['geometry']['lng'],
             'boundingbox': bounds,
-            'osm_url': osm_url
+            'osm_url': osm_url,
+            'components': record['components']
         }
 
         return geoloc
