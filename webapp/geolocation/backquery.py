@@ -42,10 +42,12 @@ class BackQuery(object):
         normed_histogram: Return a histogram of dists, normalized by max_dist.
     """
 
-    def __init__(self, corpus=TEXT_CORPUS, threshold=.7,
+    # Try threshold=.17 or .2 w/ absolute cosine distance, w/ normed=False
+    def __init__(self, corpus=TEXT_CORPUS, threshold=.7, normed=True,
                  exclusions=EXCLUDED_ADDRESS_COMPONENTS, clean=True):
         self.corpus = corpus
         self.threshold = threshold
+        self.normed = normed
         self.exclusions = exclusions
         self.clean = clean
         self.vectorizer = None
@@ -84,14 +86,18 @@ class BackQuery(object):
         for name, geocodings in locations.items():
             ordered.update({name: self._order_by_distance(geocodings, text)})
 
-        all_distances = [g['cosine_dist'] for geocodings in locations.values()
+        all_distances = [g['cosine_dist'] for geocodings in ordered.values()
                             for g in geocodings]
+
         if not all_distances:
             if _clean:
                 self._scrub_unqualified(ordered)
             return ordered
 
         max_dist = np.max(all_distances)
+        # experiment in progress:
+        if not self.normed:
+            max_dist = 1
         for name, geocodings in ordered.items():
             dists = self.get_dists(geocodings)
             print('{}\nHistogram: {}\nNormed histogram: {}'.format(
@@ -104,7 +110,7 @@ class BackQuery(object):
             self._scrub_unqualified(selected)
             self._scrub_components(selected)
         return selected
-        
+
     def _order_by_distance(self, geocodings, text):
         """Order geocodings by cosine distance of address components to text."""
         for g in geocodings:
