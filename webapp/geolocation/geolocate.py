@@ -31,6 +31,7 @@ import numpy as np
 import requests
 from shapely import geometry
 
+from geolocation import backquery
 from geolocation import geocode
 from geolocation import geocluster
 
@@ -63,20 +64,23 @@ class Geolocate(object):
         classify_relevance: Hit served model to determine relevance of 
             locations.
     """
-    def __init__(self, geocoders=[], cluster_tool=None, model_url=None):
+    def __init__(self, geocoders=[], backquerier=None, cluster_tool=None,
+                 model_url=None):
         self.geocoders = geocoders if geocoders else [geocode.CageCode()]
+        self.backquery = backquerier if backquerier else backquery.BackQuery()
         if cluster_tool:
             self.cluster_tool = cluster_tool
         else:
             self.cluster_tool = geocluster.GrowGeoCluster()
         self.model_url = model_url
 
-    def __call__(self, places):
+    def __call__(self, places, text):
         """Geocode, cluster, and score input places.
 
         Returns: dict of locations
         """
         candidates = self.assemble_geocodings(places)
+        candidates = self.backquery(candidates, text)
         if not candidates:
             raise ValueError('No candidate coordinates found.')
         clusters = self.cluster_tool(candidates)
