@@ -3,7 +3,7 @@ config.py
 */config.py*
 .env
 webapp/.google_config.json
-webapp/static_geojsons/
+
 
 # Modules from tensorflow_hub, trained models, data, logs, etc.
 saved_models
