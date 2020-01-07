@@ -19,7 +19,7 @@ import numpy as np
 import watson_developer_cloud as wdc
 import watson_developer_cloud.natural_language_understanding_v1 as nlu
 
-from utilities.firebaseio import FB_FORBIDDEN_CHARS
+from firebaseio import FB_FORBIDDEN_CHARS
 
 AUTH_ENV_VARS = {
     'username': 'WATSON_USER',

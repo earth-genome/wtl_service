@@ -44,7 +44,7 @@ from sklearn.model_selection import cross_val_score
 from bagofwords import freezer
 from bagofwords import prep_text
 from bagofwords import prep_image
-from utilities import firebaseio
+mport firebaseio
 
 DATA_TYPES = ('text', 'image_tags')
 

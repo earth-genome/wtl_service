@@ -47,11 +47,11 @@ import sys
 import time
 import traceback
 
+import firebaseio
 import harvest_urls
+import log_utilities
 import request_thumbnails
 from story_builder import story_builder
-from utilities import firebaseio
-from utilities import log_utilities
 import track_urls
 
 # The asyncio event scheduling cannot be pickled and therefore cannot

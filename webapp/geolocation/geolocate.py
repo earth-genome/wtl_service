@@ -33,7 +33,6 @@ from shapely import geometry
 
 from geolocation import geocode
 from geolocation import geocluster
-from utilities.geobox import geobox
 
 MAX_MENTIONS = 6
 

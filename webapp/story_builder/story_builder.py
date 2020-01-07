@@ -17,11 +17,11 @@ import requests
 from sklearn.externals import joblib
 from watson_developer_cloud import WatsonApiException
 
+import firebaseio
 from geolocation import geolocate
+import log_utilities
 from story_builder import extract_text
 from story_builder import tag_image
-from utilities import firebaseio
-from utilities import log_utilities
 
 # Default classifiers
 current_dir = os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
