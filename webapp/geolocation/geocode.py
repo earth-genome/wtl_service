@@ -37,8 +37,6 @@ import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from shapely import geometry
 
-from utilities.geobox import geobox
-
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 class CageCode(object):
@@ -71,7 +69,7 @@ class CageCode(object):
     def _clean(self, record):
         """Format a raw OpenCage record."""
         try:
-            bbox = geobox.viewport_to_shapely_box(record['bounds'])
+            bbox = _viewport_to_shapely_box(record['bounds'])
             bounds = bbox.bounds
         except KeyError:
             bounds = ()
@@ -142,7 +140,7 @@ def _clean_google(raw):
     """Format a raw google record."""
     geom = raw['geometry']
     try: 
-        bounds = geobox.viewport_to_shapely_box(geom['viewport']).bounds
+        bounds = _viewport_to_shapely_box(geom['viewport']).bounds
     except KeyError:
         bounds = ()
     geoloc = {
@@ -176,7 +174,7 @@ def _clean_osm(raw):
         'address': raw['display_name'],
         'lat': float(raw['lat']),
         'lon': float(raw['lon']),
-        'boundingbox': geobox.osm_to_shapely_box(raw['boundingbox']).bounds
+        'boundingbox': _osm_to_shapely_box(raw['boundingbox']).bounds
     }
     return geoloc
 
@@ -205,3 +203,32 @@ def dbpedia_geocode(url):
         'lon': lon,
     }
     return geoloc
+
+# Bounding box conversions
+
+def _viewport_to_shapely_box(viewport):
+    """Convert a Google or OpenCage viewport to a shapely box.
+
+    Argument viewport: A viewport is a dict of form:
+        {'northeast': {'lat': -33.9806474, 'lng': 150.0169685},
+          'southwest': {'lat': -39.18316069999999, 'lng': 140.9616819}}
+
+    Returns: shapely box
+    """
+    points = geometry.asMultiPoint([[p['lng'], p['lat']]
+                                    for p in viewport.values()])
+    return geometry.box(*points.bounds)
+
+def _osm_to_shapely_box(osm_bbox):
+    """Convert a bounding box in OSM convention to a shapely box.
+
+    OSM retuns strings in order (S Lat, N Lat, W Lon, E Lon),
+        while a shapely box takes arguments:
+        shapely.geometry.box(minx, miny, maxx, maxy, ccw=True)
+
+    Arugment osm_bbox: boundingbox from an OSM record
+
+    Returns: shapely box
+    """
+    bounds = np.array(osm_bbox, dtype=float)
+    return geometry.box(*bounds[[2,0,3,1]])

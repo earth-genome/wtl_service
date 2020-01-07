@@ -19,13 +19,14 @@ import requests
 from rq import Queue
 import shapely
 
+import firebaseio
+from firebaseio import ALLOWED_ORDERINGS
 from harvest_urls import WIRE_URLS
+import log_utilities
 import news_scraper
 from request_thumbnails import PROVIDER_PARAMS
 from story_builder.story_builder import THEMES_URL
-from utilities import firebaseio, log_utilities
-from utilities.firebaseio import ALLOWED_ORDERINGS
-from utilities.geobox import us_counties
+import us_counties
 import worker
 
 app_dir = os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))

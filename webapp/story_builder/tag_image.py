@@ -15,7 +15,7 @@ import os
 
 import watson_developer_cloud as wdc
 
-from utilities.firebaseio import FB_FORBIDDEN_CHARS
+from firebaseio import FB_FORBIDDEN_CHARS
 
 API_KEY_ENV_VAR = 'WATSON_VISION_API_KEY'
 

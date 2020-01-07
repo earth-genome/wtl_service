@@ -12,8 +12,9 @@ import json
 import os
 import sys
 
+import firebaseio
 from story_builder import story_builder
-from utilities import firebaseio
+
 
 with open('themes/known_themes.txt', 'r') as f:
     KNOWN_THEMES = [l.strip() for l in f.readlines()]

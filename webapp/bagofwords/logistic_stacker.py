@@ -49,7 +49,7 @@ import numpy as np
 from sklearn.model_selection import cross_val_score
 
 from bagofwords import freezer
-from utilities import firebaseio
+import firebaseio
 
 # Until image traning database sufficiently samples possible tag words,
 # we will hand tune relative text / image weights:
