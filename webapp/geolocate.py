@@ -212,13 +212,12 @@ class BackQuery(object):
         ordered, selected = {}, {}
         for name, geocodings in locations.items():
             ordered.update({name: self._order_by_distance(geocodings, text)})
-        return ordered
     
         all_distances = [g['cosine_dist'] for geocodings in ordered.values()
                             for g in geocodings]
 
         if not all_distances:
-            if _clean:
+            if self.clean:
                 self._scrub_unqualified(ordered)
             return ordered
 
