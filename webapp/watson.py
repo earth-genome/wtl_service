@@ -1,20 +1,25 @@
-"""Uses Watson Natural Language Understanding (NLU) to extract text,
-metadata, and higher-order semantic constructs from web-based texts.
+"""Applications of IBM Watson ML to parse text and images.
 
-Class WatsonReader, descendant of wdc.NaturalLanguageUnderstandingV1:
+Class Reader, descendant of wdc.NaturalLanguageUnderstandingV1:
     External methods:
         get_text: Retrieve text and metadata from url
         get_parsed_text: Retrieve text and select features from url.
         get_sentiment: Retrieve document sentiment.
 
-Minimal usage:
-> record = WatsonReader().get_parsed_text(url)
+Usage:
+> record = Reader().get_parsed_text(url)
+
+Class Tagger, descendant of wdc.VisualRecognitionV3
+    External method: get_tags
+
+Usage: 
+> tags = Tagger().get_tags(img_url)
 
 """
 
 import os
-
 import re
+
 import numpy as np
 import watson_developer_cloud as wdc
 import watson_developer_cloud.natural_language_understanding_v1 as nlu
@@ -23,7 +28,8 @@ from firebaseio import FB_FORBIDDEN_CHARS
 
 AUTH_ENV_VARS = {
     'username': 'WATSON_USER',
-    'password': 'WATSON_PASS'
+    'password': 'WATSON_PASS',
+    'vision_api_key': 'WATSON_VISION_API_KEY'
 }
 
 META_TYPES = ['title', 'publication_date', 'image']
@@ -34,7 +40,10 @@ ENTITY_TYPES = ['Location', 'Facility', 'GeographicFeature']
 # but exclude these subtypes:
 EXCLUDED_SUBTYPES = ['Continent', 'Country', 'Region']
 
-class WatsonReader(wdc.NaturalLanguageUnderstandingV1):
+# For visual recogntion:
+EXCLUDED_TAG_WORDS = ['color']
+
+class Reader(wdc.NaturalLanguageUnderstandingV1):
     """Class to extract text, metadata, and semantic constructs from urls.
 
     Descendant external methods:
@@ -170,3 +179,47 @@ class WatsonReader(wdc.NaturalLanguageUnderstandingV1):
             for kw in keywords
         }
         return cleaned
+
+class Tagger(wdc.VisualRecognitionV3):
+    """Class to identify objects, qualities, and themes in images.
+
+    Descendant external method:
+        get_tags: Apply Watson Vision Recognition to label an image.
+
+    """
+    def __init__(self, version='2018-03-19', apikey=None):
+        if not apikey:
+            apikey = os.environ[AUTH_ENV_VARS['vision_api_key']]
+        super().__init__(version, iam_apikey=apikey)
+    
+    def get_tags(self, img_url):
+        """Apply Watson Vision Recognition to label content of image.
+    
+        Returns:  Dict of class names and relevance scores.
+        """
+        try:
+            result = self.classify(url=img_url).get_result()
+            classlist = result['images'][0]['classifiers'][0]['classes']
+        except (wdc.WatsonApiException, IndexError, KeyError) as e:
+            print('Tagging image: {}'.format(repr(e)))
+            classlist = []
+        
+        return self._clean_tags(classlist)
+
+    def _clean_tags(self, classlist):
+        """Clean classlist to various specs.
+
+        The function removes Firebase forbidden characters, simplifies the
+            data structure, and filters against EXCLUDED_TAG_WORDS.
+
+        Argument classlist: list of dicts with keys 'class' and 'score'
+
+        Returns: dict
+        """
+        tags = {
+            re.sub(FB_FORBIDDEN_CHARS, '', c['class']):c['score']
+            for c in classlist
+        }
+        for excl in EXCLUDED_TAG_WORDS:
+            tags = {k:v for k,v in tags.items() if excl not in k}
+        return tags

@@ -22,18 +22,7 @@ Usage:
           freeze_dir='/path/to/model/dir')
     (See train_from_dbs() below for default database parameters.)
 
-    To classify a DBItem story:
-    > lstack.classify_story(story)
-
-    To restore and run on a url:
-    > from sklearn.externals import joblib
-    > from extract_text import WatsonReader
-    > import firebaseio
-    > lstack = joblib.load(
-           os.path.join('/path/to/model/dir', 'latest_model.pkl'))
-    > record = {'url': url}
-    > record.update(WatsonReader().get_parsed_text(url))
-    > story = firebaseio.DBItem('/null', None, record)
+    To classify a story:
     > lstack.classify_story(story)
 
 Note: As written, this module functions only with BinaryBoWClassifier

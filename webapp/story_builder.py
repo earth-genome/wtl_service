@@ -15,16 +15,14 @@ import os
 
 import requests
 from sklearn.externals import joblib
-from watson_developer_cloud import WatsonApiException
 
 import firebaseio
 from geolocation import geolocate
 import log_utilities
-from story_builder import extract_text
-from story_builder import tag_image
+import watson
 
 # Default classifiers
-current_dir = os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
+current_dir = os.path.abspath(getsourcefile(lambda:0))
 WTL_MODEL = os.path.join(os.path.dirname(current_dir),
                          'bagofwords/Stacker_models/latest_model.pkl')
 
@@ -40,8 +38,8 @@ class StoryBuilder(object):
         mentioned.
 
     Attributes:
-        reader: instance of extract_text.WatsonReader class (required)
-        image_tagger: instance of tag_image.WatsonTagger class, or None
+        reader: instance of watson.Reader class (required)
+        image_tagger: instance of watson.Tagger class, or None
         reject_for_class: bool to abort build on negative classification 
             from any binary model
         main_model: restored bagofwords classifier or None
@@ -69,8 +67,8 @@ class StoryBuilder(object):
                  weather_cut = WEATHER_CUT,
                  geoloc_url=GEOLOC_URL,
                  logger=None):
-        self.reader = reader if reader else extract_text.WatsonReader()
-        self.image_tagger = tag_image.WatsonTagger() if parse_images else None
+        self.reader = reader if reader else watson.Reader()
+        self.image_tagger = watson.Tagger() if parse_images else None
         self.reject_for_class = reject_for_class
         
         self.main_model = joblib.load(main_model) if main_model else None
@@ -100,7 +98,7 @@ class StoryBuilder(object):
         """
         try:
             story = self.assemble_content(url, category=category, **metadata)
-        except WatsonApiException as e:
+        except watson.wdc.WatsonApiException as e:
             self.logger.warning('Assembling content: {}:\n{}'.format(e, url))
             return
 

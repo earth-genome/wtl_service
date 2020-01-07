@@ -25,7 +25,7 @@ from harvest_urls import WIRE_URLS
 import log_utilities
 import news_scraper
 from request_thumbnails import PROVIDER_PARAMS
-from story_builder.story_builder import THEMES_URL
+from story_builder import THEMES_URL
 import us_counties
 import worker
 
