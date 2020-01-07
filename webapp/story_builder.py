@@ -17,7 +17,7 @@ import requests
 from sklearn.externals import joblib
 
 import firebaseio
-from geolocation import geolocate
+import geolocate
 import log_utilities
 import watson
 
