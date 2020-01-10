@@ -119,15 +119,15 @@ class BingCode(object):
     
     def __init__(self,
                  base_url='http://dev.virtualearth.net/REST/v1/Locations?',
-                 key='At4-WWxJVsM4_1LGj754K6mzKdS3r1qaZOKpFWCCV5bn2yJuBzUoAWeNLQ_g8fSG',
                  N_records=20):
         self.base_url = base_url
         self.base_payload = {
-            'key': key,
+            'key': os.environ['BINGMAPS_API_KEY'],
             'maxResults': N_records
         }
 
     def __call__(self, place_name):
+        """Geocode place_name. Returns a list of dicts of likely codings."""
         payload = dict({'query': place_name}, **self.base_payload)
         results = requests.get(self.base_url, params=payload).json()
         return [self._clean(r)
