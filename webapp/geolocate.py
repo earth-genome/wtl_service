@@ -154,11 +154,13 @@ class BackQuery(object):
     """Class to order and select geocoded locations by matching with a text.
 
     Attributes:
-        corpus:
-        threshold:
-        exclusions:
-        clean:
-        vectorizer:
+        corpus: List of strings: The bulk of the content on which to train
+            the vectorizer
+        threshold: Minimum cosine distance to qualify a geocoding
+        exclusions: Geocoding address components to ignore
+        clean: bool: Whether to excise null geocodings and address components
+            after backquery
+        vectorizer: A bag of words model for the corpus plus input text
 
     External methods:
         __call__: Order and select from candidate geocodings by matching to 
@@ -168,13 +170,10 @@ class BackQuery(object):
         histogram: Return a histogram of dists.
         normed_histogram: Return a histogram of dists, normalized by max_dist.
     """
-
-    # Try threshold=.17 or .2 w/ absolute cosine distance, w/ normed=False
-    def __init__(self, corpus=TEXT_CORPUS, threshold=.7, normed=True,
+    def __init__(self, corpus=TEXT_CORPUS, threshold=.1, 
                  exclusions=EXCLUDED_ADDRESS_COMPONENTS, clean=True):
         self.corpus = corpus
         self.threshold = threshold
-        self.normed = normed
         self.exclusions = exclusions
         self.clean = clean
         self.vectorizer = None
@@ -193,12 +192,9 @@ class BackQuery(object):
 
         Before evaluating geocodings, self.vectorizer is relearned
         to ensure that any place names in the text are known in the
-        vocabulary.
-
-        The order parameter is cosine distance between vector representations
-        of the geocoding address data and the text. Selection is 
-        via comparison of cosine distance, normalized by the maximum 
-        across cosine distances for the set of locations, with self.threshold.
+        vocabulary. The order and selection parameter is cosine distance 
+        between vector representations of the geocoding address data and the 
+        text. 
 
         Arguments:
             locations: dict whose values are lists of candidate 
@@ -209,42 +205,24 @@ class BackQuery(object):
         Returns: A dict of locations with qualified geocodings
         """
         self._learn_vectorizer(text)
-        ordered, selected = {}, {}
-        for name, geocodings in locations.items():
-            ordered.update({name: self._order_by_distance(geocodings, text)})
-    
-        all_distances = [g['cosine_dist'] for geocodings in ordered.values()
-                            for g in geocodings]
-
-        if not all_distances:
-            if self.clean:
-                self._scrub_unqualified(ordered)
-            return ordered
-
-        max_dist = np.max(all_distances)
-        # experiment in progress:
-        if not self.normed:
-            max_dist = 1
-        for name, geocodings in ordered.items():
-            dists = self.get_dists(geocodings)
-            print('{}\nHistogram: {}\nNormed histogram: {}'.format(
-                name, self.histogram(dists),
-                self.normed_histogram(dists, max_dist)))
-            selected.update({
-                name: self._select_by_distance(geocodings, max_dist)})
+        ordered = {name: self._order(geocodings, text) for name, geocodings
+                        in locations.items()}
 
         if self.clean:
-            self._scrub_unqualified(selected)
-            self._scrub_components(selected)
-        return selected
+            self._scrub_unqualified(ordered)
+            self._scrub_components(ordered)
+        return ordered
 
-    def _order_by_distance(self, geocodings, text):
-        """Order geocodings by cosine distance of address components to text."""
+    def _order(self, geocodings, text):
+        """Select and sort geocodings by cosine distance to text."""
+        qualified = []
         for g in geocodings:
             address = self._compile_address(g.get('components', {}))
-            g.update({'cosine_dist': self.cosine(address, text)})
-        geocodings.sort(key=lambda g:g['cosine_dist'], reverse=True)
-        return geocodings
+            dist = self.cosine(address, text)
+            if dist > self.threshold:
+                qualified.append([g, dist])
+        qualified.sort(key=lambda q:q[1], reverse=True)
+        return [q[0] for q in qualified]
                 
     def cosine(self, text1, text2):
         """Vectorize texts and compute cosine distance between them.
@@ -269,22 +247,6 @@ class BackQuery(object):
                                and type(v) is str])
         return joined
 
-    def _select_by_distance(self, geocodings, max_dist):
-        """Filter geocodings by normalized cosine distance.
-
-        Arguments:
-            geocodings: List of candidate geocodings
-            max_dist: Cosine distance normalization factor
-
-        Returns: List of qualified geocodings, with cosine_dist popped
-        """
-        qualified = []
-        for g in geocodings:
-            normed_dist = g.pop('cosine_dist', 0)/max_dist
-            if normed_dist > self.threshold:
-                qualified.append(g)
-        return qualified
-
     def _scrub_unqualified(self, locations):
         """Remove locations without qualified geocodings."""
         to_pop = {n for n,g in locations.items() if not g}
@@ -297,19 +259,6 @@ class BackQuery(object):
             for g in geocodings:
                 g.pop('components', {})
 
-    ### Diagnostic utilities
-    def get_dists(self, geocodings):
-        """Extract an array of cosine distances from input geocodings."""
-        dists = [g.get('cosine_dist') for g in geocodings]
-        return np.array([d for d in dists if d is not None])
-
-    def histogram(self, dists, bins=(0,.05,.1,.15,.2,.25,.3,1)):
-        """Return a histogram of dists."""
-        return np.histogram(dists, bins=bins)[0]
-                                               
-    def normed_histogram(self, dists, max_dist, hist_range=(0,1)):
-        """Return a histogram of dists, normalized by max_dist."""
-        return np.histogram(dists/max_dist, range=hist_range)[0]
 
 class GeoCluster(object):
     """Class to cluster lat/lon coordinates.
