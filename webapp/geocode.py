@@ -114,6 +114,70 @@ class CageCode(object):
         reformatted = ', '.join(location)
 
         return reformatted if reformatted else formatted
+    
+class BingCode(object):
+    
+    def __init__(self,
+                 base_url='http://dev.virtualearth.net/REST/v1/Locations?',
+                 key='At4-WWxJVsM4_1LGj754K6mzKdS3r1qaZOKpFWCCV5bn2yJuBzUoAWeNLQ_g8fSG',
+                 N_records=20):
+        self.base_url = base_url
+        self.base_payload = {
+            'key': key,
+            'maxResults': N_records
+        }
+
+    def __call__(self, place_name):
+        payload = dict({'query': place_name}, **self.base_payload)
+        results = requests.get(self.base_url, params=payload).json()
+        return [self._clean(r)
+                for s in results.get('resourceSets', [])
+                for r in s.get('resources', [])]
+
+    def _clean(self, record):
+        """Creates results in OSM format from Bing Maps data"""
+        
+        lat, lon = record.get('point', {}).get('coordinates', [None, None])
+        
+        geoloc = {
+            'address': self._format_address(record),    
+            'lat': lat,
+            'lon': lon,
+            'boundingbox': self._format_bbox(record.get('bbox')),
+            'components': record.get('address')
+        }
+            
+        return geoloc
+
+    def _format_address(self, record,
+                        whitelist=['locality','adminDistrict2',
+                                   'adminDistrict', 'countryRegion']):
+        """Reformats address to include country"""
+
+        components = record.get('address', {})
+        
+        address = [components.get(w) for w in whitelist if components.get(w)]
+        
+        if len(address) > 3:
+            address = address[:1] + address[-2:]
+            
+        address = ', '.join(address)
+        
+        return address if address else components['formattedAddress']
+        
+    def _format_bbox(self, bounding_box):
+        """Converts bbox to OSM format for consistency with code base"""
+
+        if bounding_box:
+
+            lat = bounding_box[0], bounding_box[2]
+            lon = bounding_box[1], bounding_box[3]
+
+            return min(lon), min(lat), max(lon), max(lat)
+        
+        else:
+            
+            return []
 
 def google_geocode(text, N_records=1):
     """Find lat/lon coordinates for input text.
