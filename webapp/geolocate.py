@@ -166,9 +166,6 @@ class BackQuery(object):
         __call__: Order and select from candidate geocodings by matching to 
            a text.
         cosine: Vectorize texts and compute cosine distance between them.
-        get_dists: Extract an array of cosine distances from input geocodings.
-        histogram: Return a histogram of dists.
-        normed_histogram: Return a histogram of dists, normalized by max_dist.
     """
     def __init__(self, corpus=TEXT_CORPUS, threshold=.1, 
                  exclusions=EXCLUDED_ADDRESS_COMPONENTS, clean=True):
@@ -205,7 +202,7 @@ class BackQuery(object):
         Returns: A dict of locations with qualified geocodings
         """
         self._learn_vectorizer(text)
-        ordered = {name: self._order(geocodings, text) for name, geocodings
+        ordered = {name: self._match(geocodings, text) for name, geocodings
                         in locations.items()}
 
         if self.clean:
@@ -213,14 +210,14 @@ class BackQuery(object):
             self._scrub_components(ordered)
         return ordered
 
-    def _order(self, geocodings, text):
+    def _match(self, geocodings, text):
         """Select and sort geocodings by cosine distance to text."""
         qualified = []
         for g in geocodings:
             address = self._compile_address(g.get('components', {}))
-            dist = self.cosine(address, text)
-            if dist > self.threshold:
-                qualified.append([g, dist])
+            distance = self.cosine(address, text)
+            if distance > self.threshold:
+                qualified.append([g, distance])
         qualified.sort(key=lambda q:q[1], reverse=True)
         return [q[0] for q in qualified]
                 
