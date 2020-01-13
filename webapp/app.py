@@ -112,7 +112,9 @@ def welcome():
         'Endpoint for served narrow-band text classifiers':
             ''.join((request.url, 'narrowband')),
         'Endpoint for served geolocation classifier':
-            ''.join((request.url, 'locations'))
+            ''.join((request.url, 'locations')),
+        'Endpoint for served themes classifier':
+            ''.join((request.url, 'themes'))
     }
     return jsonify(msg)
 
@@ -183,16 +185,16 @@ def serve_themes_models():
 
     return jsonify(themes)
 
-def _check_cuts(themes, *themes_to_check):
+def _check_cuts(themes, *theme_keys_to_check):
     """Check whether any of specified themes meet the thresholds in THEME_CUTS.
 
     Arguments:
         themes: Dict of themes and their probabilities
-        themes_to_check: subset of themes keys
+        theme_keys_to_check: subset of themes keys
 
     Returns: bool
     """
-    passes = [(themes.get(t, 0) > THEME_CUTS[t]) for t in themes_to_check]
+    passes = [(themes.get(t, 0) > THEME_CUTS[t]) for t in theme_keys_to_check]
     return bool(sum(passes))
                     
 @app.route('/locations', methods=['GET', 'POST'])
