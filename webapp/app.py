@@ -194,7 +194,8 @@ def _check_cuts(themes, *theme_keys_to_check):
 
     Returns: bool
     """
-    passes = [(themes.get(t, 0) > THEME_CUTS[t]) for t in theme_keys_to_check]
+    passes = [(themes.get(t, 0) > THEME_CUTS.get(t, 1))
+                  for t in theme_keys_to_check]
     return bool(sum(passes))
                     
 @app.route('/locations', methods=['GET', 'POST'])
