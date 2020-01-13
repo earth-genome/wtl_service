@@ -60,12 +60,24 @@ MAIN_THEMES_NET = oracle.Oracle(
     *oracle.load(os.path.join(theme_and_filter_dir, 'MainThemes')))
 SUBTHEMES_NET = oracle.Oracle(
     *oracle.load(os.path.join(theme_and_filter_dir, 'ClimateSubThemes')))
+CLIMATE_NET = oracle.Oracle(
+    *oracle.load(os.path.join(theme_and_filter_dir, 'ClimateCrisisTag')))
 
 # thresholds for running subthemes
-CLIMATE_CUT = .5
-POLLUTION_CUT = .3
-# threshold for retrieving stories based on themes
-THEMES_CUT = .5
+THEME_CUTS = {
+    'climate': .5,
+    'conflict': .5,
+    'construction': .6,
+    'energy': .4,
+    'wildlands': .4,
+    'pollution': .2,
+    'fire': .5,
+    'flood': .5,
+    'glaciers': .4,
+    'oceans': .5,
+    'water': .6,
+    'climate crisis': .5
+}
 
 KNOWN_THEMES = MAIN_THEMES_NET.labels + SUBTHEMES_NET.labels
 with open(os.path.join(theme_and_filter_dir, 'pre1909themes.txt')) as f:
@@ -100,7 +112,9 @@ def welcome():
         'Endpoint for served narrow-band text classifiers':
             ''.join((request.url, 'narrowband')),
         'Endpoint for served geolocation classifier':
-            ''.join((request.url, 'locations'))
+            ''.join((request.url, 'locations')),
+        'Endpoint for served themes classifier':
+            ''.join((request.url, 'themes'))
     }
     return jsonify(msg)
 
@@ -157,9 +171,12 @@ def serve_themes_models():
     try:
         text = request.form['text']
         themes = MAIN_THEMES_NET.predict_labels(text)
-        if (themes['pollution'] > POLLUTION_CUT or
-                themes['climate crisis'] > CLIMATE_CUT):
+        if _check_cuts(themes, 'pollution', 'climate'):
             themes.update(SUBTHEMES_NET.predict_labels(text))
+        if _check_cuts(themes, *THEME_CUTS.keys()):
+            themes.update(CLIMATE_NET.predict_labels(text))
+        themes.pop('climate', 0)
+        themes.pop('not climate crisis', 0)
     except:
         tb = traceback.format_exc()
         app.logger.error('Applying themes: {}'.format(tb))
@@ -167,7 +184,20 @@ def serve_themes_models():
         return jsonify(msg), 400
 
     return jsonify(themes)
-    
+
+def _check_cuts(themes, *theme_keys_to_check):
+    """Check whether any of specified themes meet the thresholds in THEME_CUTS.
+
+    Arguments:
+        themes: Dict of themes and their probabilities
+        theme_keys_to_check: subset of themes keys
+
+    Returns: bool
+    """
+    passes = [(themes.get(t, 0) > THEME_CUTS.get(t, 1))
+                  for t in theme_keys_to_check]
+    return bool(sum(passes))
+                    
 @app.route('/locations', methods=['GET', 'POST'])
 def serve_locations_model():
     """Serve a model to classify relevance of locations to a story."""
@@ -216,7 +246,7 @@ def retrieve():
             stories_w_reqd_themes = []
             for s in stories:
                 strong = [t for t,p in s.record.get('themes', {}).items()
-                              if p > THEMES_CUT]
+                              if p > THEME_CUTS.get(t, 1)]
                 if set(themes).intersection(strong):
                     stories_w_reqd_themes.append(s)
             stories = stories_w_reqd_themes
