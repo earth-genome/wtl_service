@@ -101,6 +101,8 @@ class CageCode(object):
         location = []
         for k in whitelist:
             value = components.get(k, 'Null Component')
+            if type(value) is not str:
+                value = 'Null Component'
             if value in formatted and value not in location:
                 location.append(value)
 
