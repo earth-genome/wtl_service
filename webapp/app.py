@@ -63,7 +63,7 @@ SUBTHEMES_NET = oracle.Oracle(
 CLIMATE_NET = oracle.Oracle(
     *oracle.load(os.path.join(theme_and_filter_dir, 'ClimateCrisisTag')))
 
-# thresholds for running subthemes
+# thresholds 
 THEME_CUTS = {
     'climate': .5,
     'conflict': .5,
@@ -79,7 +79,8 @@ THEME_CUTS = {
     'climate crisis': .5
 }
 
-KNOWN_THEMES = MAIN_THEMES_NET.labels + SUBTHEMES_NET.labels
+KNOWN_THEMES = list(THEME_CUTS.keys())
+KNOWN_THEMES.remove('climate')
 with open(os.path.join(theme_and_filter_dir, 'pre1909themes.txt')) as f:
     PRE1909_THEMES = [line.strip() for line in f]
 
