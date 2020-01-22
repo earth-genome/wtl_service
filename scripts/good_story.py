@@ -12,12 +12,14 @@ import json
 import os
 import sys
 
+import requests
+
+import _env
 import firebaseio
-from story_builder import story_builder
+import story_builder
 
-
-with open('themes/known_themes.txt', 'r') as f:
-    KNOWN_THEMES = [l.strip() for l in f.readlines()]
+retrieve_notes = requests.get('http://wtl.earthrise.media/retrieve?').json()
+KNOWN_THEMES = retrieve_notes['notes']['known themes']
 
 # logfiles
 LOG_NEG = 'sat_neg_cases.txt'
@@ -28,8 +30,8 @@ LOG_TEST_NEG = 'sat_neg_test.txt'
 
 def good_story(url, themes, database, db_category, logfile):
     """Build and upload story created from url to firebase database."""
-    builder = story_builder.StoryBuilder(model=None, parse_images=True)
-    story = builder(url, category=db_category)
+    builder = story_builder.StoryBuilder(parse_images=True)
+    story = builder.assemble_content(url, category=db_category)
     story.record.update({'themes': themes})
     database.put_item(story)
     
