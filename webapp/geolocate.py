@@ -50,7 +50,7 @@ with open(os.path.join(base_dir, 'bagofwords/WTLtrainingtexts.txt')) as f:
     TEXT_CORPUS = [l.strip() for l in f]
 
 EXCLUDED_ADDRESS_COMPONENTS = ['ISO_3166-1_alpha-2', 'ISO_3166-1_alpha-3',
-    '_type', 'country_code', 'road_type', 'postcode']
+    '_category', '_type', 'country_code', 'road_type', 'postcode']
 
 MAX_MENTIONS = 6
 
