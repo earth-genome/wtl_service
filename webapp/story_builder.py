@@ -246,7 +246,7 @@ class StoryBuilder(object):
             return
         
         try:
-            locations = self.geolocator(input_places)
+            locations = self.geolocator(input_places, story.record['text'])
             story.record.update({
                 'locations': locations,
                 'core_location': self._get_core(locations)
