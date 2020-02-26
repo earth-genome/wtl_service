@@ -245,7 +245,7 @@ class StoryBuilder(object):
                     geolocate.find_mentions(data['text'], story.record['text'])
             })
         try:
-            locations = self.geolocator(input_places)
+            locations = self.geolocator(input_places, story.record['text'])
             story.record.update({'locations': locations})
         except ValueError as e:
             print('Geolocation: {}'.format(repr(e)))
