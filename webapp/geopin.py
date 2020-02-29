@@ -9,12 +9,12 @@ import numpy as np
 import pyproj
 import shapely.geometry
 
-MODEL = joblib.load('../saved_models/geoloc_model/geoloc_model200229.pkl')
+# MODEL = joblib.load('../saved_models/geoloc_model/geoloc_model200229.pkl')
 
 class GeoPin(object):
     
-    def __init__(self, model=None):
-        self.model = model if model else MODEL
+    def __init__(self, model):
+        self.model = model
         
     def __call__(self, story):
         locations = story.get('locations')
