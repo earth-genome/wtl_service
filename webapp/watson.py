@@ -94,6 +94,26 @@ class Reader(wdc.NaturalLanguageUnderstandingV1):
         }
         record.update({'title': self._clean_title(record.get('title'))})
         return record
+    
+    def parse_stored_text(self, text):
+        """Retrieve select features from text.
+
+        Features are reprocessed before being returned.
+
+        Returns: Dict 
+        """
+        detailed_response = self.analyze(
+            text=text,
+            features=nlu.Features(entities=nlu.EntitiesOptions()),
+            return_analyzed_text=True)
+        x = detailed_response.get_result()
+
+        record = {
+            'text': ' '.join(x['analyzed_text'].split()),
+            'locations': self._reprocess_entities(x.get('entities', [])),
+            **{k:v for k,v in x.get('metadata', {}).items() if k in META_TYPES}
+        }
+        return record
 
     # For an experiment on water-based stories:
     def get_sentiment(self, url):
