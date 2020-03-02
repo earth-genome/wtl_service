@@ -97,11 +97,9 @@ class Geolocate(object):
         Returns: dict of locations
         """
         candidates = self.assemble_geocodings(places)
-        if not candidates:
-            raise ValueError('No candidate coordinates found.')
         candidates = self.backquery(candidates, text)
         if not candidates:
-            return candidates
+            raise ValueError('No candidate coordinates found.')
         clusters = self.cluster_tool(candidates)
 
         for cluster in clusters:
