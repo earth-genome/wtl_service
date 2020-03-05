@@ -202,6 +202,7 @@ class BackQuery(object):
         Returns: A dict of locations with qualified geocodings
         """
         self._learn_vectorizer(text)
+        locations = json.loads(json.dumps(locations))
         ordered = {name: self._match(geocodings, text) for name, geocodings
                         in locations.items()}
 
