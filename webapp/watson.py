@@ -67,18 +67,15 @@ class Reader(wdc.NaturalLanguageUnderstandingV1):
             return_analyzed_text=True)
         x = detailed_response.get_result()
 
-        text = ' '.join(x['analyzed_text'].split())
-        metadata = {k:v for k,v in x.get('metadata', {}).items()
-                        if k in META_TYPES}
-        return text, metadata
+        record = {
+            'text': ' '.join(x['analyzed_text'].split()),
+            **{k:v for k,v in x.get('metadata', {}).items() if k in META_TYPES}
+        }
+        record.update({'title': self._clean_title(record.get('title'))})
+        return record
 
     def get_parsed_text(self, url):
-        """Retrieve text and select features from url.
-
-        Features are reprocessed before being returned.
-
-        Returns: Dict 
-        """
+        """Retrieve text and select features from url."""
         detailed_response = self.analyze(
             url=url,
             features=nlu.Features(
@@ -95,13 +92,23 @@ class Reader(wdc.NaturalLanguageUnderstandingV1):
         record.update({'title': self._clean_title(record.get('title'))})
         return record
 
+    def get_entities(self, url):
+        """Retrieve entities from document."""
+        detailed_response = self.analyze(
+            url=url,
+            features=nlu.Features(entities=nlu.EntitiesOptions()),
+            return_analyzed_text=False)
+        x = detailed_response.get_result()
+
+        entities = self._reprocess_entities(x.get('entities', []))
+        return entities
+
     # For an experiment on water-based stories:
     def get_sentiment(self, url):
         """Retrieve document sentiment."""
         detailed_response = self.analyze(
             url=url,
-            features=nlu.Features(
-                sentiment=nlu.SentimentOptions()),
+            features=nlu.Features(sentiment=nlu.SentimentOptions()),
             return_analyzed_text=False)
         x = detailed_response.get_result()
     

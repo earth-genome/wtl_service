@@ -120,9 +120,9 @@ class StoryBuilder(object):
         except requests.RequestException as e:
             self.logger.warning('During themes: {}:\n{}'.format(e, url))
             
-        try: 
+        try:
             self.run_geolocation(story)
-        except requests.RequestException as e:
+        except (watson.wdc.WatsonApiException, requests.RequestException) as e:
             self.logger.warning('During geolocation: {}:\n{}'.format(e, url))
 
         return story
@@ -168,7 +168,7 @@ class StoryBuilder(object):
         record.update({
             'scrape_date': datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
         })
-        record.update(self.reader.get_parsed_text(url))
+        record.update(self.reader.get_text(url))
 
         if self.image_tagger and record.get('image'):
             record.update({
@@ -235,28 +235,26 @@ class StoryBuilder(object):
 
         Output: Updates story with 'locations' and possible 'core_location'
         """
-        input_places = story.record.get('locations', {})
-        if not self.geolocator or not input_places:
-            return
-        
+        input_places = self.reader.get_entities(story.record['url'])
         for name, data in input_places.items():
             data.update({
                 'mentions':
                     geolocate.find_mentions(data['text'], story.record['text'])
             })
+        story.record.update({'locations': input_places})
+        if not self.geolocator or not input_places:
+            return
+        
         try:
             locations = self.geolocator(input_places)
-            story.record.update({'locations': locations})
+            story.record.update({
+                'locations': locations,
+                'core_location': self._get_core(locations)
+            })
         except ValueError as e:
             print('Geolocation: {}'.format(repr(e)))
-            return 
         except requests.RequestException:
             raise
-
-        story.record.update({
-            'core_location': self._get_core(story.record.get('locations', {}))
-        })
-        return
         
     def _get_core(self, locations):
         """Return a cleaned version of the most relevant location."""
