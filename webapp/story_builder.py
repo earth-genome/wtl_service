@@ -98,7 +98,7 @@ class StoryBuilder(object):
         """
         try:
             story = self.assemble_content(url, category=category, **metadata)
-        except watson.wdc.WatsonApiException as e:
+        except watson.ibm_watson.ApiException as e:
             self.logger.warning('Assembling content: {}:\n{}'.format(e, url))
             return
 
@@ -122,7 +122,7 @@ class StoryBuilder(object):
             
         try:
             self.run_geolocation(story)
-        except (watson.wdc.WatsonApiException, requests.RequestException) as e:
+        except (watson.ibm_watson.ApiException, requests.RequestException) as e:
             self.logger.warning('During geolocation: {}:\n{}'.format(e, url))
 
         return story

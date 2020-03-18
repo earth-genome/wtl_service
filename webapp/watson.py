@@ -1,6 +1,6 @@
 """Applications of IBM Watson ML to parse text and images.
 
-Class Reader, descendant of wdc.NaturalLanguageUnderstandingV1:
+Class Reader, descendant of ibm_watson.NaturalLanguageUnderstandingV1:
     External methods:
         get_text: Retrieve text and metadata from url
         get_parsed_text: Retrieve text and select features from url.
@@ -9,7 +9,7 @@ Class Reader, descendant of wdc.NaturalLanguageUnderstandingV1:
 Usage:
 > record = Reader().get_parsed_text(url)
 
-Class Tagger, descendant of wdc.VisualRecognitionV3
+Class Tagger, descendant of ibm_watson.VisualRecognitionV3
     External method: get_tags
 
 Usage: 
@@ -21,14 +21,14 @@ import os
 import re
 
 import numpy as np
-import watson_developer_cloud as wdc
-import watson_developer_cloud.natural_language_understanding_v1 as nlu
+from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
+import ibm_watson
+import ibm_watson.natural_language_understanding_v1 as nlu
 
 from firebaseio import FB_FORBIDDEN_CHARS
 
 AUTH_ENV_VARS = {
-    'username': 'WATSON_USER',
-    'password': 'WATSON_PASS',
+    'language_api_key': 'WATSON_LANGUAGE_API_KEY',
     'vision_api_key': 'WATSON_VISION_API_KEY'
 }
 
@@ -43,7 +43,7 @@ EXCLUDED_SUBTYPES = ['Continent', 'Country', 'Region']
 # For visual recogntion:
 EXCLUDED_TAG_WORDS = ['color']
 
-class Reader(wdc.NaturalLanguageUnderstandingV1):
+class Reader(ibm_watson.NaturalLanguageUnderstandingV1):
     """Class to extract text, metadata, and semantic constructs from urls.
 
     Descendant external methods:
@@ -52,12 +52,11 @@ class Reader(wdc.NaturalLanguageUnderstandingV1):
         get_sentiment: Retrieve document sentiment.
 
     """
-    def __init__(self, version='2018-03-16', username=None, password=None):
-        if not username:
-            username = os.environ[AUTH_ENV_VARS['username']]
-        if not password:
-            password = os.environ[AUTH_ENV_VARS['password']]
-        super().__init__(version=version, username=username, password=password)
+    def __init__(self, version='2018-03-16', apikey=None):
+        if not apikey:
+            apikey = os.environ[AUTH_ENV_VARS['language_api_key']]
+        super().__init__(
+            version=version, authenticator=IAMAuthenticator(apikey))
     
     def get_text(self, url):
         """Retrieve text and metadata from url."""
@@ -187,7 +186,7 @@ class Reader(wdc.NaturalLanguageUnderstandingV1):
         }
         return cleaned
 
-class Tagger(wdc.VisualRecognitionV3):
+class Tagger(ibm_watson.VisualRecognitionV3):
     """Class to identify objects, qualities, and themes in images.
 
     Descendant external method:
@@ -197,7 +196,8 @@ class Tagger(wdc.VisualRecognitionV3):
     def __init__(self, version='2018-03-19', apikey=None):
         if not apikey:
             apikey = os.environ[AUTH_ENV_VARS['vision_api_key']]
-        super().__init__(version, iam_apikey=apikey)
+        super().__init__(
+            version=version, authenticator=IAMAuthenticator(apikey))
     
     def get_tags(self, img_url):
         """Apply Watson Vision Recognition to label content of image.
@@ -207,7 +207,7 @@ class Tagger(wdc.VisualRecognitionV3):
         try:
             result = self.classify(url=img_url).get_result()
             classlist = result['images'][0]['classifiers'][0]['classes']
-        except (wdc.WatsonApiException, IndexError, KeyError) as e:
+        except (ibm_watson.ApiException, IndexError, KeyError) as e:
             print('Tagging image: {}'.format(repr(e)))
             classlist = []
         
