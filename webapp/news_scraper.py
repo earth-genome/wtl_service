@@ -42,6 +42,7 @@ import asyncio
 import datetime
 from inspect import getsourcefile
 import os
+import random
 import signal
 import sys
 import time
@@ -93,16 +94,18 @@ class Scrape(object):
     """
 
     def __init__(
-        self, batch_size=20, thumbnail_source=None, http_timeout=1200,
-        database=None, url_tracker=None, logger=None, **kwargs):
+        self, batch_size=20, max_urls=None, http_timeout=1200,
+        thumbnail_source=None, database=None, url_tracker=None, logger=None,
+        **kwargs):
 
         self.batch_size = batch_size
+        self.max_urls = max_urls
+        self.timeout = aiohttp.ClientTimeout(total=http_timeout)
         if thumbnail_source:
             self.thumbnail_grabber = request_thumbnails.RequestThumbnails(
                 thumbnail_source)
         else:
             self.thumbnail_grabber = None
-        self.timeout = aiohttp.ClientTimeout(total=http_timeout)
 
         # (basically) fixed utilities
         self.database = database if database else firebaseio.DB('story-seeds')
@@ -180,7 +183,8 @@ class Scrape(object):
                 
         fresh_urls = self.url_tracker.find_fresh([r['url'] for r in records])
         records = [r for r in records if r['url'] in fresh_urls]
-        return records
+        random.shuffle(records)
+        return records[:self.max_urls]
 
     def _log_exceptions(self, results):
         """Log exceptions returned from asyncio.gather.

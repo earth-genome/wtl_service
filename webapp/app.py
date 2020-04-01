@@ -344,6 +344,7 @@ def _parse_scrape_params(args):
     wires = args.getlist('wires')
     kwargs = {
         'batch_size': args.get('batch_size', type=int),
+        'max_urls': args.get('max_urls', type=int),
         'parse_images': args.get('parse_images', type=inputs.boolean),
         'thumbnail_source': args.get('thumbnail_source'),
         'thumbnail_timeout': args.get('thumbnail_timeout')
@@ -470,6 +471,7 @@ def _format_scraper_args():
             'thumbnail_timeout': 'Integer number of seconds',
             'batch_size': ('Integer number of records to gather for ' +
                 'asynchronous processing.'),
+            'max_urls': 'Integer max number of URLs to process.',
             'parse_images': ('True/False whether to include images from ' +
                              'news stories in their classification.') 
         }
