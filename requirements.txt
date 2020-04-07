@@ -20,3 +20,4 @@ pandas==0.24.1
 tensorflow==1.14.0
 tensorflow_hub==0.1.1
 keras==2.2.4
+boilerpipe3==1.1

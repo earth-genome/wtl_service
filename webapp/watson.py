@@ -15,15 +15,21 @@ Class Tagger, descendant of ibm_watson.VisualRecognitionV3
 Usage: 
 > tags = Tagger().get_tags(img_url)
 
+Class PreReader: 
+    External method: get_text: Retrieve text from url.
+Included because Watson is expensive. Uses the open-source boilerplate package.
+
 """
 
 import os
 import re
 
-import numpy as np
+import boilerpipe.extract
+import ibm_cloud_sdk_core
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 import ibm_watson
 import ibm_watson.natural_language_understanding_v1 as nlu
+import numpy as np
 
 from firebaseio import FB_FORBIDDEN_CHARS
 
@@ -43,6 +49,20 @@ EXCLUDED_SUBTYPES = ['Continent', 'Country', 'Region']
 # For visual recogntion:
 EXCLUDED_TAG_WORDS = ['color']
 
+WATSON_EXCEPTIONS = (ibm_watson.ApiException,
+                     ibm_cloud_sdk_core.api_exception.ApiException)
+
+class PreReader(object):
+    """Class for simple open-source text extraction."""
+    def __init__(self, extractor='ArticleSentencesExtractor'): 
+        self.extractor = extractor 
+        
+    def get_text(self, url):
+        """Retrieve text from url."""
+        ex = boilerpipe.extract.Extractor(extractor=self.extractor, url=url)  
+        record = {'text': ' '.join(ex.getText().split())}
+        return record
+    
 class Reader(ibm_watson.NaturalLanguageUnderstandingV1):
     """Class to extract text, metadata, and semantic constructs from urls.
 
@@ -207,7 +227,7 @@ class Tagger(ibm_watson.VisualRecognitionV3):
         try:
             result = self.classify(url=img_url).get_result()
             classlist = result['images'][0]['classifiers'][0]['classes']
-        except (ibm_watson.ApiException, IndexError, KeyError) as e:
+        except (*WATSON_EXCEPTIONS, IndexError, KeyError) as e:
             print('Tagging image: {}'.format(repr(e)))
             classlist = []
         

@@ -38,7 +38,8 @@ class StoryBuilder(object):
         mentioned.
 
     Attributes:
-        reader: instance of watson.Reader class (required)
+        prereader: instance of watson.PreReader class 
+        reader: instance of watson.Reader class
         image_tagger: instance of watson.Tagger class, or None
         reject_for_class: bool to abort build on negative classification 
             from any binary model
@@ -58,6 +59,7 @@ class StoryBuilder(object):
         run_geolocation: Geolocate places mentioned in story.
     """
     def __init__(self,
+                 prereader=None,
                  reader=None,
                  parse_images=False,
                  reject_for_class=True,
@@ -67,6 +69,7 @@ class StoryBuilder(object):
                  weather_cut = WEATHER_CUT,
                  geoloc_url=GEOLOC_URL,
                  logger=None):
+        self.prereader = prereader if prereader else watson.PreReader()
         self.reader = reader if reader else watson.Reader()
         self.image_tagger = watson.Tagger() if parse_images else None
         self.reject_for_class = reject_for_class
@@ -97,8 +100,16 @@ class StoryBuilder(object):
         Returns: a firebaseio.DBItem story on success, or None
         """
         try:
+            clf = self.prescreen(url)
+            if self._abort(clf):
+                return
+        except Exception as e:
+            self.logger.warning('Pre-screen: {}:\n{}'.format(e, url))
+            return
+        
+        try:
             story = self.assemble_content(url, category=category, **metadata)
-        except watson.ibm_watson.ApiException as e:
+        except watson.WATSON_EXCEPTIONS as e:
             self.logger.warning('Assembling content: {}:\n{}'.format(e, url))
             return
 
@@ -122,7 +133,7 @@ class StoryBuilder(object):
             
         try:
             self.run_geolocation(story)
-        except (watson.ibm_watson.ApiException, requests.RequestException) as e:
+        except requests.RequestException as e:
             self.logger.warning('During geolocation: {}:\n{}'.format(e, url))
 
         return story
@@ -153,6 +164,13 @@ class StoryBuilder(object):
             story.record.update({'weather': weather_prob})
         return True if weather_prob > self.weather_cut else False
 
+    def prescreen(self, url, category='/null', title='Prescreen'):
+        """Scrape text cheaply for a first classification.""" 
+        record = {'url': url, 'title': title}
+        record.update(self.prereader.get_text(url))
+        story = firebaseio.DBItem(category, None, record)
+        return self.classify(story)
+        
     def assemble_content(self, url, category='/null', **metadata):
         """Assemble parsed url content into a basic story.
 
@@ -168,7 +186,7 @@ class StoryBuilder(object):
         record.update({
             'scrape_date': datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
         })
-        record.update(self.reader.get_text(url))
+        record.update(self.reader.get_parsed_text(url))
 
         if self.image_tagger and record.get('image'):
             record.update({
@@ -235,15 +253,15 @@ class StoryBuilder(object):
 
         Output: Updates story with 'locations' and possible 'core_location'
         """
-        input_places = self.reader.get_entities(story.record['url'])
+        input_places = story.record.get('locations', {})
+        if not self.geolocator or not input_places:
+            return
+        
         for name, data in input_places.items():
             data.update({
                 'mentions':
                     geolocate.find_mentions(data['text'], story.record['text'])
             })
-        story.record.update({'locations': input_places})
-        if not self.geolocator or not input_places:
-            return
         
         try:
             locations = self.geolocator(input_places)
@@ -252,7 +270,7 @@ class StoryBuilder(object):
                 'core_location': self._get_core(locations)
             })
         except ValueError as e:
-            print('Geolocation: {}'.format(repr(e)))
+            self.logger.warning('Geolocation: {}'.format(repr(e)))
         except requests.RequestException:
             raise
         
