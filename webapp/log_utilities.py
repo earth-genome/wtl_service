@@ -9,8 +9,6 @@ def build_logger(handler=None, level='WARNING', name=None):
     logger = logging.getLogger(name)
     logger.setLevel(level)
     if handler:
-        handler.setFormatter(
-            logging.Formatter(fmt='%(asctime)s %(levelname)-8s %(message)s'))
         logger.addHandler(handler)
     return logger
 
@@ -26,7 +24,10 @@ def get_rotating_handler(logfile, **kwargs):
     logdir = os.path.dirname(logfile)
     if not os.path.exists(logdir):
         os.mkdir(logdir)
-    return logging.handlers.RotatingFileHandler(logfile, **kwargs)
+    handler = logging.handlers.RotatingFileHandler(logfile, **kwargs)
+    handler.setFormatter(
+            logging.Formatter(fmt='%(asctime)s %(levelname)-8s %(message)s'))
+    return handler
 
 def get_stream_handler(stream=sys.stderr):
     return logging.StreamHandler(stream)
