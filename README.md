@@ -12,7 +12,7 @@ A number of out-of-repo files are required or required for full functionality:
   * webapp/.google_config.json
 
 * Various learned models to be served. All are loaded exclusively through app.py (see therein) and stashed in:
-  * saved_models/
+  * models/
 
 * U.S. state geojsons to retrive stories by state or county
   * webapp/static_geojsons/us_county_geojson.csv
