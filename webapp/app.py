@@ -50,16 +50,16 @@ app.logger.addHandler(fh)
 LOCATIONS_NET, LOCATIONS_GRAPH = restore.restore()
 print(LOCATIONS_NET.estimator.summary())
 
-hiker_net = oracle.Oracle(*oracle.load('hiker', theme_and_filter_dir)
-tourism_net = oracle.Oracle(*oracle.load('tourism', theme_and_filter_dir)
+hiker_net = oracle.Oracle(*oracle.load('hiker', theme_and_filter_dir))
+tourism_net = oracle.Oracle(*oracle.load('tourism', theme_and_filter_dir))
 FILTER_NETS = [hiker_net, tourism_net]
 
 MAIN_THEMES_NET = oracle.Oracle(
-    *oracle.load('main_themes', theme_and_filter_dir)
+    *oracle.load('main_themes', theme_and_filter_dir))
 SUBTHEMES_NET = oracle.Oracle(
-    *oracle.load('climate_subthemes', theme_and_filter_dir)
+    *oracle.load('climate_subthemes', theme_and_filter_dir))
 CLIMATE_NET = oracle.Oracle(
-    *oracle.load('narrowband_climate',theme_and_filter_dir)
+    *oracle.load('narrowband_climate',theme_and_filter_dir))
 
 # thresholds 
 THEME_CUTS = {
