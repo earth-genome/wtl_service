@@ -30,7 +30,7 @@ import us_counties
 import worker
 
 app_dir = os.path.dirname(os.path.abspath(getsourcefile(lambda:0)))
-models_dir = os.path.join(os.path.dirname(app_dir), 'saved_models')
+models_dir = os.path.join(os.path.dirname(app_dir), 'models')
 theme_and_filter_dir = os.path.join(models_dir, 'theme_and_filter')
 sys.path.append(models_dir)
 from theme_and_filter import oracle
@@ -50,18 +50,16 @@ app.logger.addHandler(fh)
 LOCATIONS_NET, LOCATIONS_GRAPH = restore.restore()
 print(LOCATIONS_NET.estimator.summary())
 
-hiker_net = oracle.Oracle(
-    *oracle.load(os.path.join(theme_and_filter_dir, 'RandomDeathFilter')))
-tourism_net = oracle.Oracle(
-    *oracle.load(os.path.join(theme_and_filter_dir, 'TourismFilter')))
+hiker_net = oracle.Oracle(*oracle.load('hiker', theme_and_filter_dir)
+tourism_net = oracle.Oracle(*oracle.load('tourism', theme_and_filter_dir)
 FILTER_NETS = [hiker_net, tourism_net]
 
 MAIN_THEMES_NET = oracle.Oracle(
-    *oracle.load(os.path.join(theme_and_filter_dir, 'MainThemes')))
+    *oracle.load('main_themes', theme_and_filter_dir)
 SUBTHEMES_NET = oracle.Oracle(
-    *oracle.load(os.path.join(theme_and_filter_dir, 'ClimateSubThemes')))
+    *oracle.load('climate_subthemes', theme_and_filter_dir)
 CLIMATE_NET = oracle.Oracle(
-    *oracle.load(os.path.join(theme_and_filter_dir, 'ClimateCrisisTag')))
+    *oracle.load('narrowband_climate',theme_and_filter_dir)
 
 # thresholds 
 THEME_CUTS = {

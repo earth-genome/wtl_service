@@ -14,7 +14,7 @@ services:
     tty: true
     volumes:
       - ./webapp:/opt/webapp
-      - ./saved_models:/opt/saved_models
+      - ./models:/opt/models
     logging:
       driver: "json-file"
       options:
