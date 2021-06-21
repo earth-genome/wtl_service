@@ -1,0 +1,6 @@
+fire
+flood
+glaciers
+oceans
+water
+weather
