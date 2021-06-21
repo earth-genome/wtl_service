@@ -11,7 +11,6 @@ It is expected that the model is saved as a *.hdf5 file, with a correspondingly 
 import glob
 from inspect import getsourcefile
 import os
-import re
 
 import numpy as np
 from sklearn.externals import joblib
