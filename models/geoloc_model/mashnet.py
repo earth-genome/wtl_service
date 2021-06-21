@@ -43,12 +43,12 @@ from inspect import getsourcefile
 import os
 import sys
 
+from keras.callbacks import ModelCheckpoint, TensorBoard
 import numpy as np
 import pyproj
 import shapely.geometry
 from sklearn.externals import joblib
 from sklearn.preprocessing import LabelBinarizer
-from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard
 
 MAX_MENTIONS = 6
 
