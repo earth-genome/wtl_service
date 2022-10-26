@@ -35,6 +35,7 @@ from firebaseio import FB_FORBIDDEN_CHARS
 
 AUTH_ENV_VARS = {
     'language_api_key': 'WATSON_LANGUAGE_API_KEY',
+    'language_service_url': 'WATSON_LANGUAGE_SERVICE_URL',
     'vision_api_key': 'WATSON_VISION_API_KEY'
 }
 
@@ -72,17 +73,20 @@ class Reader(ibm_watson.NaturalLanguageUnderstandingV1):
         get_sentiment: Retrieve document sentiment.
 
     """
-    def __init__(self, version='2018-03-16', apikey=None):
+    def __init__(self, version='2018-03-16', apikey=None, service_url=None):
         if not apikey:
             apikey = os.environ[AUTH_ENV_VARS['language_api_key']]
         super().__init__(
             version=version, authenticator=IAMAuthenticator(apikey))
+        if not service_url:
+            service_url = os.environ[AUTH_ENV_VARS['language_service_url']]
+        self.set_service_url(service_url)
     
     def get_text(self, url):
         """Retrieve text and metadata from url."""
         detailed_response = self.analyze(
             url=url,
-            features=nlu.Features(metadata=nlu.MetadataOptions()),
+            features=nlu.Features(metadata={}),
             return_analyzed_text=True)
         x = detailed_response.get_result()
 
@@ -97,9 +101,7 @@ class Reader(ibm_watson.NaturalLanguageUnderstandingV1):
         """Retrieve text and select features from url."""
         detailed_response = self.analyze(
             url=url,
-            features=nlu.Features(
-                metadata=nlu.MetadataOptions(),
-                entities=nlu.EntitiesOptions()),
+            features=nlu.Features(metadata={}, entities=nlu.EntitiesOptions()),
             return_analyzed_text=True)
         x = detailed_response.get_result()
 
@@ -134,8 +136,6 @@ class Reader(ibm_watson.NaturalLanguageUnderstandingV1):
         sentiment = x['sentiment']['document']
         return {sentiment['label']: sentiment['score']}
 
-    # Routines to reprocess Watson output:
-    
     def _reprocess_entities(self, entities):
         """Filter entities and simplify data structure.
 
@@ -197,16 +197,11 @@ class Reader(ibm_watson.NaturalLanguageUnderstandingV1):
                 title = pieces[np.argmax(lengths)]
         return title
 
-    # Legacy routine:
-    def _clean_keywords(self, keywords):
-        """Check forbidden characters and simplify NLU data structure."""
-        cleaned = {
-            re.sub(FB_FORBIDDEN_CHARS, '', kw['text']): kw['relevance']
-            for kw in keywords
-        }
-        return cleaned
+# Note: IBM has cancelled their VisualRecognition service and this
+# no longer functions.
 
-class Tagger(ibm_watson.VisualRecognitionV3):
+# class Tagger(ibm_watson.VisualRecognitionV3):
+class Tagger():
     """Class to identify objects, qualities, and themes in images.
 
     Descendant external method:
@@ -214,6 +209,10 @@ class Tagger(ibm_watson.VisualRecognitionV3):
 
     """
     def __init__(self, version='2018-03-19', apikey=None):
+        
+        memo = 'IBM Visual Recognition service has been cancelled.'
+        raise NotImplementedError(memo)
+    
         if not apikey:
             apikey = os.environ[AUTH_ENV_VARS['vision_api_key']]
         super().__init__(
