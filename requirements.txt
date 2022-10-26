@@ -8,7 +8,7 @@ nltk==3.4
 geopy==1.18.0
 shapely==1.6.4
 pyproj==1.9.5.1
-aiohttp==3.4.4
+aiohttp==3.8.1
 gunicorn==19.9.0
 Flask==1.0.2
 flask_restful==0.3.6
